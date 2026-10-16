@@ -1,0 +1,2 @@
+import { AppShell } from "../../../../components/app-shell"; import { DocumentForm } from "../../../../components/forms";
+export default function NewSupportDocument() { return <AppShell title="Nuevo documento soporte" subtitle="Registra la adquisición a un proveedor no obligado a facturar electrónicamente."><div className="page-content"><div className="compliance-note"><b>Documento soporte</b><span>Verifica la identificación del proveedor y las responsabilidades tributarias antes de emitir.</span></div><DocumentForm support /></div></AppShell> }

@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: betel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: betel
+      POSTGRES_PASSWORD: betel_local
+      POSTGRES_DB: betel
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U betel -d betel"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - betel_postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init/01-application-role.sql:/docker-entrypoint-initdb.d/01-application-role.sql:ro
+volumes:
+  betel_postgres:

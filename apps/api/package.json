@@ -1,0 +1,21 @@
+{
+  "name": "@betel/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=../../.env src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/**/*.test.ts"
+  },
+  "dependencies": {
+    "@betel/db": "workspace:*",
+    "@betel/contracts": "workspace:*",
+    "@fastify/cors": "latest",
+    "@fastify/jwt": "latest",
+    "fastify": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": { "@types/node": "latest", "tsx": "latest", "typescript": "5.9.3" }
+}

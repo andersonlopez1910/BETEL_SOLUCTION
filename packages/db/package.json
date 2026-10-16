@@ -1,0 +1,10 @@
+{
+  "name": "@betel/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/client.ts" },
+  "scripts": { "generate": "prisma generate", "push": "prisma db push", "rls": "node scripts/apply-rls.mjs", "typecheck": "tsc --noEmit" },
+  "dependencies": { "@prisma/client": "6.19.3" },
+  "devDependencies": { "@types/node": "latest", "prisma": "6.19.3", "typescript": "5.9.3" }
+}

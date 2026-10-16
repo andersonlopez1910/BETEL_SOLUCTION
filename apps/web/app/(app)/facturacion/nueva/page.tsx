@@ -1,0 +1,2 @@
+import { AppShell } from "../../../../components/app-shell"; import { DocumentForm } from "../../../../components/forms";
+export default function NewInvoice() { return <AppShell title="Nueva factura de venta" subtitle="Crea el borrador, valida los valores y transmite solamente cuando todo esté correcto."><div className="page-content"><div className="compliance-note"><b>Entorno seguro</b><span>La transmisión electrónica exige una resolución de facturación activa y una integración DIAN configurada.</span></div><DocumentForm /></div></AppShell> }

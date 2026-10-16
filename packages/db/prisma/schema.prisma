@@ -1,0 +1,382 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PartyKind {
+  PERSON
+  COMPANY
+}
+enum MembershipRole {
+  OWNER
+  ADMIN
+  ACCOUNTANT
+  SALES
+  SUPPORT
+  VIEWER
+}
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  ACCEPTED
+  REJECTED
+  VOID
+  OVERDUE
+}
+enum ElectronicDocumentKind {
+  SALES_INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+  SUPPORT_DOCUMENT
+  SUPPORT_ADJUSTMENT
+}
+enum DianTransmissionStatus {
+  PENDING
+  QUEUED
+  SENT
+  ACCEPTED
+  REJECTED
+  ERROR
+}
+enum PaymentTerm {
+  CASH
+  CREDIT
+}
+enum NotificationKind {
+  DIAN
+  ACTION
+  PAYMENT
+  CALENDAR
+  SECURITY
+  SYSTEM
+}
+enum EventType {
+  TASK
+  MEETING
+  DEADLINE
+  DIAN_DUE_DATE
+}
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+enum JournalStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+model Organization {
+  id                 String              @id @default(uuid())
+  legalName          String
+  tradeName          String?
+  nit                String              @unique
+  verificationDigit  String?
+  email              String?
+  phone              String?
+  address            String?
+  municipalityCode   String?
+  timezone           String              @default("America/Bogota")
+  currency           String              @default("COP")
+  dianEnabled        Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  memberships        Membership[]
+  parties            Party[]
+  products           Product[]
+  invoices           Invoice[]
+  documentSupports   SupportDocument[]
+  electronicEvents   ElectronicEvent[]
+  calendarEvents     CalendarEvent[]
+  notifications      Notification[]
+  chartOfAccounts    Account[]
+  journalEntries     JournalEntry[]
+  auditLogs          AuditLog[]
+  legalDocuments     LegalDocument[]
+  subscriptions      Subscription[]
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  displayName  String
+  phone        String?
+  avatarUrl    String?
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  memberships  Membership[]
+  events       CalendarEvent[] @relation("EventOwner")
+  notifications Notification[]
+  auditLogs    AuditLog[]
+}
+
+model Membership {
+  id             String          @id @default(uuid())
+  organizationId String
+  userId         String
+  role           MembershipRole  @default(VIEWER)
+  createdAt      DateTime        @default(now())
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, userId])
+}
+
+model Party {
+  id                   String       @id @default(uuid())
+  organizationId       String
+  kind                 PartyKind
+  identificationType   String
+  identificationNumber String
+  verificationDigit    String?
+  legalName            String
+  tradeName            String?
+  email                String?
+  phone                String?
+  address              String?
+  municipalityCode     String?
+  taxResponsibilities  String[]
+  isCustomer           Boolean      @default(false)
+  isSupplier           Boolean      @default(false)
+  isPayer              Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contacts             PartyContact[]
+  invoices             Invoice[]    @relation("InvoiceCustomer")
+  supportDocuments     SupportDocument[] @relation("SupportSupplier")
+  @@unique([organizationId, identificationType, identificationNumber])
+  @@index([organizationId, legalName])
+}
+
+model PartyContact {
+  id        String @id @default(uuid())
+  partyId   String
+  name      String
+  email     String?
+  phone     String?
+  position  String?
+  isPrimary Boolean @default(false)
+  party     Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id             String       @id @default(uuid())
+  organizationId String
+  sku            String?
+  name           String
+  description    String?
+  kind           String       @default("PRODUCT")
+  unit           String       @default("UND")
+  unitPrice      Decimal      @db.Decimal(18, 2)
+  taxRate        Decimal      @default(19) @db.Decimal(5, 2)
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoiceLines   InvoiceLine[]
+  @@unique([organizationId, sku])
+}
+
+model Invoice {
+  id                String                 @id @default(uuid())
+  organizationId    String
+  customerId        String
+  number            String?
+  prefix            String?
+  issueDate         DateTime               @db.Date
+  dueDate           DateTime?              @db.Date
+  status            InvoiceStatus          @default(DRAFT)
+  paymentTerm       PaymentTerm            @default(CASH)
+  currency          String                 @default("COP")
+  subtotal          Decimal                @default(0) @db.Decimal(18, 2)
+  discountTotal     Decimal                @default(0) @db.Decimal(18, 2)
+  taxTotal          Decimal                @default(0) @db.Decimal(18, 2)
+  total             Decimal                @default(0) @db.Decimal(18, 2)
+  notes             String?
+  dianStatus        DianTransmissionStatus @default(PENDING)
+  cufe              String?                @unique
+  resolutionNumber  String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer          Party                  @relation("InvoiceCustomer", fields: [customerId], references: [id])
+  lines             InvoiceLine[]
+  electronicEvents  ElectronicEvent[]
+  @@unique([organizationId, prefix, number])
+  @@index([organizationId, status, issueDate])
+}
+
+model InvoiceLine {
+  id           String   @id @default(uuid())
+  invoiceId    String
+  productId    String?
+  description  String
+  quantity     Decimal  @db.Decimal(18, 4)
+  unitPrice    Decimal  @db.Decimal(18, 2)
+  discountRate Decimal  @default(0) @db.Decimal(5, 2)
+  taxRate      Decimal  @default(19) @db.Decimal(5, 2)
+  lineTotal    Decimal  @db.Decimal(18, 2)
+  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id])
+}
+
+model SupportDocument {
+  id                String                 @id @default(uuid())
+  organizationId    String
+  supplierId        String
+  number            String?
+  issueDate         DateTime               @db.Date
+  status            InvoiceStatus          @default(DRAFT)
+  subtotal          Decimal                @default(0) @db.Decimal(18, 2)
+  taxTotal          Decimal                @default(0) @db.Decimal(18, 2)
+  total             Decimal                @default(0) @db.Decimal(18, 2)
+  dianStatus        DianTransmissionStatus @default(PENDING)
+  cuds              String?                @unique
+  createdAt         DateTime               @default(now())
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier          Party                  @relation("SupportSupplier", fields: [supplierId], references: [id])
+  lines             SupportDocumentLine[]
+  @@index([organizationId, status, issueDate])
+}
+
+model SupportDocumentLine {
+  id                String          @id @default(uuid())
+  supportDocumentId String
+  description       String
+  quantity          Decimal         @db.Decimal(18, 4)
+  unitPrice         Decimal         @db.Decimal(18, 2)
+  taxRate           Decimal         @default(0) @db.Decimal(5, 2)
+  lineTotal         Decimal         @db.Decimal(18, 2)
+  supportDocument   SupportDocument @relation(fields: [supportDocumentId], references: [id], onDelete: Cascade)
+}
+
+model ElectronicEvent {
+  id              String                 @id @default(uuid())
+  organizationId  String
+  invoiceId       String?
+  kind            ElectronicDocumentKind
+  status          DianTransmissionStatus @default(PENDING)
+  providerPayload Json?
+  providerResponse Json?
+  occurredAt      DateTime               @default(now())
+  invoice         Invoice?               @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId, occurredAt])
+}
+
+model CalendarEvent {
+  id             String       @id @default(uuid())
+  organizationId String
+  ownerId        String
+  title          String
+  description    String?
+  eventType      EventType    @default(TASK)
+  startsAt       DateTime
+  endsAt         DateTime
+  allDay         Boolean      @default(false)
+  recurrenceRule String?
+  reminderAt     DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner          User         @relation("EventOwner", fields: [ownerId], references: [id])
+  @@index([organizationId, startsAt])
+}
+
+model Notification {
+  id             String           @id @default(uuid())
+  organizationId String
+  userId         String?
+  kind           NotificationKind
+  title          String
+  body           String
+  actionUrl      String?
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([organizationId, readAt, createdAt])
+}
+
+model Account {
+  id             String       @id @default(uuid())
+  organizationId String
+  code           String
+  name           String
+  accountType    String
+  parentId       String?
+  active         Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lines          JournalLine[]
+  @@unique([organizationId, code])
+}
+
+model JournalEntry {
+  id             String        @id @default(uuid())
+  organizationId String
+  reference      String
+  date           DateTime      @db.Date
+  description    String
+  status         JournalStatus @default(DRAFT)
+  sourceType     String?
+  sourceId       String?
+  postedAt       DateTime?
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lines          JournalLine[]
+  @@unique([organizationId, reference])
+  @@index([organizationId, date])
+}
+
+model JournalLine {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  accountId      String
+  debit          Decimal      @default(0) @db.Decimal(18, 2)
+  credit         Decimal      @default(0) @db.Decimal(18, 2)
+  memo           String?
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        Account      @relation(fields: [accountId], references: [id])
+}
+
+model Subscription {
+  id             String             @id @default(uuid())
+  organizationId String
+  planName       String
+  status         SubscriptionStatus @default(TRIAL)
+  renewalDate    DateTime?
+  renewalAmount  Decimal?           @db.Decimal(18, 2)
+  createdAt      DateTime           @default(now())
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model LegalDocument {
+  id             String       @id @default(uuid())
+  organizationId String
+  type           String
+  title          String
+  storageKey     String
+  uploadedAt     DateTime     @default(now())
+  expiresAt      DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String?
+  entity         String
+  entityId       String
+  action         String
+  before         Json?
+  after          Json?
+  ipHash         String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([organizationId, entity, entityId])
+}
