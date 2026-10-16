@@ -73,7 +73,7 @@ corepack pnpm test
 corepack pnpm build
 ```
 
-`build` genera `apps/web/out`, una versión estática de la interfaz para el entorno de revisión. La API se compila a `apps/api/dist`.
+`build` genera `apps/web/out` y lo prepara en `out`, una versión estática de la interfaz para el entorno de revisión. La API se compila a `apps/api/dist`.
 
 ## Seguridad y multitenencia
 
@@ -100,7 +100,7 @@ No utilice los datos de demostración, el adaptador sandbox ni el catálogo base
 
 ## Despliegue de revisión humana
 
-El manifiesto [.openai/hosting.json](.openai/hosting.json) publica `apps/web/out` como sitio privado. La interfaz estática se puede revisar visualmente y navegar en un navegador; sus formularios son demostrativos mientras no se configure una URL pública de API.
+El manifiesto [.openai/hosting.json](.openai/hosting.json) publica `out` como sitio privado. La interfaz estática se puede revisar visualmente y navegar en un navegador; sus formularios son demostrativos mientras no se configure una URL pública de API.
 
 La API Fastify requiere un runtime de servidor, PostgreSQL administrado, secretos y un proveedor DIAN real. El hosting estático no sustituye dichos componentes. Por tanto, el despliegue de esta entrega es apto para prueba humana de UX, no para emisión fiscal productiva. Tras publicar, registre la URL privada y ejecute el checklist de [docs/human-test.md](docs/human-test.md).
 
