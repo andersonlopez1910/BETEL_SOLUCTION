@@ -88,15 +88,6 @@ export function PartyForm() {
           <Field label="Dígito de verificación" placeholder="0" />
           <Field label="Razón social" placeholder="Nombre o razón social" />
           <Field label="Nombre comercial" placeholder="Opcional" />
-          <div className="location-block" aria-label="Ubicación fiscal del tercero">
-            <div className="location-block-head"><span>Ubicación fiscal</span><p>Selecciona primero el departamento y después la ciudad o municipio.</p></div>
-            <div className="location-grid">
-              <label className="field location-field">Departamento <span className="required">*</span><select name="departmentCode" value={departmentCode} onChange={event => setDepartmentCode(event.target.value)} required><option value="">Selecciona un departamento</option>{locations.departments.map(department => <option value={department.code} key={department.code}>{department.name}</option>)}</select></label>
-              <span className="location-connector" aria-hidden="true">→</span>
-              <label className="field location-field">Ciudad / municipio <span className="required">*</span><select name="municipalityCode" value={municipalityCode} onChange={event => setMunicipalityCode(event.target.value)} disabled={!departmentCode} required><option value="">{departmentCode ? "Selecciona una ciudad o municipio" : "Selecciona primero el departamento"}</option>{municipalities.map(item => <option value={item.code} key={item.code}>{item.name} · {item.code}</option>)}</select><small className="field-help">{departmentCode ? `${municipalities.length} municipios o ciudades disponibles.` : "Se habilita al elegir un departamento."}</small></label>
-            </div>
-          </div>
-          <label className="field field-full">Dirección<input placeholder="Dirección principal" /></label>
         </div>
       </section>
       <section>
@@ -106,10 +97,36 @@ export function PartyForm() {
           <Field label="Correo electrónico" placeholder="correo@empresa.co" />
           <Field label="Indicativo y teléfono" placeholder="+57 300 000 0000" />
           <Field label="Régimen IVA" value="Responsable de IVA" select />
-          <label className="field">Código postal{postalCodes.length > 1 ? <select name="postalCode" value={postalCode} onChange={event => setPostalCode(event.target.value)} disabled={!municipalityCode}><option value="">Selecciona el código postal</option>{postalCodes.map(code => <option value={code} key={code}>{code}</option>)}</select> : <input name="postalCode" value={postalCode} readOnly placeholder="Se asignará al elegir municipio" aria-describedby="postal-code-help" />}<small id="postal-code-help" className="field-help">{postalHelp}</small></label>
           <Field label="Responsabilidades fiscales" value="R-99-PN · No aplica" select />
         </div>
         <label className="check"><input type="checkbox" /> Contacto marcado como pagador</label>
+      </section>
+      <section className="party-location" aria-labelledby="party-location-title">
+        <div className="location-heading">
+          <div className="location-title">
+            <span className="location-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></svg></span>
+            <div><h2 id="party-location-title">Ubicación del tercero</h2><p>Selecciona el departamento, luego la ciudad o municipio y completa la dirección.</p></div>
+          </div>
+          <span className="location-country">Colombia</span>
+        </div>
+        <div className="location-grid">
+          <label className="field location-department">
+            <span>Departamento <span className="required">*</span></span>
+            <select name="departmentCode" value={departmentCode} onChange={event => setDepartmentCode(event.target.value)} aria-describedby="department-help" required><option value="">Selecciona un departamento</option>{locations.departments.map(department => <option value={department.code} key={department.code}>{department.name}</option>)}</select>
+            <small id="department-help" className="field-help">Selecciona para ver sus ciudades y municipios.</small>
+          </label>
+          <label className="field location-municipality">
+            <span>Ciudad / municipio <span className="required">*</span></span>
+            <select name="municipalityCode" value={municipalityCode} onChange={event => setMunicipalityCode(event.target.value)} disabled={!departmentCode} aria-describedby="municipality-help" required><option value="">{departmentCode ? "Selecciona ciudad o municipio" : "Primero elige un departamento"}</option>{municipalities.map(item => <option value={item.code} key={item.code}>{item.name} · {item.code}</option>)}</select>
+            <small id="municipality-help" className="field-help">{departmentCode ? `${municipalities.length} municipios o ciudades disponibles.` : "Se habilita al elegir un departamento."}</small>
+          </label>
+          <label className="field location-postal">
+            <span>Código postal <span className="field-optional">Opcional</span></span>
+            {postalCodes.length > 1 ? <select name="postalCode" value={postalCode} onChange={event => setPostalCode(event.target.value)} disabled={!municipalityCode} aria-describedby="postal-code-help"><option value="">Selecciona el código postal</option>{postalCodes.map(code => <option value={code} key={code}>{code}</option>)}</select> : <input name="postalCode" value={postalCode} readOnly placeholder="Según el municipio" aria-describedby="postal-code-help" />}
+            <small id="postal-code-help" className="field-help">{postalHelp}</small>
+          </label>
+          <label className="field location-address"><span>Dirección principal</span><input name="address" autoComplete="street-address" placeholder="Ej. Calle 10 # 5-20, oficina 201" /></label>
+        </div>
       </section>
     </div>
     <section className="contacts"><h2>⌄ Contactos</h2><p>Agrega los responsables de compras, facturación y pagos.</p></section>
