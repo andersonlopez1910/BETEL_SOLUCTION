@@ -9,6 +9,7 @@
     "build": "corepack pnpm --filter @betel/web --filter @betel/api run build",
     "typecheck": "corepack pnpm -r run typecheck",
     "test": "corepack pnpm --filter @betel/api test",
+    "data:locations": "node scripts/sync-colombia-locations.mjs",
     "db:generate": "corepack pnpm --filter @betel/db generate",
     "db:push": "corepack pnpm --filter @betel/db push",
     "db:rls": "corepack pnpm --filter @betel/db rls"

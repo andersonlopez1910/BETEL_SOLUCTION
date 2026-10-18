@@ -23,6 +23,8 @@ Plataforma contable colombiana multiempresa para pymes y empresas en crecimiento
 
 Las decisiones de diseño, aislamiento de datos y próximos pasos están en [docs/architecture.md](docs/architecture.md). El guion de validación está en [docs/human-test.md](docs/human-test.md).
 
+La relación Departamento → Municipio → Código postal y el proceso pendiente de consulta RUT están documentados en [docs/geografia-y-consulta-rut.md](docs/geografia-y-consulta-rut.md).
+
 ## Requisitos
 
 - Node.js 22 o superior (validado con Node 24).
@@ -71,6 +73,12 @@ Para el bootstrap de desarrollo se puede establecer `BETEL_ALLOW_INSECURE_DEV_AU
 corepack pnpm typecheck
 corepack pnpm test
 corepack pnpm build
+```
+
+Para renovar el catálogo oficial de departamentos, municipios y códigos postales:
+
+```powershell
+corepack pnpm data:locations
 ```
 
 `build` genera `apps/web/out` y lo prepara en `out`, una versión estática de la interfaz para el entorno de revisión. La API se compila a `apps/api/dist`.

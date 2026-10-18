@@ -1,0 +1,1 @@
+ALTER TABLE "Party" ADD COLUMN IF NOT EXISTS "postalCode" TEXT;

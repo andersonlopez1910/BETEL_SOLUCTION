@@ -141,6 +141,7 @@ model Party {
   phone                String?
   address              String?
   municipalityCode     String?
+  postalCode           String?
   taxResponsibilities  String[]
   isCustomer           Boolean      @default(false)
   isSupplier           Boolean      @default(false)

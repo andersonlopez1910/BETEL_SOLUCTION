@@ -11,6 +11,7 @@ export const partySchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().max(30).optional(),
   municipalityCode: z.string().max(10).optional(),
+  postalCode: z.string().regex(/^\d{6}$/, "El código postal debe tener seis dígitos.").optional(),
   address: z.string().max(250).optional(),
   taxResponsibilities: z.array(z.string()).default([]),
   isCustomer: z.boolean().default(true),
