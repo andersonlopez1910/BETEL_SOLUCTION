@@ -88,8 +88,14 @@ export function PartyForm() {
           <Field label="Dígito de verificación" placeholder="0" />
           <Field label="Razón social" placeholder="Nombre o razón social" />
           <Field label="Nombre comercial" placeholder="Opcional" />
-          <label className="field">Departamento <span className="required">*</span><select name="departmentCode" value={departmentCode} onChange={event => setDepartmentCode(event.target.value)} required><option value="">Selecciona un departamento</option>{locations.departments.map(department => <option value={department.code} key={department.code}>{department.name}</option>)}</select></label>
-          <label className="field">Ciudad / municipio <span className="required">*</span><select name="municipalityCode" value={municipalityCode} onChange={event => setMunicipalityCode(event.target.value)} disabled={!departmentCode} required><option value="">{departmentCode ? "Selecciona una ciudad o municipio" : "Selecciona primero el departamento"}</option>{municipalities.map(item => <option value={item.code} key={item.code}>{item.name} · {item.code}</option>)}</select><small className="field-help">{departmentCode ? `${municipalities.length} municipios o ciudades disponibles.` : "Se habilita al elegir un departamento."}</small></label>
+          <div className="location-block" aria-label="Ubicación fiscal del tercero">
+            <div className="location-block-head"><span>Ubicación fiscal</span><p>Selecciona primero el departamento y después la ciudad o municipio.</p></div>
+            <div className="location-grid">
+              <label className="field location-field">Departamento <span className="required">*</span><select name="departmentCode" value={departmentCode} onChange={event => setDepartmentCode(event.target.value)} required><option value="">Selecciona un departamento</option>{locations.departments.map(department => <option value={department.code} key={department.code}>{department.name}</option>)}</select></label>
+              <span className="location-connector" aria-hidden="true">→</span>
+              <label className="field location-field">Ciudad / municipio <span className="required">*</span><select name="municipalityCode" value={municipalityCode} onChange={event => setMunicipalityCode(event.target.value)} disabled={!departmentCode} required><option value="">{departmentCode ? "Selecciona una ciudad o municipio" : "Selecciona primero el departamento"}</option>{municipalities.map(item => <option value={item.code} key={item.code}>{item.name} · {item.code}</option>)}</select><small className="field-help">{departmentCode ? `${municipalities.length} municipios o ciudades disponibles.` : "Se habilita al elegir un departamento."}</small></label>
+            </div>
+          </div>
           <label className="field field-full">Dirección<input placeholder="Dirección principal" /></label>
         </div>
       </section>
