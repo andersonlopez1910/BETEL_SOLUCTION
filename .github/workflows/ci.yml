@@ -1,0 +1,38 @@
+name: Validación
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Calidad de código
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Habilitar Corepack
+        run: corepack enable
+
+      - name: Instalar dependencias
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Generar cliente Prisma
+        run: corepack pnpm db:generate
+
+      - name: Verificar tipos
+        run: corepack pnpm typecheck
+
+      - name: Compilar aplicaciones
+        run: corepack pnpm build
