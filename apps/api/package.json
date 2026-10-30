@@ -12,10 +12,10 @@
   "dependencies": {
     "@betel/db": "workspace:*",
     "@betel/contracts": "workspace:*",
-    "@fastify/cors": "latest",
-    "@fastify/jwt": "latest",
-    "fastify": "latest",
-    "zod": "latest"
+    "@fastify/cors": "^11.3.1",
+    "@fastify/jwt": "^10.2.4",
+    "fastify": "^5.12.7",
+    "zod": "^4.6.7"
   },
-  "devDependencies": { "@types/node": "latest", "tsx": "latest", "typescript": "5.9.3" }
+  "devDependencies": { "@types/node": "^26.6.5", "tsx": "^4.23.15", "typescript": "5.9.3" }
 }

@@ -1,0 +1,11 @@
+# Archivos que Prettier no debe tocar.
+node_modules
+out
+apps/web/out
+.next
+dist
+coverage
+pnpm-lock.yaml
+apps/web/data/colombia-locations.json
+packages/db/prisma/migrations
+CHANGELOG.md

@@ -1,0 +1,34 @@
+{
+  // Configuración compartida del editor. Se versiona para que todos trabajen igual.
+
+  // Formatear al guardar con Prettier (evita diffs gigantes por estilo distinto).
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[prisma]": { "editor.defaultFormatter": "Prisma.prisma" },
+
+  // Usar el TypeScript del proyecto (5.9.3), no el que trae VS Code.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.preferences.importModuleSpecifier": "relative",
+
+  // Finales de línea LF en todos los sistemas (Windows usa CRLF por defecto y genera conflictos).
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+
+  // Ocultar carpetas generadas para no editarlas por error.
+  "files.exclude": {
+    "**/.turbo": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/out": true,
+    "**/.next": true,
+    "**/dist": true,
+    "pnpm-lock.yaml": true,
+    "apps/web/data/colombia-locations.json": true
+  },
+
+  // Git: traer cambios del equipo periódicamente.
+  "git.autofetch": true,
+  "git.pruneOnFetch": true
+}

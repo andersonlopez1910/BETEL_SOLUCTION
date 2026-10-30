@@ -1,0 +1,13 @@
+{
+  // Extensiones recomendadas para todo el equipo.
+  // VS Code las sugiere automáticamente al abrir el proyecto por primera vez.
+  "recommendations": [
+    "esbenp.prettier-vscode", // Formato automático del código (mismo estilo para todos)
+    "Prisma.prisma", // Resaltado y autocompletado de schema.prisma
+    "eamodio.gitlens", // Historial de cada línea: quién la cambió y por qué
+    "GitHub.vscode-pull-request-github", // Revisar y aprobar Pull Requests desde VS Code
+    "dbaeumer.vscode-eslint", // Detección de errores comunes en JS/TS
+    "EditorConfig.EditorConfig", // Respeta .editorconfig (indentación, finales de línea)
+    "MS-CEINTL.vscode-language-pack-es" // VS Code en español (opcional)
+  ]
+}

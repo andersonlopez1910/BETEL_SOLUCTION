@@ -8,3 +8,13 @@ coverage
 packages/db/generated
 *.log
 *.tsbuildinfo
+
+# Artefactos generados por `pnpm build` (no se versionan: se regeneran en cada compilación
+# y causan conflictos de merge entre programadores).
+out
+apps/web/out
+
+# Archivos de sistema / editores
+.DS_Store
+Thumbs.db
+.idea
