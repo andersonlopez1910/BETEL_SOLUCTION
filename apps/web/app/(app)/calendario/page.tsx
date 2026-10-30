@@ -1,3 +1,7 @@
+/**
+ * Ruta /calendario — Vista semanal de eventos y vencimientos.
+ * ESTADO: semana y eventos fijos de ejemplo. PENDIENTE: GET/POST /v1/calendar-events.
+ */
 import { AppShell } from "../../../components/app-shell";
 const days = ["Lun 12", "Mar 13", "Mié 14", "Jue 15", "Vie 16", "Sáb 17"];
 export default function Calendar() {

@@ -1,3 +1,6 @@
+/**
+ * Ruta /perfil — Datos del usuario actual. Datos de ejemplo.
+ */
 import { AppShell } from "../../../components/app-shell";
 export default function Profile() {
   return (

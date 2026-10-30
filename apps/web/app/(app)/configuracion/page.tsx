@@ -1,4 +1,8 @@
 "use client";
+/**
+ * Ruta /configuracion — Menú de configuración por secciones (General, Habilitaciones DIAN, Ventas...).
+ * Cada sección es un listado de enlaces; las opciones aún no abren pantallas propias.
+ */
 import { useState } from "react";
 import { AppShell } from "../../../components/app-shell";
 const sections: Record<string, { title: string; groups: [string, string[]][] }> = {

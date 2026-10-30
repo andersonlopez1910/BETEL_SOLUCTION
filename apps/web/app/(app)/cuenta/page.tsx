@@ -1,4 +1,7 @@
 "use client";
+/**
+ * Ruta /cuenta — Pagos, plan y documentos legales de la suscripción (pestañas). Datos de ejemplo.
+ */
 import { useState } from "react";
 import { AppShell } from "../../../components/app-shell";
 const tabs = ["Pagos", "Plan", "Documentos legales"] as const;

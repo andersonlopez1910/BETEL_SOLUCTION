@@ -9,3 +9,7 @@ pnpm-lock.yaml
 apps/web/data/colombia-locations.json
 packages/db/prisma/migrations
 CHANGELOG.md
+
+# Archivos JSON que reescriben herramientas (Next.js, pnpm)
+**/tsconfig.json
+**/package.json

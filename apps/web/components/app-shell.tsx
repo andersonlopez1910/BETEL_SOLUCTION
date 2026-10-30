@@ -1,9 +1,21 @@
+/**
+ * Estructura común de todas las pantallas internas: barra lateral, barra superior y encabezado.
+ *
+ * Uso en una página:
+ *   <AppShell title="Terceros" subtitle="Crea clientes y proveedores">...contenido...</AppShell>
+ *
+ * Para agregar un módulo al menú, añadir una fila a `mainNav` ([ícono, texto, ruta]).
+ *
+ * ESTADO ACTUAL: el nombre del usuario ("Camila Morales"), la empresa y las notificaciones son
+ * datos de ejemplo fijos. PENDIENTE: obtenerlos de GET /v1/me y GET /v1/notifications.
+ */
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+/** Menú lateral: [ícono, etiqueta, ruta]. */
 const mainNav = [
   ["⌂", "Resumen", "/resumen"],
   ["▤", "Facturación", "/facturacion/nueva"],
@@ -23,17 +35,22 @@ export function AppShell({
   subtitle?: string;
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
+  const pathname = usePathname(); // Ruta actual, para resaltar el ítem activo del menú.
+  // Qué menú desplegable está abierto (notificaciones o perfil).
   const [notifications, setNotifications] = useState(false);
   const [profile, setProfile] = useState(false);
   return (
     <div className="app-shell">
+      {/* ── Barra lateral ── */}
       <aside className="sidebar">
         <Link className="brand" href="/resumen">
           B<span>e</span>tel
         </Link>
         <nav>
           {mainNav.map(([icon, label, href]) => (
+            // OBSERVACIÓN (bug conocido): para rutas distintas de /resumen se compara contra
+            // "facturacion" (sin "/"), y como pathname empieza por "/" nunca coincide; por eso solo
+            // "Resumen" se resalta. Corrección sugerida: pathname.startsWith("/" + href.split("/")[1]).
             <Link
               className={
                 pathname.startsWith(href.split("/")[1] === "resumen" ? "/resumen" : href.split("/")[1])
@@ -53,6 +70,7 @@ export function AppShell({
         </div>
       </aside>
       <main className="main-area">
+        {/* ── Barra superior ── */}
         <header className="topbar">
           <div className="company">
             <strong>Betel Solution</strong>
@@ -87,6 +105,7 @@ export function AppShell({
             </div>
           </div>
         </header>
+        {/* ── Título de la página ── */}
         <section className="page-head">
           <div>
             <p className="eyebrow">OPERACIÓN · COLOMBIA</p>
@@ -100,6 +119,7 @@ export function AppShell({
   );
 }
 
+/** Desplegable de notificaciones (datos de ejemplo). */
 function Notifications() {
   const items = [
     "La factura FV-4-1594 fue aprobada por DIAN",
@@ -125,6 +145,8 @@ function Notifications() {
     </div>
   );
 }
+
+/** Menú del perfil de usuario (datos de ejemplo). PENDIENTE: "Cerrar sesión" real. */
 function ProfileMenu() {
   return (
     <div className="popover profile-menu">

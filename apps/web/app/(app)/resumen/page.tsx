@@ -1,3 +1,7 @@
+/**
+ * Ruta /resumen — Tablero principal: métricas, accesos rápidos, vencimientos y actividad DIAN.
+ * ESTADO: todos los valores son de ejemplo. PENDIENTE: alimentarlos desde la API.
+ */
 import Link from "next/link";
 import { AppShell } from "../../../components/app-shell";
 const actions = [

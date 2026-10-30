@@ -1,3 +1,6 @@
+/**
+ * Ruta /notificaciones — Listado completo de notificaciones. Datos de ejemplo.
+ */
 import { AppShell } from "../../../components/app-shell";
 export default function NotificationsPage() {
   const messages = [

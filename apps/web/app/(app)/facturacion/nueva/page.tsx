@@ -1,3 +1,6 @@
+/**
+ * Ruta /facturacion/nueva — Crear factura electrónica de venta (usa DocumentForm).
+ */
 import { AppShell } from "../../../../components/app-shell";
 import { DocumentForm } from "../../../../components/forms";
 export default function NewInvoice() {

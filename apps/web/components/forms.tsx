@@ -1,9 +1,24 @@
+/**
+ * Formularios de documentos y terceros.
+ *
+ * - DocumentForm: factura de venta y documento soporte (mismo formulario, cambia con `support`).
+ * - PartyForm: creación de terceros con selección Departamento → Municipio → Código postal.
+ *
+ * ESTADO ACTUAL: son formularios DEMOSTRATIVOS. Calculan totales en pantalla pero todavía NO
+ * llaman a la API (POST /v1/invoices, /v1/support-documents, /v1/parties). Conectarlos está
+ * en docs/TAREAS.md. Al hacerlo, validar con los esquemas de @betel/contracts.
+ *
+ * "use client": usa estado de React (useState), por eso se ejecuta en el navegador.
+ */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+// Catálogo oficial DANE/4-72. Se regenera con `corepack pnpm data:locations` (scripts/sync-colombia-locations.mjs).
 import locationCatalog from "../data/colombia-locations.json";
 
+/** Línea editable del documento. `tax` es el % de IVA (19, 5 o 0). */
 type Line = { description: string; qty: number; price: number; tax: number };
+/** Estructura de data/colombia-locations.json. */
 type LocationCatalog = {
   departments: Array<{ code: string; name: string }>;
   municipalities: Array<{
@@ -17,11 +32,20 @@ type LocationCatalog = {
 
 const locations = locationCatalog as LocationCatalog;
 const initial: Line[] = [{ description: "", qty: 1, price: 0, tax: 19 }];
+/** Formato de pesos colombianos sin decimales: $ 1.500.000 */
 const money = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
+/**
+ * Formulario de factura de venta o documento soporte.
+ * @param support true = documento soporte (proveedor); false = factura (cliente).
+ *
+ * NOTA: los totales aquí son solo una vista previa. El valor oficial lo calcula la API
+ * (calculateDocumentTotals en apps/api/src/accounting.ts). Aún no se aplica descuento por línea.
+ */
 export function DocumentForm({ support = false }: { support?: boolean }) {
   const [lines, setLines] = useState<Line[]>(initial);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState(false); // Solo muestra el mensaje de éxito (demostrativo).
+  /** Actualiza un campo de una línea; todo excepto la descripción se guarda como número. */
   const update = (idx: number, key: keyof Line, value: string) =>
     setLines(
       lines.map((line, index) =>
@@ -33,6 +57,7 @@ export function DocumentForm({ support = false }: { support?: boolean }) {
 
   return (
     <div className="document-card">
+      {/* Encabezado del documento. PENDIENTE: buscador real de terceros y fecha actual. */}
       <div className="form-grid document-meta">
         <Field label="Tipo" value={support ? "DS · Documento soporte" : "Factura electrónica de venta"} select />
         <Field label="Número" placeholder="Se asignará al emitir" />
@@ -40,6 +65,7 @@ export function DocumentForm({ support = false }: { support?: boolean }) {
         <Field label="Fecha de elaboración" value="18/10/2026" />
         <Field label="Contacto" placeholder="Seleccionar contacto" select />
       </div>
+      {/* Tabla de líneas (productos/servicios) */}
       <div className="line-table">
         <div className="line-head">
           <span>#</span>
@@ -80,6 +106,7 @@ export function DocumentForm({ support = false }: { support?: boolean }) {
       <button type="button" className="text-button" onClick={() => setLines([...lines, { ...initial[0] }])}>
         ＋ Agregar producto o servicio
       </button>
+      {/* Forma de pago, observaciones y resumen de totales */}
       <div className="payment-total">
         <div>
           <h3>Formas de pago</h3>
@@ -116,6 +143,7 @@ export function DocumentForm({ support = false }: { support?: boolean }) {
           </div>
         </dl>
       </div>
+      {/* Acciones. PENDIENTE: "Guardar borrador" → POST /v1/invoices; "Enviar a DIAN" → POST /v1/invoices/:id/issue */}
       <footer className="form-footer">
         <button type="button" className="secondary">
           Cancelar
@@ -132,6 +160,10 @@ export function DocumentForm({ support = false }: { support?: boolean }) {
   );
 }
 
+/**
+ * Campo genérico con etiqueta. Si `select` es true dibuja un <select> de una sola opción
+ * (marcador de posición visual hasta tener catálogos reales); si no, un <input> no controlado.
+ */
 function Field({
   label,
   value,
@@ -157,12 +189,22 @@ function Field({
   );
 }
 
+/**
+ * Formulario de creación de terceros (clientes / proveedores).
+ *
+ * Ubicación en cascada: al elegir departamento se filtran sus municipios; al elegir municipio
+ * se carga su código postal (si tiene varios, se muestra un selector).
+ * Ver docs/geografia-y-consulta-rut.md.
+ *
+ * PENDIENTE: enviar a POST /v1/parties (hoy solo muestra "Tercero creado").
+ */
 export function PartyForm() {
   const [saved, setSaved] = useState(false);
   const [departmentCode, setDepartmentCode] = useState("");
-  const [municipalityCode, setMunicipalityCode] = useState("");
+  const [municipalityCode, setMunicipalityCode] = useState(""); // Código DANE del municipio
   const [postalCode, setPostalCode] = useState("");
-  const [identification, setIdentification] = useState("");
+  const [identification, setIdentification] = useState(""); // Solo dígitos
+  // Municipios del departamento seleccionado (se recalcula solo cuando cambia el departamento).
   const municipalities = useMemo(
     () => locations.municipalities.filter(municipality => municipality.departmentCode === departmentCode),
     [departmentCode]
@@ -173,15 +215,18 @@ export function PartyForm() {
   );
   const postalCodes = municipality?.postalCodes ?? [];
 
+  // Al cambiar de departamento se limpian municipio y código postal (ya no corresponden).
   useEffect(() => {
     setMunicipalityCode("");
     setPostalCode("");
   }, [departmentCode]);
 
+  // Al elegir municipio se preselecciona su primer código postal.
   useEffect(() => {
     setPostalCode(postalCodes[0] ?? "");
   }, [municipalityCode, postalCodes]);
 
+  // Texto de ayuda bajo el campo de código postal según el paso en que esté el usuario.
   const postalHelp = !departmentCode
     ? "Selecciona primero el departamento y luego el municipio."
     : !municipalityCode
@@ -196,8 +241,8 @@ export function PartyForm() {
     <form
       className="party-form"
       onSubmit={event => {
-        event.preventDefault();
-        setSaved(true);
+        event.preventDefault(); // Evita recargar la página.
+        setSaved(true); // PENDIENTE: llamar a la API y manejar errores 422.
       }}
     >
       <div className="form-banner">

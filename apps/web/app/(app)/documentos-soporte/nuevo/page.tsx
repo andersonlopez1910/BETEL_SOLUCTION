@@ -1,3 +1,6 @@
+/**
+ * Ruta /documentos-soporte/nuevo — Crear documento soporte (DocumentForm con support=true).
+ */
 import { AppShell } from "../../../../components/app-shell";
 import { DocumentForm } from "../../../../components/forms";
 export default function NewSupportDocument() {

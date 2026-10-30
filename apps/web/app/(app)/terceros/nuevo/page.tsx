@@ -1,3 +1,6 @@
+/**
+ * Ruta /terceros/nuevo — Crear tercero (usa PartyForm).
+ */
 import { AppShell } from "../../../../components/app-shell";
 import { PartyForm } from "../../../../components/forms";
 export default function NewParty() {

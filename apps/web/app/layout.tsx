@@ -1,3 +1,7 @@
+/**
+ * Layout raíz de Next.js (App Router): define <html lang="es">, los estilos globales y el título del sitio.
+ * Envuelve TODAS las páginas.
+ */
 import type { Metadata } from "next";
 import "./globals.css";
 
