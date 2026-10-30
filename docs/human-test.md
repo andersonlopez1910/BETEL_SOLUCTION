@@ -12,17 +12,17 @@ Validar navegación, legibilidad, adaptación móvil y consistencia visual de la
 
 ## Casos de aceptación de interfaz
 
-| ID | Recorrido | Resultado esperado |
-| --- | --- | --- |
-| HT-01 | Abra **Resumen** y navegue con el menú lateral. | Se muestran tarjetas de acciones, métricas y actividades sin solapamientos. |
-| HT-02 | Abra **Nueva factura**. Agregue y quite una línea; cambie cantidades, descuento e IVA. | Totales, subtotal e IVA cambian de forma coherente; los botones quedan visibles. |
-| HT-03 | Abra **Nuevo documento soporte** y repita la edición de líneas. | Se diferencia visualmente de factura y permite ver las formas de pago. |
-| HT-04 | Abra **Crear tercero** y recorra datos básicos, facturación y contactos. | Los campos, responsabilidades y acciones son comprensibles y no se cortan. |
-| HT-05 | Abra **Calendario** y revise eventos y leyenda. | La cuadrícula conserva encabezados, horas y colores a 390 px y en escritorio. |
-| HT-06 | Abra las notificaciones desde la campana y después la página de notificaciones. | El panel se abre/cierra, conserva jerarquía y presenta estados de lectura. |
-| HT-07 | Abra **Configuración** y cambie cada categoría. | Las opciones cambian de contenido y el estado seleccionado se entiende. |
-| HT-08 | Abra **Cuenta** y sus pestañas, luego **Mi perfil** desde el avatar. | Se visualizan pagos, plan, documentos legales y perfil sin pérdida de contenido. |
-| HT-09 | Repita HT-01 a HT-08 en móvil. | El menú se compacta, no hay desplazamiento horizontal innecesario y todos los controles se pueden tocar. |
+| ID    | Recorrido                                                                              | Resultado esperado                                                                                       |
+| ----- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| HT-01 | Abra **Resumen** y navegue con el menú lateral.                                        | Se muestran tarjetas de acciones, métricas y actividades sin solapamientos.                              |
+| HT-02 | Abra **Nueva factura**. Agregue y quite una línea; cambie cantidades, descuento e IVA. | Totales, subtotal e IVA cambian de forma coherente; los botones quedan visibles.                         |
+| HT-03 | Abra **Nuevo documento soporte** y repita la edición de líneas.                        | Se diferencia visualmente de factura y permite ver las formas de pago.                                   |
+| HT-04 | Abra **Crear tercero** y recorra datos básicos, facturación y contactos.               | Los campos, responsabilidades y acciones son comprensibles y no se cortan.                               |
+| HT-05 | Abra **Calendario** y revise eventos y leyenda.                                        | La cuadrícula conserva encabezados, horas y colores a 390 px y en escritorio.                            |
+| HT-06 | Abra las notificaciones desde la campana y después la página de notificaciones.        | El panel se abre/cierra, conserva jerarquía y presenta estados de lectura.                               |
+| HT-07 | Abra **Configuración** y cambie cada categoría.                                        | Las opciones cambian de contenido y el estado seleccionado se entiende.                                  |
+| HT-08 | Abra **Cuenta** y sus pestañas, luego **Mi perfil** desde el avatar.                   | Se visualizan pagos, plan, documentos legales y perfil sin pérdida de contenido.                         |
+| HT-09 | Repita HT-01 a HT-08 en móvil.                                                         | El menú se compacta, no hay desplazamiento horizontal innecesario y todos los controles se pueden tocar. |
 
 ## Registro de resultados
 

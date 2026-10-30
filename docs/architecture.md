@@ -2,12 +2,12 @@
 
 ## Decisiones
 
-| Capa | Elección | Motivo |
-| --- | --- | --- |
-| Web | Next.js 15, React 19, App Router | Rendimiento, rutas tipadas, rendering híbrido y UX operativa. |
-| API | Fastify + TypeScript | Baja latencia, esquema de contratos y despliegue liviano. |
-| Datos | PostgreSQL 17 + Prisma 6 | Integridad relacional, transacciones y migraciones auditables. |
-| Monorepo | pnpm workspaces + Turborepo | Contratos y herramientas compartidas, builds selectivos. |
+| Capa     | Elección                         | Motivo                                                         |
+| -------- | -------------------------------- | -------------------------------------------------------------- |
+| Web      | Next.js 15, React 19, App Router | Rendimiento, rutas tipadas, rendering híbrido y UX operativa.  |
+| API      | Fastify + TypeScript             | Baja latencia, esquema de contratos y despliegue liviano.      |
+| Datos    | PostgreSQL 17 + Prisma 6         | Integridad relacional, transacciones y migraciones auditables. |
+| Monorepo | pnpm workspaces + Turborepo      | Contratos y herramientas compartidas, builds selectivos.       |
 
 ## Fronteras de dominio
 

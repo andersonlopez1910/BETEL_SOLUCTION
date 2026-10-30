@@ -2,10 +2,10 @@
 
 ## Estado por fases
 
-| Fase | Estado | Entregable |
-| --- | --- | --- |
-| 1. Catálogo geográfico | Implementada | 33 departamentos y 1.104 municipios/islas de DIVIPOLA. |
-| 2. Código postal asociado | Implementada | 3.681 áreas postales de 4-72 agrupadas por municipio. |
+| Fase                                | Estado              | Entregable                                                             |
+| ----------------------------------- | ------------------- | ---------------------------------------------------------------------- |
+| 1. Catálogo geográfico              | Implementada        | 33 departamentos y 1.104 municipios/islas de DIVIPOLA.                 |
+| 2. Código postal asociado           | Implementada        | 3.681 áreas postales de 4-72 agrupadas por municipio.                  |
 | 3. Autocompletar por identificación | Pendiente bloqueada | Requiere autorización formal DIAN o contrato con proveedor autorizado. |
 
 ## Fase 1 y 2: comportamiento implementado
