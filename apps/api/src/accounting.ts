@@ -15,7 +15,7 @@ export function calculateDocumentTotals<T extends DocumentLine>(lines: T[]) {
     subtotal: round(normalized.reduce((sum, line) => sum + line.gross, 0)),
     discountTotal: round(normalized.reduce((sum, line) => sum + line.discount, 0)),
     taxTotal: round(normalized.reduce((sum, line) => sum + line.tax, 0)),
-    total: round(normalized.reduce((sum, line) => sum + line.total, 0))
+    total: round(normalized.reduce((sum, line) => sum + line.total, 0)),
   };
 }
 
@@ -26,11 +26,17 @@ export async function ensureDefaultAccounts(tx: Prisma.TransactionClient, organi
     ["240810", "IVA descontable", "ASSET"],
     ["413595", "Ingresos por ventas", "INCOME"],
     ["220505", "Proveedores nacionales", "LIABILITY"],
-    ["519595", "Gastos operacionales", "EXPENSE"]
+    ["519595", "Gastos operacionales", "EXPENSE"],
   ] as const;
-  const accounts = await Promise.all(definitions.map(([code, name, accountType]) => tx.account.upsert({
-    where: { organizationId_code: { organizationId, code } }, update: {}, create: { organizationId, code, name, accountType }
-  })));
+  const accounts = await Promise.all(
+    definitions.map(([code, name, accountType]) =>
+      tx.account.upsert({
+        where: { organizationId_code: { organizationId, code } },
+        update: {},
+        create: { organizationId, code, name, accountType },
+      })
+    )
+  );
   return Object.fromEntries(accounts.map(account => [account.code, account]));
 }
 

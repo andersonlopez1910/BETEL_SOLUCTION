@@ -8,7 +8,9 @@ type Catalog = {
   municipalities: Array<{ code: string; postalCodes: string[] }>;
 };
 
-const catalog = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../web/data/colombia-locations.json"), "utf8")) as Catalog;
+const catalog = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, "../../web/data/colombia-locations.json"), "utf8")
+) as Catalog;
 
 test("el catálogo geográfico conserva cobertura nacional y códigos postales de Bogotá", () => {
   assert.ok(catalog.summary.departments >= 32);
