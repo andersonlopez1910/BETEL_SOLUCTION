@@ -48,15 +48,9 @@ export function AppShell({
         </Link>
         <nav>
           {mainNav.map(([icon, label, href]) => (
-            // OBSERVACIÓN (bug conocido): para rutas distintas de /resumen se compara contra
-            // "facturacion" (sin "/"), y como pathname empieza por "/" nunca coincide; por eso solo
-            // "Resumen" se resalta. Corrección sugerida: pathname.startsWith("/" + href.split("/")[1]).
             <Link
-              className={
-                pathname.startsWith(href.split("/")[1] === "resumen" ? "/resumen" : href.split("/")[1])
-                  ? "nav-link active"
-                  : "nav-link"
-              }
+              className={isActiveSection(pathname, href) ? "nav-link active" : "nav-link"}
+              aria-current={isActiveSection(pathname, href) ? "page" : undefined}
               href={href}
               key={href}
             >
@@ -117,6 +111,21 @@ export function AppShell({
       </main>
     </div>
   );
+}
+
+/**
+ * Indica si el ítem del menú corresponde a la sección en la que está el usuario.
+ *
+ * Se compara solo el PRIMER segmento de la ruta, para que el ítem quede activo también en
+ * las subpáginas de su módulo. Ejemplo: el ítem "/facturacion/nueva" queda activo en
+ * "/facturacion/nueva" y también en "/facturacion/123".
+ *
+ * Corrige el bug de la tarea #1: antes se comparaba "facturacion" (sin "/") contra el pathname,
+ * que siempre empieza por "/", y solo se resaltaba "Resumen".
+ */
+export function isActiveSection(pathname: string, href: string): boolean {
+  const section = "/" + href.split("/")[1]; // "/facturacion/nueva" → "/facturacion"
+  return pathname === section || pathname.startsWith(section + "/");
 }
 
 /** Desplegable de notificaciones (datos de ejemplo). */
