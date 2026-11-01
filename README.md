@@ -13,15 +13,17 @@ Plataforma contable colombiana multiempresa para pymes y empresas en crecimiento
 
 ## Arquitectura
 
-| Área | Implementación | Responsabilidad |
-| --- | --- | --- |
-| `apps/web` | Next.js | UI, rutas y experiencia de los módulos contables. |
-| `apps/api` | Fastify | Autenticación, autorización, reglas de negocio y API REST. |
-| `packages/contracts` | Zod + TypeScript | Contratos y validaciones compartidas. |
-| `packages/db` | Prisma + PostgreSQL | Modelo relacional, RLS y acceso transaccional. |
-| `docker/` | PostgreSQL 17 | Entorno local reproducible. |
+| Área                 | Implementación      | Responsabilidad                                            |
+| -------------------- | ------------------- | ---------------------------------------------------------- |
+| `apps/web`           | Next.js             | UI, rutas y experiencia de los módulos contables.          |
+| `apps/api`           | Fastify             | Autenticación, autorización, reglas de negocio y API REST. |
+| `packages/contracts` | Zod + TypeScript    | Contratos y validaciones compartidas.                      |
+| `packages/db`        | Prisma + PostgreSQL | Modelo relacional, RLS y acceso transaccional.             |
+| `docker/`            | PostgreSQL 17       | Entorno local reproducible.                                |
 
 Las decisiones de diseño, aislamiento de datos y próximos pasos están en [docs/architecture.md](docs/architecture.md). El guion de validación está en [docs/human-test.md](docs/human-test.md).
+
+El trabajo en equipo (ramas, tablero de tareas y estándar de comentarios) está en [CONTRIBUTING.md](CONTRIBUTING.md) y el backlog en [docs/TAREAS.md](docs/TAREAS.md).
 
 La relación Departamento → Municipio → Código postal y el proceso pendiente de consulta RUT están documentados en [docs/geografia-y-consulta-rut.md](docs/geografia-y-consulta-rut.md).
 

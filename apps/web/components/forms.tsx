@@ -1,71 +1,232 @@
+/**
+ * Formularios de documentos y terceros.
+ *
+ * - DocumentForm: factura de venta y documento soporte (mismo formulario, cambia con `support`).
+ * - PartyForm: creación de terceros con selección Departamento → Municipio → Código postal.
+ *
+ * ESTADO ACTUAL: son formularios DEMOSTRATIVOS. Calculan totales en pantalla pero todavía NO
+ * llaman a la API (POST /v1/invoices, /v1/support-documents, /v1/parties). Conectarlos está
+ * en docs/TAREAS.md. Al hacerlo, validar con los esquemas de @betel/contracts.
+ *
+ * "use client": usa estado de React (useState), por eso se ejecuta en el navegador.
+ */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+// Catálogo oficial DANE/4-72. Se regenera con `corepack pnpm data:locations` (scripts/sync-colombia-locations.mjs).
 import locationCatalog from "../data/colombia-locations.json";
 
+/** Línea editable del documento. `tax` es el % de IVA (19, 5 o 0). */
 type Line = { description: string; qty: number; price: number; tax: number };
+/** Estructura de data/colombia-locations.json. */
 type LocationCatalog = {
   departments: Array<{ code: string; name: string }>;
-  municipalities: Array<{ code: string; name: string; departmentCode: string; departmentName: string; postalCodes: string[] }>;
+  municipalities: Array<{
+    code: string;
+    name: string;
+    departmentCode: string;
+    departmentName: string;
+    postalCodes: string[];
+  }>;
 };
 
 const locations = locationCatalog as LocationCatalog;
 const initial: Line[] = [{ description: "", qty: 1, price: 0, tax: 19 }];
+/** Formato de pesos colombianos sin decimales: $ 1.500.000 */
 const money = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
+/**
+ * Formulario de factura de venta o documento soporte.
+ * @param support true = documento soporte (proveedor); false = factura (cliente).
+ *
+ * NOTA: los totales aquí son solo una vista previa. El valor oficial lo calcula la API
+ * (calculateDocumentTotals en apps/api/src/accounting.ts). Aún no se aplica descuento por línea.
+ */
 export function DocumentForm({ support = false }: { support?: boolean }) {
   const [lines, setLines] = useState<Line[]>(initial);
-  const [sent, setSent] = useState(false);
-  const update = (idx: number, key: keyof Line, value: string) => setLines(lines.map((line, index) => index === idx ? { ...line, [key]: key === "description" ? value : Number(value) } : line));
+  const [sent, setSent] = useState(false); // Solo muestra el mensaje de éxito (demostrativo).
+  /** Actualiza un campo de una línea; todo excepto la descripción se guarda como número. */
+  const update = (idx: number, key: keyof Line, value: string) =>
+    setLines(
+      lines.map((line, index) =>
+        index === idx ? { ...line, [key]: key === "description" ? value : Number(value) } : line
+      )
+    );
   const subtotal = lines.reduce((sum, line) => sum + line.qty * line.price, 0);
-  const taxes = lines.reduce((sum, line) => sum + line.qty * line.price * line.tax / 100, 0);
+  const taxes = lines.reduce((sum, line) => sum + (line.qty * line.price * line.tax) / 100, 0);
 
-  return <div className="document-card">
-    <div className="form-grid document-meta">
-      <Field label="Tipo" value={support ? "DS · Documento soporte" : "Factura electrónica de venta"} select />
-      <Field label="Número" placeholder="Se asignará al emitir" />
-      <Field label={support ? "Proveedor" : "Cliente"} placeholder="Buscar tercero…" />
-      <Field label="Fecha de elaboración" value="18/10/2026" />
-      <Field label="Contacto" placeholder="Seleccionar contacto" select />
+  return (
+    <div className="document-card">
+      {/* Encabezado del documento. PENDIENTE: buscador real de terceros y fecha actual. */}
+      <div className="form-grid document-meta">
+        <Field label="Tipo" value={support ? "DS · Documento soporte" : "Factura electrónica de venta"} select />
+        <Field label="Número" placeholder="Se asignará al emitir" />
+        <Field label={support ? "Proveedor" : "Cliente"} placeholder="Buscar tercero…" />
+        <Field label="Fecha de elaboración" value="18/10/2026" />
+        <Field label="Contacto" placeholder="Seleccionar contacto" select />
+      </div>
+      {/* Tabla de líneas (productos/servicios) */}
+      <div className="line-table">
+        <div className="line-head">
+          <span>#</span>
+          <span>Producto / servicio</span>
+          <span>Descripción</span>
+          <span>Cant.</span>
+          <span>Valor unitario</span>
+          <span>IVA</span>
+          <span>Total</span>
+          <span />
+        </div>
+        {lines.map((line, index) => (
+          <div className="line-row" key={index}>
+            <span>{index + 1}</span>
+            <input placeholder="Buscar" />
+            <input
+              value={line.description}
+              onChange={event => update(index, "description", event.target.value)}
+              placeholder="Descripción"
+            />
+            <input type="number" value={line.qty} onChange={event => update(index, "qty", event.target.value)} />
+            <input type="number" value={line.price} onChange={event => update(index, "price", event.target.value)} />
+            <select value={line.tax} onChange={event => update(index, "tax", event.target.value)}>
+              <option value="19">19%</option>
+              <option value="5">5%</option>
+              <option value="0">0%</option>
+            </select>
+            <strong>{money.format(line.qty * line.price * (1 + line.tax / 100))}</strong>
+            <button
+              onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== index))}
+              aria-label="Eliminar línea"
+            >
+              ⌫
+            </button>
+          </div>
+        ))}
+      </div>
+      <button type="button" className="text-button" onClick={() => setLines([...lines, { ...initial[0] }])}>
+        ＋ Agregar producto o servicio
+      </button>
+      {/* Forma de pago, observaciones y resumen de totales */}
+      <div className="payment-total">
+        <div>
+          <h3>Formas de pago</h3>
+          <div className="payment-choice">
+            <label>
+              <input type="radio" defaultChecked name="payment" /> Contado
+            </label>
+            <label>
+              <input type="radio" name="payment" /> Crédito
+            </label>
+            <select>
+              <option>Selecciona forma de pago</option>
+              <option>Transferencia</option>
+              <option>Tarjeta</option>
+            </select>
+          </div>
+          <label className="notes">
+            Observaciones
+            <textarea placeholder="Comentarios visibles en el documento para tu cliente…" />
+          </label>
+        </div>
+        <dl>
+          <div>
+            <dt>Subtotal</dt>
+            <dd>{money.format(subtotal)}</dd>
+          </div>
+          <div>
+            <dt>Impuestos</dt>
+            <dd>{money.format(taxes)}</dd>
+          </div>
+          <div className="grand">
+            <dt>Total neto</dt>
+            <dd>{money.format(subtotal + taxes)}</dd>
+          </div>
+        </dl>
+      </div>
+      {/* Acciones. PENDIENTE: "Guardar borrador" → POST /v1/invoices; "Enviar a DIAN" → POST /v1/invoices/:id/issue */}
+      <footer className="form-footer">
+        <button type="button" className="secondary">
+          Cancelar
+        </button>
+        <button type="button" className="secondary">
+          Guardar borrador
+        </button>
+        <button type="button" className="primary" onClick={() => setSent(true)}>
+          {support ? "Emitir documento" : "Enviar a DIAN"}
+        </button>
+        {sent && <span className="success">✓ Borrador listo para validación</span>}
+      </footer>
     </div>
-    <div className="line-table">
-      <div className="line-head"><span>#</span><span>Producto / servicio</span><span>Descripción</span><span>Cant.</span><span>Valor unitario</span><span>IVA</span><span>Total</span><span /></div>
-      {lines.map((line, index) => <div className="line-row" key={index}>
-        <span>{index + 1}</span><input placeholder="Buscar" /><input value={line.description} onChange={event => update(index, "description", event.target.value)} placeholder="Descripción" />
-        <input type="number" value={line.qty} onChange={event => update(index, "qty", event.target.value)} /><input type="number" value={line.price} onChange={event => update(index, "price", event.target.value)} />
-        <select value={line.tax} onChange={event => update(index, "tax", event.target.value)}><option value="19">19%</option><option value="5">5%</option><option value="0">0%</option></select>
-        <strong>{money.format(line.qty * line.price * (1 + line.tax / 100))}</strong><button onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== index))} aria-label="Eliminar línea">⌫</button>
-      </div>)}
-    </div>
-    <button type="button" className="text-button" onClick={() => setLines([...lines, { ...initial[0] }])}>＋ Agregar producto o servicio</button>
-    <div className="payment-total"><div><h3>Formas de pago</h3><div className="payment-choice"><label><input type="radio" defaultChecked name="payment" /> Contado</label><label><input type="radio" name="payment" /> Crédito</label><select><option>Selecciona forma de pago</option><option>Transferencia</option><option>Tarjeta</option></select></div><label className="notes">Observaciones<textarea placeholder="Comentarios visibles en el documento para tu cliente…" /></label></div><dl><div><dt>Subtotal</dt><dd>{money.format(subtotal)}</dd></div><div><dt>Impuestos</dt><dd>{money.format(taxes)}</dd></div><div className="grand"><dt>Total neto</dt><dd>{money.format(subtotal + taxes)}</dd></div></dl></div>
-    <footer className="form-footer"><button type="button" className="secondary">Cancelar</button><button type="button" className="secondary">Guardar borrador</button><button type="button" className="primary" onClick={() => setSent(true)}>{support ? "Emitir documento" : "Enviar a DIAN"}</button>{sent && <span className="success">✓ Borrador listo para validación</span>}</footer>
-  </div>;
+  );
 }
 
-function Field({ label, value, placeholder, select }: { label: string; value?: string; placeholder?: string; select?: boolean }) {
-  return <label className="field">{label}{select ? <select defaultValue={value}><option>{value ?? placeholder}</option></select> : <input defaultValue={value} placeholder={placeholder} />}</label>;
+/**
+ * Campo genérico con etiqueta. Si `select` es true dibuja un <select> de una sola opción
+ * (marcador de posición visual hasta tener catálogos reales); si no, un <input> no controlado.
+ */
+function Field({
+  label,
+  value,
+  placeholder,
+  select,
+}: {
+  label: string;
+  value?: string;
+  placeholder?: string;
+  select?: boolean;
+}) {
+  return (
+    <label className="field">
+      {label}
+      {select ? (
+        <select defaultValue={value}>
+          <option>{value ?? placeholder}</option>
+        </select>
+      ) : (
+        <input defaultValue={value} placeholder={placeholder} />
+      )}
+    </label>
+  );
 }
 
+/**
+ * Formulario de creación de terceros (clientes / proveedores).
+ *
+ * Ubicación en cascada: al elegir departamento se filtran sus municipios; al elegir municipio
+ * se carga su código postal (si tiene varios, se muestra un selector).
+ * Ver docs/geografia-y-consulta-rut.md.
+ *
+ * PENDIENTE: enviar a POST /v1/parties (hoy solo muestra "Tercero creado").
+ */
 export function PartyForm() {
   const [saved, setSaved] = useState(false);
   const [departmentCode, setDepartmentCode] = useState("");
-  const [municipalityCode, setMunicipalityCode] = useState("");
+  const [municipalityCode, setMunicipalityCode] = useState(""); // Código DANE del municipio
   const [postalCode, setPostalCode] = useState("");
-  const [identification, setIdentification] = useState("");
-  const municipalities = useMemo(() => locations.municipalities.filter(municipality => municipality.departmentCode === departmentCode), [departmentCode]);
-  const municipality = useMemo(() => locations.municipalities.find(item => item.code === municipalityCode), [municipalityCode]);
+  const [identification, setIdentification] = useState(""); // Solo dígitos
+  // Municipios del departamento seleccionado (se recalcula solo cuando cambia el departamento).
+  const municipalities = useMemo(
+    () => locations.municipalities.filter(municipality => municipality.departmentCode === departmentCode),
+    [departmentCode]
+  );
+  const municipality = useMemo(
+    () => locations.municipalities.find(item => item.code === municipalityCode),
+    [municipalityCode]
+  );
   const postalCodes = municipality?.postalCodes ?? [];
 
+  // Al cambiar de departamento se limpian municipio y código postal (ya no corresponden).
   useEffect(() => {
     setMunicipalityCode("");
     setPostalCode("");
   }, [departmentCode]);
 
+  // Al elegir municipio se preselecciona su primer código postal.
   useEffect(() => {
     setPostalCode(postalCodes[0] ?? "");
   }, [municipalityCode, postalCodes]);
 
+  // Texto de ayuda bajo el campo de código postal según el paso en que esté el usuario.
   const postalHelp = !departmentCode
     ? "Selecciona primero el departamento y luego el municipio."
     : !municipalityCode
@@ -76,60 +237,178 @@ export function PartyForm() {
           ? "Código postal oficial asociado al municipio seleccionado."
           : `${postalCodes.length} códigos postales disponibles. Selecciona el correspondiente a la dirección.`;
 
-  return <form className="party-form" onSubmit={event => { event.preventDefault(); setSaved(true); }}>
-    <div className="form-banner"><b>Tipo de tercero</b><label><input type="checkbox" defaultChecked /> Cliente</label><label><input type="checkbox" /> Proveedor</label></div>
-    <div className="party-columns">
-      <section>
-        <h2>Datos básicos <span>*</span></h2>
-        <div className="two-col">
-          <Field label="Tipo de persona" value="Persona jurídica" select />
-          <Field label="Tipo de identificación" value="NIT" select />
-          <label className="field">Número de identificación<input name="identificationNumber" inputMode="numeric" value={identification} onChange={event => setIdentification(event.target.value.replace(/\D/g, ""))} placeholder="900 000 000" /><small className="field-help">Autocompletado DIAN pendiente de autorización; este dato no se consulta ni transmite todavía.</small></label>
-          <Field label="Dígito de verificación" placeholder="0" />
-          <Field label="Razón social" placeholder="Nombre o razón social" />
-          <Field label="Nombre comercial" placeholder="Opcional" />
-        </div>
-      </section>
-      <section>
-        <h2>Facturación y envío</h2>
-        <div className="two-col">
-          <Field label="Nombre del contacto" placeholder="Nombre completo" />
-          <Field label="Correo electrónico" placeholder="correo@empresa.co" />
-          <Field label="Indicativo y teléfono" placeholder="+57 300 000 0000" />
-          <Field label="Régimen IVA" value="Responsable de IVA" select />
-          <Field label="Responsabilidades fiscales" value="R-99-PN · No aplica" select />
-        </div>
-        <label className="check"><input type="checkbox" /> Contacto marcado como pagador</label>
-      </section>
-      <section className="party-location" aria-labelledby="party-location-title">
-        <div className="location-heading">
-          <div className="location-title">
-            <span className="location-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></svg></span>
-            <div><h2 id="party-location-title">Ubicación del tercero</h2><p>Selecciona el departamento, luego la ciudad o municipio y completa la dirección.</p></div>
+  return (
+    <form
+      className="party-form"
+      onSubmit={event => {
+        event.preventDefault(); // Evita recargar la página.
+        setSaved(true); // PENDIENTE: llamar a la API y manejar errores 422.
+      }}
+    >
+      <div className="form-banner">
+        <b>Tipo de tercero</b>
+        <label>
+          <input type="checkbox" defaultChecked /> Cliente
+        </label>
+        <label>
+          <input type="checkbox" /> Proveedor
+        </label>
+      </div>
+      <div className="party-columns">
+        <section>
+          <h2>
+            Datos básicos <span>*</span>
+          </h2>
+          <div className="two-col">
+            <Field label="Tipo de persona" value="Persona jurídica" select />
+            <Field label="Tipo de identificación" value="NIT" select />
+            <label className="field">
+              Número de identificación
+              <input
+                name="identificationNumber"
+                inputMode="numeric"
+                value={identification}
+                onChange={event => setIdentification(event.target.value.replace(/\D/g, ""))}
+                placeholder="900 000 000"
+              />
+              <small className="field-help">
+                Autocompletado DIAN pendiente de autorización; este dato no se consulta ni transmite todavía.
+              </small>
+            </label>
+            <Field label="Dígito de verificación" placeholder="0" />
+            <Field label="Razón social" placeholder="Nombre o razón social" />
+            <Field label="Nombre comercial" placeholder="Opcional" />
           </div>
-          <span className="location-country">Colombia</span>
-        </div>
-        <div className="location-grid">
-          <label className="field location-department">
-            <span>Departamento <span className="required">*</span></span>
-            <select name="departmentCode" value={departmentCode} onChange={event => setDepartmentCode(event.target.value)} aria-describedby="department-help" required><option value="">Selecciona un departamento</option>{locations.departments.map(department => <option value={department.code} key={department.code}>{department.name}</option>)}</select>
-            <small id="department-help" className="field-help">Selecciona para ver sus ciudades y municipios.</small>
+        </section>
+        <section>
+          <h2>Facturación y envío</h2>
+          <div className="two-col">
+            <Field label="Nombre del contacto" placeholder="Nombre completo" />
+            <Field label="Correo electrónico" placeholder="correo@empresa.co" />
+            <Field label="Indicativo y teléfono" placeholder="+57 300 000 0000" />
+            <Field label="Régimen IVA" value="Responsable de IVA" select />
+            <Field label="Responsabilidades fiscales" value="R-99-PN · No aplica" select />
+          </div>
+          <label className="check">
+            <input type="checkbox" /> Contacto marcado como pagador
           </label>
-          <label className="field location-municipality">
-            <span>Ciudad / municipio <span className="required">*</span></span>
-            <select name="municipalityCode" value={municipalityCode} onChange={event => setMunicipalityCode(event.target.value)} disabled={!departmentCode} aria-describedby="municipality-help" required><option value="">{departmentCode ? "Selecciona ciudad o municipio" : "Primero elige un departamento"}</option>{municipalities.map(item => <option value={item.code} key={item.code}>{item.name} · {item.code}</option>)}</select>
-            <small id="municipality-help" className="field-help">{departmentCode ? `${municipalities.length} municipios o ciudades disponibles.` : "Se habilita al elegir un departamento."}</small>
-          </label>
-          <label className="field location-postal">
-            <span>Código postal <span className="field-optional">Opcional</span></span>
-            {postalCodes.length > 1 ? <select name="postalCode" value={postalCode} onChange={event => setPostalCode(event.target.value)} disabled={!municipalityCode} aria-describedby="postal-code-help"><option value="">Selecciona el código postal</option>{postalCodes.map(code => <option value={code} key={code}>{code}</option>)}</select> : <input name="postalCode" value={postalCode} readOnly placeholder="Según el municipio" aria-describedby="postal-code-help" />}
-            <small id="postal-code-help" className="field-help">{postalHelp}</small>
-          </label>
-          <label className="field location-address"><span>Dirección principal</span><input name="address" autoComplete="street-address" placeholder="Ej. Calle 10 # 5-20, oficina 201" /></label>
-        </div>
+        </section>
+        <section className="party-location" aria-labelledby="party-location-title">
+          <div className="location-heading">
+            <div className="location-title">
+              <span className="location-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                  <path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z" />
+                  <circle cx="12" cy="10" r="2.5" />
+                </svg>
+              </span>
+              <div>
+                <h2 id="party-location-title">Ubicación del tercero</h2>
+                <p>Selecciona el departamento, luego la ciudad o municipio y completa la dirección.</p>
+              </div>
+            </div>
+            <span className="location-country">Colombia</span>
+          </div>
+          <div className="location-grid">
+            <label className="field location-department">
+              <span>
+                Departamento <span className="required">*</span>
+              </span>
+              <select
+                name="departmentCode"
+                value={departmentCode}
+                onChange={event => setDepartmentCode(event.target.value)}
+                aria-describedby="department-help"
+                required
+              >
+                <option value="">Selecciona un departamento</option>
+                {locations.departments.map(department => (
+                  <option value={department.code} key={department.code}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+              <small id="department-help" className="field-help">
+                Selecciona para ver sus ciudades y municipios.
+              </small>
+            </label>
+            <label className="field location-municipality">
+              <span>
+                Ciudad / municipio <span className="required">*</span>
+              </span>
+              <select
+                name="municipalityCode"
+                value={municipalityCode}
+                onChange={event => setMunicipalityCode(event.target.value)}
+                disabled={!departmentCode}
+                aria-describedby="municipality-help"
+                required
+              >
+                <option value="">
+                  {departmentCode ? "Selecciona ciudad o municipio" : "Primero elige un departamento"}
+                </option>
+                {municipalities.map(item => (
+                  <option value={item.code} key={item.code}>
+                    {item.name} · {item.code}
+                  </option>
+                ))}
+              </select>
+              <small id="municipality-help" className="field-help">
+                {departmentCode
+                  ? `${municipalities.length} municipios o ciudades disponibles.`
+                  : "Se habilita al elegir un departamento."}
+              </small>
+            </label>
+            <label className="field location-postal">
+              <span>
+                Código postal <span className="field-optional">Opcional</span>
+              </span>
+              {postalCodes.length > 1 ? (
+                <select
+                  name="postalCode"
+                  value={postalCode}
+                  onChange={event => setPostalCode(event.target.value)}
+                  disabled={!municipalityCode}
+                  aria-describedby="postal-code-help"
+                >
+                  <option value="">Selecciona el código postal</option>
+                  {postalCodes.map(code => (
+                    <option value={code} key={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  name="postalCode"
+                  value={postalCode}
+                  readOnly
+                  placeholder="Según el municipio"
+                  aria-describedby="postal-code-help"
+                />
+              )}
+              <small id="postal-code-help" className="field-help">
+                {postalHelp}
+              </small>
+            </label>
+            <label className="field location-address">
+              <span>Dirección principal</span>
+              <input name="address" autoComplete="street-address" placeholder="Ej. Calle 10 # 5-20, oficina 201" />
+            </label>
+          </div>
+        </section>
+      </div>
+      <section className="contacts">
+        <h2>⌄ Contactos</h2>
+        <p>Agrega los responsables de compras, facturación y pagos.</p>
       </section>
-    </div>
-    <section className="contacts"><h2>⌄ Contactos</h2><p>Agrega los responsables de compras, facturación y pagos.</p></section>
-    <div className="sticky-actions"><button type="button" className="secondary">Cancelar</button><button className="primary">Guardar tercero</button>{saved && <span className="success">✓ Tercero creado correctamente</span>}</div>
-  </form>;
+      <div className="sticky-actions">
+        <button type="button" className="secondary">
+          Cancelar
+        </button>
+        <button className="primary">Guardar tercero</button>
+        {saved && <span className="success">✓ Tercero creado correctamente</span>}
+      </div>
+    </form>
+  );
 }

@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.15.1",
-  "engines": { "node": ">=22.0.0" },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "corepack pnpm --parallel --filter @betel/web --filter @betel/api dev",
     "build": "corepack pnpm --filter @betel/web --filter @betel/api run build",
@@ -12,7 +14,13 @@
     "data:locations": "node scripts/sync-colombia-locations.mjs",
     "db:generate": "corepack pnpm --filter @betel/db generate",
     "db:push": "corepack pnpm --filter @betel/db push",
-    "db:rls": "corepack pnpm --filter @betel/db rls"
+    "db:rls": "corepack pnpm --filter @betel/db rls",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
-  "devDependencies": { "turbo": "^2.11.8", "typescript": "5.9.3" }
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.8",
+    "typescript": "5.9.3"
+  }
 }

@@ -1,3 +1,16 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Modelo de datos de Betel Solution (Prisma + PostgreSQL 17)
+//
+// Reglas del equipo:
+//  - Toda tabla que pertenezca a una empresa lleva `organizationId` y se protege con
+//    RLS (ver prisma/migrations/*_enable_tenant_rls y scripts/apply-rls.mjs).
+//    Si agregas un modelo nuevo de este tipo, agrégalo TAMBIÉN a las políticas RLS.
+//  - Montos de dinero: Decimal(18, 2). Nunca Float.
+//  - Para cambiar el esquema: editar este archivo y crear una migración
+//    (`corepack pnpm --filter @betel/db exec prisma migrate dev --name <descripcion>`).
+//  - Los comentarios con `///` aparecen como documentación al pasar el mouse en VS Code.
+// ═══════════════════════════════════════════════════════════════════════════
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,10 +20,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Persona natural (PERSON) o jurídica (COMPANY).
 enum PartyKind {
   PERSON
   COMPANY
 }
+/// Rol del usuario dentro de una organización. Define permisos en apps/api/src/auth.ts.
 enum MembershipRole {
   OWNER
   ADMIN
@@ -19,6 +34,7 @@ enum MembershipRole {
   SUPPORT
   VIEWER
 }
+/// Estado interno del documento (independiente del estado DIAN).
 enum InvoiceStatus {
   DRAFT
   ISSUED
@@ -27,6 +43,7 @@ enum InvoiceStatus {
   VOID
   OVERDUE
 }
+/// Tipo de documento electrónico intercambiado con el proveedor DIAN.
 enum ElectronicDocumentKind {
   SALES_INVOICE
   CREDIT_NOTE
@@ -34,6 +51,7 @@ enum ElectronicDocumentKind {
   SUPPORT_DOCUMENT
   SUPPORT_ADJUSTMENT
 }
+/// Estado de la transmisión ante la DIAN.
 enum DianTransmissionStatus {
   PENDING
   QUEUED
@@ -42,10 +60,12 @@ enum DianTransmissionStatus {
   REJECTED
   ERROR
 }
+/// Forma de pago: contado (CASH) o crédito (CREDIT).
 enum PaymentTerm {
   CASH
   CREDIT
 }
+/// Categoría de notificación mostrada al usuario.
 enum NotificationKind {
   DIAN
   ACTION
@@ -54,24 +74,28 @@ enum NotificationKind {
   SECURITY
   SYSTEM
 }
+/// Tipo de evento del calendario.
 enum EventType {
   TASK
   MEETING
   DEADLINE
   DIAN_DUE_DATE
 }
+/// Estado del plan contratado por la organización.
 enum SubscriptionStatus {
   TRIAL
   ACTIVE
   PAST_DUE
   CANCELED
 }
+/// Estado de un comprobante contable.
 enum JournalStatus {
   DRAFT
   POSTED
   REVERSED
 }
 
+/// Empresa cliente de Betel. Es el límite de multitenencia: casi todo cuelga de aquí.
 model Organization {
   id                 String              @id @default(uuid())
   legalName          String
@@ -102,6 +126,7 @@ model Organization {
   subscriptions      Subscription[]
 }
 
+/// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
 model User {
   id           String       @id @default(uuid())
   email        String       @unique
@@ -117,6 +142,7 @@ model User {
   auditLogs    AuditLog[]
 }
 
+/// Relación usuario ↔ organización con su rol. Única por (organizationId, userId).
 model Membership {
   id             String          @id @default(uuid())
   organizationId String
@@ -128,6 +154,7 @@ model Membership {
   @@unique([organizationId, userId])
 }
 
+/// Tercero: cliente, proveedor y/o pagador (isCustomer / isSupplier / isPayer).
 model Party {
   id                   String       @id @default(uuid())
   organizationId       String
@@ -156,6 +183,7 @@ model Party {
   @@index([organizationId, legalName])
 }
 
+/// Contactos adicionales de un tercero.
 model PartyContact {
   id        String @id @default(uuid())
   partyId   String
@@ -167,6 +195,7 @@ model PartyContact {
   party     Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
 }
 
+/// Producto o servicio del catálogo de la organización.
 model Product {
   id             String       @id @default(uuid())
   organizationId String
@@ -183,6 +212,7 @@ model Product {
   @@unique([organizationId, sku])
 }
 
+/// Factura de venta. DRAFT → ISSUED. Una vez emitida no se edita: se anula o ajusta con notas.
 model Invoice {
   id                String                 @id @default(uuid())
   organizationId    String
@@ -212,6 +242,7 @@ model Invoice {
   @@index([organizationId, status, issueDate])
 }
 
+/// Línea (ítem) de una factura de venta.
 model InvoiceLine {
   id           String   @id @default(uuid())
   invoiceId    String
@@ -226,6 +257,7 @@ model InvoiceLine {
   product      Product? @relation(fields: [productId], references: [id])
 }
 
+/// Documento soporte de compras a no obligados a facturar (CUDS).
 model SupportDocument {
   id                String                 @id @default(uuid())
   organizationId    String
@@ -245,6 +277,7 @@ model SupportDocument {
   @@index([organizationId, status, issueDate])
 }
 
+/// Línea de un documento soporte.
 model SupportDocumentLine {
   id                String          @id @default(uuid())
   supportDocumentId String
@@ -256,6 +289,7 @@ model SupportDocumentLine {
   supportDocument   SupportDocument @relation(fields: [supportDocumentId], references: [id], onDelete: Cascade)
 }
 
+/// Bitácora del intercambio con el proveedor DIAN (envíos, respuestas, eventos).
 model ElectronicEvent {
   id              String                 @id @default(uuid())
   organizationId  String
@@ -270,6 +304,7 @@ model ElectronicEvent {
   @@index([organizationId, occurredAt])
 }
 
+/// Tarea, reunión o vencimiento tributario del calendario.
 model CalendarEvent {
   id             String       @id @default(uuid())
   organizationId String
@@ -288,6 +323,7 @@ model CalendarEvent {
   @@index([organizationId, startsAt])
 }
 
+/// Aviso para el usuario (p. ej. estado DIAN de una factura).
 model Notification {
   id             String           @id @default(uuid())
   organizationId String
@@ -303,6 +339,7 @@ model Notification {
   @@index([organizationId, readAt, createdAt])
 }
 
+/// Cuenta contable del PUC de la organización. Única por (organizationId, code).
 model Account {
   id             String       @id @default(uuid())
   organizationId String
@@ -316,6 +353,7 @@ model Account {
   @@unique([organizationId, code])
 }
 
+/// Comprobante contable (asiento). Débitos = créditos (ver assertBalanced en la API).
 model JournalEntry {
   id             String        @id @default(uuid())
   organizationId String
@@ -333,6 +371,7 @@ model JournalEntry {
   @@index([organizationId, date])
 }
 
+/// Línea de débito o crédito de un comprobante.
 model JournalLine {
   id             String       @id @default(uuid())
   journalEntryId String
@@ -344,6 +383,7 @@ model JournalLine {
   account        Account      @relation(fields: [accountId], references: [id])
 }
 
+/// Plan/suscripción de la organización a Betel.
 model Subscription {
   id             String             @id @default(uuid())
   organizationId String
@@ -355,6 +395,7 @@ model Subscription {
   organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
+/// Documentos legales aceptados (términos, tratamiento de datos, etc.).
 model LegalDocument {
   id             String       @id @default(uuid())
   organizationId String
@@ -366,6 +407,7 @@ model LegalDocument {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
+/// Auditoría de acciones relevantes. La IP se guarda como hash, nunca en claro.
 model AuditLog {
   id             String       @id @default(uuid())
   organizationId String
