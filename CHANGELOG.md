@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- Tareas de VS Code (`.vscode/tasks.json`): iniciar todo al abrir la carpeta, verificar, base de datos, Prisma Studio.
+- Configuraciones de depuración (`.vscode/launch.json`) para API, web y pruebas.
+- `scripts/instalar-windows.ps1` (instalación completa del entorno) y `scripts/iniciar-base-datos.ps1`.
+
 - Flujo de ramas, revisión mediante Pull Request y validación automática para el trabajo colaborativo.
 - Configuración compartida de VS Code, EditorConfig, Prettier (`pnpm format`) y `.gitattributes`.
 - Comentarios de documentación en API, contratos, cliente de base de datos, esquema Prisma y frontend.

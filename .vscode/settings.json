@@ -28,6 +28,10 @@
     "apps/web/data/colombia-locations.json": true
   },
 
+  // Scripts de package.json: usar pnpm (panel "NPM Scripts" del Explorador).
+  "npm.packageManager": "pnpm",
+  "npm.enableScriptExplorer": true,
+
   // Git: traer cambios del equipo periódicamente.
   "git.autofetch": true,
   "git.pruneOnFetch": true

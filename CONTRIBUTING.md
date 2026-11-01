@@ -6,8 +6,32 @@ Este repositorio usa Git y Pull Requests para que el trabajo de cada integrante 
 
 1. Instale Git, Node.js 22+, Docker Desktop y Visual Studio Code.
 2. Clone el repositorio y ábralo en VS Code; acepte instalar las **extensiones recomendadas** (`.vscode/extensions.json`).
-3. Siga la sección _Inicio local_ del [README](README.md).
-4. Revise el tablero de tareas ([docs/TAREAS.md](docs/TAREAS.md) y GitHub Projects) y tome un Issue sin responsable.
+3. **Windows:** ejecute `scripts/instalar-windows.ps1` (clic derecho → _Ejecutar con PowerShell_). Instala lo que
+   falte (Node, dependencias, extensiones de VS Code, `.env`, base de datos en Docker) y verifica el proyecto.
+   En otros sistemas siga la sección _Inicio local_ del [README](README.md).
+4. Abra la carpeta en VS Code: la tarea **Betel: iniciar todo** arranca sola la base de datos, la web y la API
+   (la primera vez acepte "Permitir tareas automáticas"). Vea [Trabajo diario en VS Code](#trabajo-diario-en-vs-code).
+5. Revise el tablero de tareas ([docs/TAREAS.md](docs/TAREAS.md) y GitHub Projects) y tome un Issue sin responsable.
+
+## Trabajo diario en VS Code
+
+Todo se maneja desde VS Code con las tareas de `.vscode/tasks.json` (`Ctrl+Shift+P` → _Tasks: Run Task_):
+
+| Tarea / atajo                                       | Qué hace                                                       |
+| --------------------------------------------------- | -------------------------------------------------------------- |
+| **Betel: iniciar todo** (`Ctrl+Shift+B`)            | Docker + PostgreSQL y luego web (3000) + API (4000).           |
+| **Betel: abrir en el navegador**                    | Abre http://localhost:3000.                                    |
+| **Betel: verificar (tipos + pruebas)**              | Lo mismo que revisa el CI. Ejecútela antes de cada PR.         |
+| **Betel: instalar dependencias**                    | Después de un `git pull` que cambie dependencias o el esquema. |
+| **Betel: actualizar base de datos (esquema + RLS)** | Aplica cambios de `schema.prisma` a la base local.             |
+| **Betel: ver datos (Prisma Studio)**                | Explorador visual de la base en http://localhost:5555.         |
+| **Betel: formatear todo el código**                 | Prettier sobre todo el repositorio.                            |
+
+Depuración (`F5`, panel _Ejecutar y depurar_): **Depurar API**, **Depurar web**, **Depurar web + API** y
+**Ejecutar pruebas de la API**, con puntos de interrupción en el código TypeScript.
+
+Git también se usa desde VS Code: panel _Control de código fuente_ (`Ctrl+Shift+G`) para commits, la rama
+actual abajo a la izquierda y la extensión _GitHub Pull Requests_ para abrir y revisar PRs.
 
 ## Tareas y tablero
 

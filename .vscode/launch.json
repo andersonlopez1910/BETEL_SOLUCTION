@@ -1,0 +1,58 @@
+{
+  // Depuración desde VS Code (panel "Ejecutar y depurar", Ctrl+Shift+D, o F5).
+  // Permite poner puntos de interrupción (clic a la izquierda del número de línea).
+  //
+  // IMPORTANTE: antes de "Depurar API" detén la tarea "Betel: web + API" (o usa
+  // "Depurar web + API"), porque ambas usan el puerto 4000.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Depurar API (Fastify)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/api",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "exec", "tsx", "--env-file=../../.env", "src/server.ts"],
+      "env": { "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0" },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "Depurar web (Next.js, servidor)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/web",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "exec", "next", "dev"],
+      "env": { "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0" },
+      "console": "integratedTerminal",
+      "serverReadyAction": { "action": "openExternally", "pattern": "Local:\\s+(https?://\\S+)" },
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "Depurar web (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/apps/web"
+    },
+    {
+      "name": "Ejecutar pruebas de la API",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/api",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "test"],
+      "env": { "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0" },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Depurar web + API",
+      "configurations": ["Depurar API (Fastify)", "Depurar web (Next.js, servidor)"],
+      "stopAll": true
+    }
+  ]
+}
