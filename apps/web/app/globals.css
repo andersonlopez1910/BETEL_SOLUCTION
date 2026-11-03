@@ -1703,3 +1703,23 @@ button {
   padding: 0 12px;
   font-size: 15px;
 }
+/* Remisión y cotización: mismo botón dividido que "Crear factura", en blanco. */
+.page-actions .split-secondary {
+  display: inline-flex;
+  align-items: stretch;
+  padding: 0 0 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.split-secondary > span:first-child {
+  display: flex;
+  align-items: center;
+}
+.split-caret {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+  padding: 0 12px;
+  border-left: 1px solid #b8dffa;
+  font-size: 15px;
+}

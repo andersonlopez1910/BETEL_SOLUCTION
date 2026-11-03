@@ -89,9 +89,6 @@ const otherDocuments = ["Remisión", "Cotización"] as const;
 export function CreateDocumentActions() {
   return (
     <>
-      <PendingDocumentMenu id="other-documents-menu" label="Crear remisión o cotización" documents={otherDocuments}>
-        Remisión y cotización ⌄
-      </PendingDocumentMenu>
       <div className="split-button">
         <Link href="/facturacion/nueva" className="primary">
           ＋ Crear factura
@@ -105,6 +102,18 @@ export function CreateDocumentActions() {
           <span aria-hidden="true">⌄</span>
         </PendingDocumentMenu>
       </div>
+      {/* Mismo aspecto de botón dividido, en blanco. Como no hay pantalla de destino, todo el botón abre el menú. */}
+      <PendingDocumentMenu
+        id="other-documents-menu"
+        label="Crear remisión o cotización"
+        documents={otherDocuments}
+        triggerClassName="secondary split-secondary"
+      >
+        <span>Remisión y cotización</span>
+        <span className="split-caret" aria-hidden="true">
+          ⌄
+        </span>
+      </PendingDocumentMenu>
     </>
   );
 }
