@@ -74,15 +74,55 @@ function UnavailableReport({ name, module }: { name: string; module: string }) {
   );
 }
 
-/** Documentos que se crearán desde el menú "Remisión y cotización" cuando exista su módulo. */
-const pendingDocuments = ["Remisión", "Cotización"] as const;
+/**
+ * Documentos que se crearán desde la cabecera cuando exista su módulo. Ninguno tiene tablas ni
+ * pantalla todavía (tareas 19, 20 y 24), así que sus opciones se muestran deshabilitadas y lo dicen,
+ * en lugar de llevar a una pantalla vacía.
+ */
+const invoiceDocuments = ["Factura recurrente", "Nota crédito", "Nota débito", "Documento de ingreso"] as const;
+const otherDocuments = ["Remisión", "Cotización"] as const;
 
 /**
- * Botones de la cabecera del reporte: "Crear factura" abre la factura nueva (módulo Ventas) y el menú
- * lista Remisión y Cotización. Esos dos módulos aún no existen (tarea 24), así que sus opciones se
- * muestran deshabilitadas y lo dicen, en lugar de llevar a una pantalla vacía.
+ * Botones de la cabecera del reporte: "Crear factura" abre la factura nueva y su flecha despliega los
+ * demás documentos de venta; "Remisión y cotización" agrupa esos dos documentos.
  */
 export function CreateDocumentActions() {
+  return (
+    <>
+      <PendingDocumentMenu id="other-documents-menu" label="Crear remisión o cotización" documents={otherDocuments}>
+        Remisión y cotización ⌄
+      </PendingDocumentMenu>
+      <div className="split-button">
+        <Link href="/facturacion/nueva" className="primary">
+          ＋ Crear factura
+        </Link>
+        <PendingDocumentMenu
+          id="invoice-documents-menu"
+          label="Otros documentos de venta"
+          documents={invoiceDocuments}
+          triggerClassName="primary split-toggle"
+        >
+          <span aria-hidden="true">⌄</span>
+        </PendingDocumentMenu>
+      </div>
+    </>
+  );
+}
+
+/** Botón con menú desplegable de documentos pendientes: animado, clic fuera o Escape cierran, flechas navegan. */
+function PendingDocumentMenu({
+  id,
+  label,
+  documents,
+  triggerClassName = "secondary",
+  children,
+}: {
+  id: string;
+  label: string;
+  documents: readonly string[];
+  triggerClassName?: string;
+  children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
   const items = () => Array.from(anchorRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
@@ -125,36 +165,32 @@ export function CreateDocumentActions() {
   };
 
   return (
-    <>
-      <Link href="/facturacion/nueva" className="primary">
-        ＋ Crear factura
-      </Link>
-      <div className="popover-anchor" ref={anchorRef}>
-        <button
-          type="button"
-          className="secondary"
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-controls="create-document-menu"
-          onClick={() => setOpen(!open)}
-        >
-          Remisión y cotización ⌄
-        </button>
-        <div
-          id="create-document-menu"
-          role="menu"
-          aria-label="Crear remisión o cotización"
-          className={`popover settings-menu create-document-menu${open ? " is-open" : ""}`}
-          onKeyDown={onMenuKeyDown}
-        >
-          {pendingDocuments.map(name => (
-            <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1} key={name}>
-              Crear {name.toLowerCase()}
-              <small>Módulo pendiente: aún no se puede crear</small>
-            </button>
-          ))}
-        </div>
+    <div className="popover-anchor" ref={anchorRef}>
+      <button
+        type="button"
+        className={triggerClassName}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen(!open)}
+      >
+        {children}
+      </button>
+      <div
+        id={id}
+        role="menu"
+        aria-label={label}
+        className={`popover settings-menu create-document-menu${open ? " is-open" : ""}`}
+        onKeyDown={onMenuKeyDown}
+      >
+        {documents.map(name => (
+          <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1} key={name}>
+            {name}
+            <small>Módulo pendiente: aún no se puede crear</small>
+          </button>
+        ))}
       </div>
-    </>
+    </div>
   );
 }
