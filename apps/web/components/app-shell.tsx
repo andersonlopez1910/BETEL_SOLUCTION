@@ -32,10 +32,13 @@ const mainNav = [
 export function AppShell({
   title,
   subtitle,
+  actions,
   children,
 }: {
   title: string;
   subtitle?: string;
+  /** Botones propios de la página, a la derecha del título. */
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname(); // Ruta actual, para resaltar el ítem activo del menú.
@@ -159,6 +162,7 @@ export function AppShell({
             <h1>{title}</h1>
             {subtitle && <p className="subtitle">{subtitle}</p>}
           </div>
+          {actions && <div className="page-actions">{actions}</div>}
         </section>
         {children}
       </main>

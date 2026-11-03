@@ -10,6 +10,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
   filtros, indicadores, gráficas, paginación y exportación a PDF, XLSX y CSV; permisos por rol en la API y
   auditoría de exportaciones. Las demás pestañas indican que su módulo de origen aún no existe
   (ver `docs/reporte-facturacion.md`).
+- Cabecera del Reporte de facturación con "Crear factura" y el menú "Remisión y cotización" (sus opciones quedan
+  deshabilitadas hasta que existan esos módulos). `AppShell` acepta botones de página en la prop `actions`.
 - Cliente HTTP del frontend (`apps/web/lib/api.ts`), con sesión de desarrollo provisional.
 - Índice `Invoice(organizationId, customerId, issueDate)` para el reporte por cliente.
 - Tareas de VS Code (`.vscode/tasks.json`): iniciar todo al abrir la carpeta, verificar, base de datos, Prisma Studio.

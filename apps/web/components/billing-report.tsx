@@ -11,6 +11,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { CustomersReport } from "./billing-report-customers";
 import { SalesReport } from "./billing-report-sales";
 
@@ -66,5 +67,90 @@ function UnavailableReport({ name, module }: { name: string; module: string }) {
         Ventas. El detalle está en <code>docs/reporte-facturacion.md</code>.
       </p>
     </section>
+  );
+}
+
+/** Documentos que se crearán desde el menú "Remisión y cotización" cuando exista su módulo. */
+const pendingDocuments = ["Remisión", "Cotización"] as const;
+
+/**
+ * Botones de la cabecera del reporte: "Crear factura" abre la factura nueva (módulo Ventas) y el menú
+ * lista Remisión y Cotización. Esos dos módulos aún no existen (tarea 24), así que sus opciones se
+ * muestran deshabilitadas y lo dicen, en lugar de llevar a una pantalla vacía.
+ */
+export function CreateDocumentActions() {
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const items = () => Array.from(anchorRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+  const close = (refocus = false) => {
+    setOpen(false);
+    if (refocus) anchorRef.current?.querySelector<HTMLElement>("[aria-haspopup]")?.focus();
+  };
+
+  // Al abrir se enfoca la primera opción; clic fuera o Escape cierran.
+  useEffect(() => {
+    if (!open) return;
+    items()[0]?.focus();
+    const onPointerDown = (event: PointerEvent) => {
+      if (!anchorRef.current?.contains(event.target as Node)) close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && close(true);
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const onMenuKeyDown = (event: React.KeyboardEvent) => {
+    const list = items();
+    const current = list.indexOf(document.activeElement as HTMLElement);
+    const next = {
+      ArrowDown: (current + 1) % list.length,
+      ArrowUp: (current - 1 + list.length) % list.length,
+      Home: 0,
+      End: list.length - 1,
+    }[event.key];
+    if (next !== undefined) {
+      event.preventDefault();
+      list[next]?.focus();
+    } else if (event.key === "Tab") {
+      close();
+    }
+  };
+
+  return (
+    <>
+      <Link href="/facturacion/nueva" className="primary">
+        ＋ Crear factura
+      </Link>
+      <div className="popover-anchor" ref={anchorRef}>
+        <button
+          type="button"
+          className="secondary"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-controls="create-document-menu"
+          onClick={() => setOpen(!open)}
+        >
+          Remisión y cotización ⌄
+        </button>
+        <div
+          id="create-document-menu"
+          role="menu"
+          aria-label="Crear remisión o cotización"
+          className={`popover settings-menu create-document-menu${open ? " is-open" : ""}`}
+          onKeyDown={onMenuKeyDown}
+        >
+          {pendingDocuments.map(name => (
+            <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1} key={name}>
+              Crear {name.toLowerCase()}
+              <small>Módulo pendiente: aún no se puede crear</small>
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

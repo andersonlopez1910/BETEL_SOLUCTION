@@ -344,6 +344,16 @@ button {
 }
 .page-head {
   padding: 32px 40px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 .eyebrow {
   font-size: 11px;
@@ -1659,4 +1669,24 @@ button {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+/* ── Crear documento (cabecera del Reporte de facturación) ── */
+.page-actions .primary,
+.page-actions .secondary {
+  height: 38px;
+  padding: 0 16px;
+}
+.create-document-menu {
+  width: 260px;
+}
+.create-document-menu [role="menuitem"][aria-disabled="true"] {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.create-document-menu [role="menuitem"] small {
+  font-size: 11px;
 }
