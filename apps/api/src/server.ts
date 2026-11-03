@@ -22,6 +22,7 @@
  *   Doc. soporte ..... GET/POST /support-documents, POST /support-documents/:id/issue
  *   Contabilidad ..... GET /accounting/journal-entries
  *   Notificaciones ... GET /notifications, POST /notifications/:id/read
+ *   Reportes ......... GET /reports/billing/* (ver src/reports.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -41,6 +42,7 @@ import {
 import { allowRoles, requireActor, type BetelJwt } from "./auth.js";
 import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "./accounting.js";
 import { getDianProvider } from "./dian.js";
+import { registerBillingReportRoutes } from "./reports.js";
 
 // ─── Configuración ────────────────────────────────────────────────────────────
 
@@ -632,6 +634,10 @@ app.post<{ Params: { id: string } }>(
     return reply.code(204).send();
   }
 );
+
+// ─── Reporte de facturación ───────────────────────────────────────────────────
+
+registerBillingReportRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

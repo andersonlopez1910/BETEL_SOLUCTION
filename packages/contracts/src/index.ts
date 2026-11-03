@@ -91,6 +91,57 @@ export const createSupportDocumentSchema = z.object({
     .min(1),
 });
 
+// ─── Reporte de facturación ─────────────────────────────────────────────────
+// Los filtros llegan como query string (?from=2026-11-01&status=ISSUED&page=2).
+// El frontend omite los parámetros vacíos; aquí un texto vacío también se trata como "sin filtro".
+
+/** Estados de factura (mismo orden que el enum InvoiceStatus de schema.prisma). */
+export const invoiceStatuses = ["DRAFT", "ISSUED", "ACCEPTED", "REJECTED", "VOID", "OVERDUE"] as const;
+
+const optionalText = z
+  .string()
+  .trim()
+  .max(120)
+  .optional()
+  .transform(value => value || undefined);
+
+const reportPeriod = {
+  from: z.coerce.date().optional(), // Fecha inicial (inclusive), formato AAAA-MM-DD
+  to: z.coerce.date().optional(), // Fecha final (inclusive)
+};
+
+const pagination = {
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+};
+
+const periodInOrder = (value: { from?: Date; to?: Date }) => !value.from || !value.to || value.from <= value.to;
+const periodMessage = { message: "La fecha inicial no puede ser posterior a la final.", path: ["to"] };
+
+/** Filtros de la pestaña Ventas (y de su exportación, que ignora la paginación). */
+export const salesReportQuerySchema = z
+  .object({
+    ...reportPeriod,
+    customer: optionalText, // Nombre o identificación del cliente (contiene)
+    number: optionalText, // Prefijo o número de factura (contiene)
+    status: z.enum(invoiceStatuses).optional(),
+    userId: z.string().uuid().optional(), // Usuario que creó la factura
+    ...pagination,
+  })
+  .refine(periodInOrder, periodMessage);
+
+/** Filtros de la pestaña Clientes y del detalle de un cliente. */
+export const customerReportQuerySchema = z
+  .object({
+    ...reportPeriod,
+    search: optionalText, // Nombre, nombre comercial o identificación (contiene)
+    ...pagination,
+  })
+  .refine(periodInOrder, periodMessage);
+
+export type SalesReportQuery = z.infer<typeof salesReportQuerySchema>;
+export type CustomerReportQuery = z.infer<typeof customerReportQuerySchema>;
+
 /** Evento del calendario (tareas, reuniones y vencimientos tributarios). */
 export const calendarEventSchema = z
   .object({

@@ -1,0 +1,70 @@
+/**
+ * Módulo "Reporte de facturación": barra horizontal con las nueve pestañas y el contenido de la activa.
+ *
+ * La pestaña activa va en la URL (?tab=ventas) para poder compartir el enlace y usar Atrás/Adelante.
+ *
+ * Datos reales: Ventas y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
+ * dependen de módulos que aún no existen en Betel (no hay tablas de pagos, cotizaciones, etc.)
+ * y muestran ese estado en lugar de datos inventados. Ver docs/reporte-facturacion.md.
+ */
+"use client";
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { CustomersReport } from "./billing-report-customers";
+import { SalesReport } from "./billing-report-sales";
+
+/** [slug de la URL, nombre de la pestaña, módulo de origen que falta (si aplica)]. Orden y nombres definitivos. */
+const reportTabs = [
+  ["ventas", "Ventas", null],
+  ["recaudos", "Recaudos", "Recaudos (pagos y abonos de facturas)"],
+  ["siigo-pay", "Gestión Siigo Pay", "la integración con Siigo Pay"],
+  ["cotizaciones", "Cotizaciones", "Cotizaciones"],
+  ["remisiones", "Remisiones", "Remisiones"],
+  ["facturas-recurrentes", "Facturas recurrentes", "Facturas recurrentes"],
+  ["envio-masivo", "Envío masivo", "Envío masivo de documentos (registro de correos enviados)"],
+  ["clientes", "Clientes", null],
+  ["seguimiento-comercial", "Seguimiento comercial", "Seguimiento comercial (oportunidades y contactos)"],
+] as const;
+
+export function BillingReport() {
+  const requested = useSearchParams().get("tab");
+  const [slug, label, missingModule] = reportTabs.find(([tab]) => tab === requested) ?? reportTabs[0];
+  return (
+    <div className="page-content">
+      <nav className="report-tabs" aria-label="Reportes de facturación">
+        {reportTabs.map(([tab, name]) => (
+          <Link
+            key={tab}
+            href={`/reportes/facturacion?tab=${tab}`}
+            scroll={false}
+            aria-current={tab === slug ? "page" : undefined}
+            className={tab === slug ? "active" : undefined}
+          >
+            {name}
+          </Link>
+        ))}
+      </nav>
+      {slug === "ventas" && <SalesReport />}
+      {slug === "clientes" && <CustomersReport />}
+      {missingModule && <UnavailableReport name={label} module={missingModule} />}
+    </div>
+  );
+}
+
+/** Estado honesto de un reporte cuyo módulo de origen no existe todavía. */
+function UnavailableReport({ name, module }: { name: string; module: string }) {
+  return (
+    <section className="panel report-unavailable">
+      <h2>{name}: sin fuente de datos</h2>
+      <p>
+        Este reporte se alimenta del módulo de <b>{module}</b>, que todavía no existe en Betel. Para no mostrar
+        información ficticia, no se presentan cifras ni filtros hasta que ese módulo registre datos.
+      </p>
+      <p>
+        Cuando el módulo exista, el reporte se conectará aquí con los mismos filtros, indicadores y exportaciones de
+        Ventas. El detalle está en <code>docs/reporte-facturacion.md</code>.
+      </p>
+    </section>
+  );
+}

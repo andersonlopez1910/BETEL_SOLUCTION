@@ -22,6 +22,7 @@ type TopMenu = "notifications" | "settings" | "profile";
 const mainNav = [
   ["⌂", "Resumen", "/resumen"],
   ["▤", "Ventas", "/facturacion/nueva"],
+  ["▥", "Reporte de facturación", "/reportes/facturacion"],
   ["▣", "Documento soporte", "/documentos-soporte/nuevo"],
   ["♧", "Terceros", "/terceros/nuevo"],
   ["◫", "Calendario", "/calendario"],

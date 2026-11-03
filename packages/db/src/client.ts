@@ -9,7 +9,8 @@
  * PostgreSQL no devolverán filas.
  */
 import { Prisma, PrismaClient } from "@prisma/client";
-export type { Prisma } from "@prisma/client";
+// Se exporta como valor (no solo tipo) para usar `Prisma.Decimal` en cálculos monetarios de la API.
+export { Prisma } from "@prisma/client";
 
 // En desarrollo, `tsx watch` recarga el código en cada cambio. Guardar la instancia en globalThis
 // evita abrir una nueva conexión a PostgreSQL en cada recarga.

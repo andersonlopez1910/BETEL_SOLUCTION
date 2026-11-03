@@ -240,6 +240,8 @@ model Invoice {
   electronicEvents  ElectronicEvent[]
   @@unique([organizationId, prefix, number])
   @@index([organizationId, status, issueDate])
+  /// Reporte de facturación por cliente (agrupa por customerId dentro de un período).
+  @@index([organizationId, customerId, issueDate])
 }
 
 /// Línea (ítem) de una factura de venta.

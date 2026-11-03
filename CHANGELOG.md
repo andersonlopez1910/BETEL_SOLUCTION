@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- Módulo **Reporte de facturación** (`/reportes/facturacion`) con nueve pestañas. Ventas y Clientes con datos reales:
+  filtros, indicadores, gráficas, paginación y exportación a PDF, XLSX y CSV; permisos por rol en la API y
+  auditoría de exportaciones. Las demás pestañas indican que su módulo de origen aún no existe
+  (ver `docs/reporte-facturacion.md`).
+- Cliente HTTP del frontend (`apps/web/lib/api.ts`), con sesión de desarrollo provisional.
+- Índice `Invoice(organizationId, customerId, issueDate)` para el reporte por cliente.
 - Tareas de VS Code (`.vscode/tasks.json`): iniciar todo al abrir la carpeta, verificar, base de datos, Prisma Studio.
 - Configuraciones de depuración (`.vscode/launch.json`) para API, web y pruebas.
 - `scripts/instalar-windows.ps1` (instalación completa del entorno) y `scripts/iniciar-base-datos.ps1`.

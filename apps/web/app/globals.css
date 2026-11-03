@@ -1392,3 +1392,271 @@ button {
     line-height: 20px;
   }
 }
+
+/* ── Reporte de facturación (components/billing-report*.tsx) ── */
+.report-tabs {
+  display: flex;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  overflow-x: auto; /* En pantallas pequeñas las pestañas se desplazan en horizontal. */
+  scrollbar-width: thin;
+}
+.report-tabs a {
+  flex: none;
+  padding: 13px 18px;
+  color: #4d6178;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+.report-tabs a + a {
+  border-left: 1px solid var(--line); /* Separador vertical entre pestañas */
+}
+.report-tabs a:hover {
+  color: var(--blue-dark);
+  background: #f7fbff;
+}
+.report-tabs a.active {
+  color: var(--blue-dark);
+  background: var(--pale);
+  border-bottom-color: var(--blue);
+}
+.report-tabs a:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+.report-filters {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+.report-field-wide {
+  grid-column: span 2;
+}
+.report-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.report-actions .primary {
+  padding: 0 18px;
+  height: 36px;
+}
+.report-actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.report-export-menu {
+  left: 0;
+  right: auto;
+  width: 170px;
+  transform-origin: top left;
+}
+.settings-menu button[role="menuitem"] {
+  width: 100%;
+  background: none;
+  text-align: left;
+}
+.report-error {
+  color: var(--red);
+  font-size: 13px;
+}
+.report-message {
+  padding: 18px 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.report-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.report-kpis .metric b {
+  font-size: 21px;
+}
+.report-kpi-note {
+  color: var(--muted) !important;
+}
+.report-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.report-table-panel {
+  margin-top: 20px;
+}
+.report-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.report-table-wrap {
+  overflow-x: auto;
+}
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.report-table th {
+  text-align: left;
+  color: #526478;
+  font-size: 11px;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.report-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.report-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.report-table tr.is-excluded td {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.report-link {
+  background: none;
+  color: var(--blue-dark);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+}
+.report-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.report-pagination span:first-child {
+  margin-right: auto;
+}
+.report-pagination .secondary {
+  height: 32px;
+}
+.report-pagination .secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.report-unavailable p {
+  font-size: 14px;
+  color: #456275;
+  max-width: 760px;
+  line-height: 1.5;
+}
+.report-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.report-detail-head h2 {
+  font: 700 18px Manrope;
+  margin: 0 0 4px;
+}
+.report-detail-head span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* Gráficas (components/report-charts.tsx): una serie, marcas finas, guías discretas. */
+.chart {
+  position: relative;
+}
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.chart-grid line {
+  stroke: var(--line);
+}
+.chart-grid text,
+.chart-axis {
+  fill: var(--muted);
+  font-size: 11px;
+}
+.chart-bar {
+  fill: var(--blue);
+}
+.chart-bar.is-active {
+  fill: var(--blue-dark);
+}
+.chart-line {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.chart-crosshair {
+  stroke: #9fb3c8;
+  stroke-dasharray: 3 3;
+}
+.chart-marker {
+  fill: var(--blue);
+  stroke: white;
+  stroke-width: 2;
+}
+.chart-hit {
+  fill: transparent;
+  outline: none;
+}
+.chart-hit:focus-visible {
+  fill: #0797ed14;
+}
+.chart-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  background: var(--navy);
+  color: white;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px #233c5733;
+}
+.chart-tooltip b,
+.chart-tooltip span {
+  display: block;
+}
+.chart-tooltip span {
+  color: #c7e1f1;
+}
+@media (max-width: 760px) {
+  .report-field-wide {
+    grid-column: auto;
+  }
+  .report-detail-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
