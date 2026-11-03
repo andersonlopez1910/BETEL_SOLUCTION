@@ -29,6 +29,7 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 - Los artefactos de compilación (`out/`, `apps/web/out/`) dejan de versionarse.
 - Dependencias que estaban en `latest` quedan con versión fija.
 - El ítem "Facturación" del menú lateral pasa a llamarse "Ventas" (la ruta no cambia).
+- Las pestañas del Reporte de facturación pasan a estilo subrayado (sin cajas ni separadores).
 - La pestaña "Gestión Siigo Pay" del Reporte de facturación pasa a llamarse "Gestión de cobro cartera Betel"
   (`?tab=gestion-cobro`).
 - "Ventas" sale del menú lateral: la factura nueva se abre con "Crear factura" en el Reporte de facturación
