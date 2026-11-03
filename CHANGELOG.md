@@ -29,6 +29,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 - Los artefactos de compilación (`out/`, `apps/web/out/`) dejan de versionarse.
 - Dependencias que estaban en `latest` quedan con versión fija.
 - El ítem "Facturación" del menú lateral pasa a llamarse "Ventas" (la ruta no cambia).
+- "Ventas" sale del menú lateral: la factura nueva se abre con "Crear factura" en el Reporte de facturación
+  (o con "＋ Crear" en la barra superior).
 - "Configuración" sale del menú lateral y pasa a un menú desplegable en el engranaje de la barra superior.
 - Los desplegables de la barra superior (notificaciones, ajustes, perfil) se animan al abrir y cerrar, se cierran con clic fuera o Escape, y solo uno puede estar abierto a la vez.
 

@@ -21,7 +21,6 @@ type TopMenu = "notifications" | "settings" | "profile";
 /** Menú lateral: [ícono, etiqueta, ruta]. */
 const mainNav = [
   ["⌂", "Resumen", "/resumen"],
-  ["▤", "Ventas", "/facturacion/nueva"],
   ["▥", "Reporte de facturación", "/reportes/facturacion"],
   ["▣", "Documento soporte", "/documentos-soporte/nuevo"],
   ["♧", "Terceros", "/terceros/nuevo"],
