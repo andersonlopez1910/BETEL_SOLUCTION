@@ -1,22 +1,22 @@
 # Reporte de facturación
 
 Módulo de consulta en `/reportes/facturacion`, con nueve pestañas en este orden: **Ventas, Recaudos,
-Gestión Siigo Pay, Cotizaciones, Remisiones, Facturas recurrentes, Envío masivo, Clientes y
+Gestión de cobro cartera Betel, Cotizaciones, Remisiones, Facturas recurrentes, Envío masivo, Clientes y
 Seguimiento comercial**. La pestaña activa va en la URL (`?tab=ventas`, `?tab=clientes`, …).
 
 ## Estado por pestaña
 
-| Pestaña               | Estado                 | Fuente de datos                                                     |
-| --------------------- | ---------------------- | ------------------------------------------------------------------- |
-| Ventas                | ✅ Datos reales        | `Invoice`, `Party`, `AuditLog` (responsable), `User`                |
-| Recaudos              | ⛔ Sin fuente de datos | No existe tabla de pagos ni abonos                                  |
-| Gestión Siigo Pay     | ⛔ Sin fuente de datos | No existe integración (solo aparece como texto en Configuración)    |
-| Cotizaciones          | ⛔ Sin fuente de datos | No existe el módulo                                                 |
-| Remisiones            | ⛔ Sin fuente de datos | No existe el módulo                                                 |
-| Facturas recurrentes  | ⛔ Sin fuente de datos | No existe el módulo                                                 |
-| Envío masivo          | ⛔ Sin fuente de datos | No existe el módulo ni registro de correos enviados                 |
-| Clientes              | ✅ Parcial             | `Party` + `Invoice`. Recaudado y saldo dependen del módulo Recaudos |
-| Seguimiento comercial | ⛔ Sin fuente de datos | No existe el módulo comercial                                       |
+| Pestaña                        | Estado                 | Fuente de datos                                                     |
+| ------------------------------ | ---------------------- | ------------------------------------------------------------------- |
+| Ventas                         | ✅ Datos reales        | `Invoice`, `Party`, `AuditLog` (responsable), `User`                |
+| Recaudos                       | ⛔ Sin fuente de datos | No existe tabla de pagos ni abonos                                  |
+| Gestión de cobro cartera Betel | ⛔ Sin fuente de datos | No existe el módulo de cartera ni registro de gestiones de cobro    |
+| Cotizaciones                   | ⛔ Sin fuente de datos | No existe el módulo                                                 |
+| Remisiones                     | ⛔ Sin fuente de datos | No existe el módulo                                                 |
+| Facturas recurrentes           | ⛔ Sin fuente de datos | No existe el módulo                                                 |
+| Envío masivo                   | ⛔ Sin fuente de datos | No existe el módulo ni registro de correos enviados                 |
+| Clientes                       | ✅ Parcial             | `Party` + `Invoice`. Recaudado y saldo dependen del módulo Recaudos |
+| Seguimiento comercial          | ⛔ Sin fuente de datos | No existe el módulo comercial                                       |
 
 Las pestañas sin fuente muestran ese estado en lugar de cifras inventadas, y no tienen filtros ni
 botones. Cuando exista el módulo de origen se agrega su consulta en `apps/api/src/reports.ts` y su

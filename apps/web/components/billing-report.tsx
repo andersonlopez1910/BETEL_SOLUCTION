@@ -19,7 +19,11 @@ import { SalesReport } from "./billing-report-sales";
 const reportTabs = [
   ["ventas", "Ventas", null],
   ["recaudos", "Recaudos", "Recaudos (pagos y abonos de facturas)"],
-  ["siigo-pay", "Gestión Siigo Pay", "la integración con Siigo Pay"],
+  [
+    "gestion-cobro",
+    "Gestión de cobro cartera Betel",
+    "Gestión de cobro de cartera (cuentas por cobrar y gestiones de cobro)",
+  ],
   ["cotizaciones", "Cotizaciones", "Cotizaciones"],
   ["remisiones", "Remisiones", "Remisiones"],
   ["facturas-recurrentes", "Facturas recurrentes", "Facturas recurrentes"],
