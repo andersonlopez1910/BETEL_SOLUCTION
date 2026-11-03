@@ -13,7 +13,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+/** Desplegables de la barra superior. Solo uno puede estar abierto a la vez. */
+type TopMenu = "notifications" | "settings" | "profile";
 
 /** Menú lateral: [ícono, etiqueta, ruta]. */
 const mainNav = [
@@ -22,7 +25,6 @@ const mainNav = [
   ["▣", "Documento soporte", "/documentos-soporte/nuevo"],
   ["♧", "Terceros", "/terceros/nuevo"],
   ["◫", "Calendario", "/calendario"],
-  ["⚙", "Configuración", "/configuracion"],
   ["◈", "Cuenta", "/cuenta"],
 ] as const;
 
@@ -36,9 +38,35 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname(); // Ruta actual, para resaltar el ítem activo del menú.
-  // Qué menú desplegable está abierto (notificaciones o perfil).
-  const [notifications, setNotifications] = useState(false);
-  const [profile, setProfile] = useState(false);
+  // Qué menú desplegable está abierto (null = ninguno).
+  const [openMenu, setOpenMenu] = useState<TopMenu | null>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const toggle = (menu: TopMenu) => setOpenMenu(current => (current === menu ? null : menu));
+  const close = () => setOpenMenu(null);
+
+  // Cerrar al cambiar de ruta (p. ej. tras elegir una opción del menú).
+  useEffect(close, [pathname]);
+
+  // Cerrar con clic fuera del desplegable o con Escape (en ese caso el foco vuelve al botón).
+  useEffect(() => {
+    if (!openMenu) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const anchor = (event.target as Element).closest(".popover-anchor");
+      if (!anchor || !actionsRef.current?.contains(anchor)) close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      actionsRef.current?.querySelector<HTMLElement>(`[aria-controls="${openMenu}-menu"]`)?.focus();
+      close();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openMenu]);
+
   return (
     <div className="app-shell">
       {/* ── Barra lateral ── */}
@@ -76,7 +104,7 @@ export function AppShell({
             <strong>Betel Solution</strong>
             <span>Soluciones empresariales S.A.S.</span>
           </div>
-          <div className="top-actions">
+          <div className="top-actions" ref={actionsRef}>
             <button className="icon-button" aria-label="Buscar">
               ⌕
             </button>
@@ -86,22 +114,40 @@ export function AppShell({
             <button className="help-button">Ayuda⌄</button>
             <div className="popover-anchor">
               <button
-                onClick={() => setNotifications(!notifications)}
+                onClick={() => toggle("notifications")}
                 className="icon-button notification"
                 aria-label="Notificaciones"
+                aria-expanded={openMenu === "notifications"}
+                aria-controls="notifications-menu"
               >
                 ♟<b />
               </button>
-              {notifications && <Notifications />}
+              <Notifications open={openMenu === "notifications"} onClose={close} />
             </div>
-            <Link href="/configuracion" className="icon-button" aria-label="Configuración">
-              ⚙
-            </Link>
             <div className="popover-anchor">
-              <button onClick={() => setProfile(!profile)} className="avatar" aria-label="Abrir perfil">
+              <button
+                onClick={() => toggle("settings")}
+                className="icon-button"
+                aria-label="Ajustes"
+                aria-haspopup="menu"
+                aria-expanded={openMenu === "settings"}
+                aria-controls="settings-menu"
+              >
+                ⚙
+              </button>
+              <SettingsMenu open={openMenu === "settings"} onClose={close} />
+            </div>
+            <div className="popover-anchor">
+              <button
+                onClick={() => toggle("profile")}
+                className="avatar"
+                aria-label="Abrir perfil"
+                aria-expanded={openMenu === "profile"}
+                aria-controls="profile-menu"
+              >
                 CM
               </button>
-              {profile && <ProfileMenu />}
+              <ProfileMenu open={openMenu === "profile"} />
             </div>
           </div>
         </header>
@@ -119,8 +165,15 @@ export function AppShell({
   );
 }
 
+/**
+ * Los desplegables siempre están montados; `open` solo alterna la clase `is-open`, lo que permite
+ * animar tanto la apertura como el cierre. Cerrados quedan con `visibility: hidden`, así que no
+ * reciben foco ni los anuncian los lectores de pantalla.
+ */
+const popoverClass = (open: boolean, extra: string) => `popover ${extra}${open ? " is-open" : ""}`;
+
 /** Desplegable de notificaciones (datos de ejemplo). */
-function Notifications() {
+function Notifications({ open, onClose }: { open: boolean; onClose: () => void }) {
   const items = [
     "La factura FV-4-1594 fue aprobada por DIAN",
     "Tu vencimiento de resolución está próximo",
@@ -128,9 +181,12 @@ function Notifications() {
     "El documento soporte DS-00042 fue aceptado",
   ];
   return (
-    <div className="popover notifications">
+    <div id="notifications-menu" className={popoverClass(open, "notifications")}>
       <div className="popover-title">
-        Notificaciones <button>×</button>
+        Notificaciones
+        <button onClick={onClose} aria-label="Cerrar notificaciones">
+          ×
+        </button>
       </div>
       {items.map((item, i) => (
         <div className="notification-row" key={item}>
@@ -146,10 +202,62 @@ function Notifications() {
   );
 }
 
-/** Menú del perfil de usuario (datos de ejemplo). PENDIENTE: "Cerrar sesión" real. */
-function ProfileMenu() {
+/**
+ * Menú del engranaje (patrón "menu button" de WAI-ARIA): al abrirse enfoca la primera opción y se
+ * recorre con ↑/↓, Inicio y Fin. Tab lo cierra y deja seguir la navegación normal.
+ * Para agregar una opción, añadir una fila a `settingsItems` ([ícono, texto, ruta]).
+ */
+const settingsItems = [["⚙", "Configuración", "/configuracion"]] as const;
+
+function SettingsMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const items = () => Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+
+  useEffect(() => {
+    if (open) items()[0]?.focus();
+  }, [open]);
+
+  const onKeyDown = (event: React.KeyboardEvent) => {
+    const list = items();
+    const current = list.indexOf(document.activeElement as HTMLElement);
+    const next = {
+      ArrowDown: (current + 1) % list.length,
+      ArrowUp: (current - 1 + list.length) % list.length,
+      Home: 0,
+      End: list.length - 1,
+    }[event.key];
+    if (next !== undefined) {
+      event.preventDefault();
+      list[next]?.focus();
+    } else if (event.key === "Tab") {
+      onClose();
+    }
+  };
+
   return (
-    <div className="popover profile-menu">
+    <div
+      id="settings-menu"
+      ref={menuRef}
+      role="menu"
+      aria-label="Ajustes"
+      className={popoverClass(open, "settings-menu")}
+      onKeyDown={onKeyDown}
+    >
+      <p className="popover-label">Ajustes</p>
+      {settingsItems.map(([icon, label, href]) => (
+        <Link role="menuitem" href={href} key={href} onClick={onClose}>
+          <i aria-hidden="true">{icon}</i>
+          {label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/** Menú del perfil de usuario (datos de ejemplo). PENDIENTE: "Cerrar sesión" real. */
+function ProfileMenu({ open }: { open: boolean }) {
+  return (
+    <div id="profile-menu" className={popoverClass(open, "profile-menu")}>
       <strong>Camila Morales</strong>
       <small>camila@betel.co</small>
       <em>Plan Profesional</em>
