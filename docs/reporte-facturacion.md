@@ -13,7 +13,7 @@ Seguimiento comercial**. La pestaña activa va en la URL (`?tab=ventas`, `?tab=c
 | Gestión de cobro cartera Betel | ✅ Datos reales (pasarela de pruebas) | `OnlinePayment`, `CashReceipt`, `Invoice`                                     |
 | Cotizaciones                   | ✅ Datos reales                       | `Quote`, `QuoteLine`, `DocumentEmail`                                         |
 | Remisiones                     | ✅ Datos reales                       | `Delivery`, `DeliveryLine`, `DocumentEmail`                                   |
-| Facturas recurrentes           | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
+| Facturas recurrentes           | ✅ Datos reales                       | `RecurringInvoice`, `RecurringInvoiceLine`, `RecurringInvoiceRun`, `Invoice`  |
 | Envío masivo                   | ⛔ Sin fuente de datos                | No existe el módulo. Los envíos individuales ya quedan en `DocumentEmail`     |
 | Clientes                       | ✅ Parcial                            | `Party` + `Invoice`. Falta mostrar recaudado y saldo (tarea 25)               |
 | Seguimiento comercial          | ⛔ Sin fuente de datos                | No existe el módulo comercial                                                 |
@@ -151,51 +151,82 @@ correo, Total y Moneda. Por fila: ver, enviar por correo, convertir en factura y
 El formulario, la vista imprimible y el diálogo de conversión son los mismos de Cotizaciones con otra
 configuración (`quote-form.tsx`, `quote-document.tsx`, `quote-dialogs.tsx`). Permisos iguales a Cotizaciones.
 
+## Facturas recurrentes
+
+Pestaña `?tab=facturas-recurrentes`, como la referencia: aviso sobre la fecha de elaboración y la DIAN (se
+puede cerrar; "Conocer más" lo explica), filtro **Recurrencia**, **Más filtros** (fecha de inicio, por defecto
+este mes; estado, por defecto activo; cliente) con etiquetas, **Limpiar filtros**, **Descargar** y **Crear
+factura recurrente** (`/facturas-recurrentes/nueva`). Columnas: Factura recurrente, Identificación,
+Sucursal, Cliente, Recurrencia, Número de veces ("generadas de límite", ∞ sin límite), Fecha inicio (con la
+próxima fecha), **Activo** (interruptor) y Acción (ver, generar ahora, activar o desactivar).
+
+| Concepto                  | Definición                                                                                                                                               |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Factura recurrente (FR-n) | Plantilla (cliente, ítems, forma de pago, frecuencia, fecha de inicio y número de veces opcional) que genera una **factura en borrador** por período.    |
+| Frecuencias               | Semanal, quincenal, mensual, bimestral, trimestral, semestral y anual. Las mensuales conservan el día de inicio y se ajustan al fin de mes.              |
+| Fecha de la factura       | **El día en que se genera**, no la programada: la DIAN exige que la fecha de elaboración sea igual a la de envío.                                        |
+| Generación automática     | La API revisa al arrancar y cada hora todas las organizaciones y genera una factura por plantilla activa vencida (`RECURRING_SCHEDULER=false` la apaga). |
+| Atrasos                   | No se generan facturas atrasadas en lote (saldrían con la misma fecha): se genera la vencida y se salta a la siguiente fecha futura.                     |
+| Número de veces           | Límite de facturas generadas; al alcanzarlo ya no hay próxima fecha.                                                                                     |
+| Generar ahora             | Genera ya la factura del período pendiente (con fecha de hoy) y avanza al siguiente.                                                                     |
+| Activar / desactivar      | Una inactiva no se genera. Al reactivarla, los períodos que pasaron no se generan: sigue con la primera fecha desde hoy.                                 |
+| Crédito                   | La factura vence a los días de plazo indicados en la plantilla, contados desde la fecha de la factura.                                                   |
+
+Las facturas generadas quedan relacionadas en `RecurringInvoiceRun` (la tabla `Invoice` no se modificó) y su
+responsable en Ventas es quien la generó a mano o, si fue automática, quien creó la plantilla. Igual que en
+Cotizaciones y Remisiones, la emisión DIAN es un paso aparte (tarea 31).
+
 ## API
 
 Rutas en `apps/api/src/reports.ts` y `apps/api/src/collections.ts` (Recaudos). Los datos de entrada se
 validan con los esquemas de `@betel/contracts` (422 si son inválidos).
 
-| Ruta                                             | Uso                                                        |
-| ------------------------------------------------ | ---------------------------------------------------------- |
-| `GET /v1/reports/billing/users`                  | Usuarios de la organización (filtro "Usuario responsable") |
-| `GET /v1/reports/billing/sales`                  | Filas paginadas + indicadores + series por día y por mes   |
-| `GET /v1/reports/billing/sales/export`           | Todas las filas filtradas (máx. 5.000) + indicadores       |
-| `GET /v1/reports/billing/customers`              | Consolidado por cliente, paginado                          |
-| `GET /v1/reports/billing/customers/export`       | Todos los clientes filtrados (máx. 5.000)                  |
-| `GET /v1/reports/billing/customers/:id`          | Historial de facturas y evolución mensual de un cliente    |
-| `GET /v1/reports/billing/collections`            | Recaudos: filas paginadas + indicadores                    |
-| `GET /v1/reports/billing/collections/export`     | Todas las filas de Recaudos filtradas (máx. 5.000)         |
-| `GET /v1/collections/document`                   | Ver documento (factura o recibo) con historial de correos  |
-| `GET /v1/collections/pending-customers`          | Clientes con facturas a crédito por cobrar                 |
-| `GET /v1/collections/pending-invoices`           | Facturas a crédito con saldo de un cliente                 |
-| `POST /v1/cash-receipts`                         | Crear recibo de caja                                       |
-| `POST /v1/cash-receipts/:id/void`                | Anular recibo de caja (con motivo)                         |
-| `POST /v1/documents/email`                       | Enviar factura o recibo por correo                         |
-| `GET /v1/reports/billing/online-payments`        | Gestión de cobro: filas paginadas + indicadores            |
-| `GET /v1/reports/billing/online-payments/export` | Todas las filas filtradas (máx. 5.000)                     |
-| `GET /v1/online-payments/payable-invoices`       | Facturas a crédito con saldo para generar link             |
-| `POST /v1/online-payments`                       | Generar link de pago                                       |
-| `POST /v1/online-payments/:id/email`             | Enviar el link por correo                                  |
-| `POST /v1/online-payments/:id/cancel`            | Anular un link pendiente                                   |
-| `POST /v1/online-payments/:id/disburse`          | Registrar el desembolso de la pasarela                     |
-| `GET /v1/public/payments/:token`                 | **Pública:** datos del link para la página de pago         |
-| `POST /v1/public/payments/:token/sandbox`        | **Pública, solo pruebas:** simular el resultado del pago   |
-| `GET /v1/reports/billing/quotes`                 | Cotizaciones: filas paginadas                              |
-| `GET /v1/reports/billing/quotes/export`          | Todas las cotizaciones filtradas (Descargar)               |
-| `GET /v1/quotes/customers`                       | Clientes para el formulario                                |
-| `GET /v1/quotes/:id`                             | Ver cotización con historial de correos                    |
-| `POST /v1/quotes`                                | Crear cotización                                           |
-| `POST /v1/quotes/:id/email`                      | Enviar por correo                                          |
-| `POST /v1/quotes/:id/void`                       | Anular (con motivo)                                        |
-| `POST /v1/quotes/:id/invoice`                    | Convertir en factura en borrador                           |
-| `GET /v1/reports/billing/deliveries`             | Remisiones: filas paginadas                                |
-| `GET /v1/reports/billing/deliveries/export`      | Todas las remisiones filtradas (Descargar)                 |
-| `GET /v1/deliveries/:id`                         | Ver remisión con historial de correos                      |
-| `POST /v1/deliveries`                            | Crear remisión                                             |
-| `POST /v1/deliveries/:id/email`                  | Enviar por correo                                          |
-| `POST /v1/deliveries/:id/void`                   | Anular (con motivo)                                        |
-| `POST /v1/deliveries/:id/invoice`                | Convertir en factura en borrador                           |
+| Ruta                                                | Uso                                                        |
+| --------------------------------------------------- | ---------------------------------------------------------- |
+| `GET /v1/reports/billing/users`                     | Usuarios de la organización (filtro "Usuario responsable") |
+| `GET /v1/reports/billing/sales`                     | Filas paginadas + indicadores + series por día y por mes   |
+| `GET /v1/reports/billing/sales/export`              | Todas las filas filtradas (máx. 5.000) + indicadores       |
+| `GET /v1/reports/billing/customers`                 | Consolidado por cliente, paginado                          |
+| `GET /v1/reports/billing/customers/export`          | Todos los clientes filtrados (máx. 5.000)                  |
+| `GET /v1/reports/billing/customers/:id`             | Historial de facturas y evolución mensual de un cliente    |
+| `GET /v1/reports/billing/collections`               | Recaudos: filas paginadas + indicadores                    |
+| `GET /v1/reports/billing/collections/export`        | Todas las filas de Recaudos filtradas (máx. 5.000)         |
+| `GET /v1/collections/document`                      | Ver documento (factura o recibo) con historial de correos  |
+| `GET /v1/collections/pending-customers`             | Clientes con facturas a crédito por cobrar                 |
+| `GET /v1/collections/pending-invoices`              | Facturas a crédito con saldo de un cliente                 |
+| `POST /v1/cash-receipts`                            | Crear recibo de caja                                       |
+| `POST /v1/cash-receipts/:id/void`                   | Anular recibo de caja (con motivo)                         |
+| `POST /v1/documents/email`                          | Enviar factura o recibo por correo                         |
+| `GET /v1/reports/billing/online-payments`           | Gestión de cobro: filas paginadas + indicadores            |
+| `GET /v1/reports/billing/online-payments/export`    | Todas las filas filtradas (máx. 5.000)                     |
+| `GET /v1/online-payments/payable-invoices`          | Facturas a crédito con saldo para generar link             |
+| `POST /v1/online-payments`                          | Generar link de pago                                       |
+| `POST /v1/online-payments/:id/email`                | Enviar el link por correo                                  |
+| `POST /v1/online-payments/:id/cancel`               | Anular un link pendiente                                   |
+| `POST /v1/online-payments/:id/disburse`             | Registrar el desembolso de la pasarela                     |
+| `GET /v1/public/payments/:token`                    | **Pública:** datos del link para la página de pago         |
+| `POST /v1/public/payments/:token/sandbox`           | **Pública, solo pruebas:** simular el resultado del pago   |
+| `GET /v1/reports/billing/quotes`                    | Cotizaciones: filas paginadas                              |
+| `GET /v1/reports/billing/quotes/export`             | Todas las cotizaciones filtradas (Descargar)               |
+| `GET /v1/quotes/customers`                          | Clientes para el formulario                                |
+| `GET /v1/quotes/:id`                                | Ver cotización con historial de correos                    |
+| `POST /v1/quotes`                                   | Crear cotización                                           |
+| `POST /v1/quotes/:id/email`                         | Enviar por correo                                          |
+| `POST /v1/quotes/:id/void`                          | Anular (con motivo)                                        |
+| `POST /v1/quotes/:id/invoice`                       | Convertir en factura en borrador                           |
+| `GET /v1/reports/billing/deliveries`                | Remisiones: filas paginadas                                |
+| `GET /v1/reports/billing/deliveries/export`         | Todas las remisiones filtradas (Descargar)                 |
+| `GET /v1/deliveries/:id`                            | Ver remisión con historial de correos                      |
+| `POST /v1/deliveries`                               | Crear remisión                                             |
+| `POST /v1/deliveries/:id/email`                     | Enviar por correo                                          |
+| `POST /v1/deliveries/:id/void`                      | Anular (con motivo)                                        |
+| `POST /v1/deliveries/:id/invoice`                   | Convertir en factura en borrador                           |
+| `GET /v1/reports/billing/recurring-invoices`        | Facturas recurrentes: filas paginadas                      |
+| `GET /v1/reports/billing/recurring-invoices/export` | Todas las filas filtradas (Descargar)                      |
+| `GET /v1/recurring-invoices/:id`                    | Ver plantilla con las facturas generadas                   |
+| `POST /v1/recurring-invoices`                       | Crear factura recurrente                                   |
+| `POST /v1/recurring-invoices/:id/active`            | Activar o desactivar                                       |
+| `POST /v1/recurring-invoices/:id/generate`          | Generar ya la factura del período pendiente                |
 
 Filtros de Ventas: `from`, `to` (AAAA-MM-DD), `customer` (nombre o identificación), `number` (prefijo o
 número), `status`, `userId`, `page`, `pageSize` (máx. 100). Filtros de Clientes: `from`, `to`, `search`,
@@ -272,6 +303,11 @@ totales de facturas vigentes.
 - `apps/api/test/deliveries.test.ts` (unitarias): filtros (cliente, usuario, tipo, estado, correo) y validaciones.
 - Remisiones de punta a punta (23 comprobaciones): totales, período de 15 días, filtros, estado del correo
   con Mailpit, conversión a factura a crédito idéntica, anulación, descarga, permisos y aislamiento.
+- `apps/api/test/recurring.test.ts` (unitarias): fechas de cada frecuencia con ajuste a fin de mes y año
+  bisiesto, avance sin generar atrasos, límite de veces, generación anticipada, reactivación y validaciones.
+- Facturas recurrentes de punta a punta (26 comprobaciones), incluida la generación automática real: fecha de
+  hoy, crédito a 30 días, no repite el período, responsable, límite de veces, inactivas no se generan,
+  reactivación sin atrasos, descarga, permisos y aislamiento.
 
 ## Problemas encontrados en el sistema existente
 

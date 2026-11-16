@@ -3,8 +3,8 @@
  *
  * La pestaña activa va en la URL (?tab=ventas) para poder compartir el enlace y usar Atrás/Adelante.
  *
- * Datos reales: Ventas, Recaudos, Gestión de cobro, Cotizaciones, Remisiones y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
- * dependen de módulos que aún no existen en Betel (no hay tablas de facturas recurrentes, envío masivo, etc.)
+ * Datos reales: Ventas, Recaudos, Gestión de cobro, Cotizaciones, Remisiones, Facturas recurrentes y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
+ * dependen de módulos que aún no existen en Betel (no hay tablas de envío masivo ni de seguimiento comercial)
  * y muestran ese estado en lugar de datos inventados. Ver docs/reporte-facturacion.md.
  */
 "use client";
@@ -17,6 +17,7 @@ import { CustomersReport } from "./billing-report-customers";
 import { DeliveriesReport } from "./billing-report-deliveries";
 import { PaymentsReport } from "./billing-report-payments";
 import { QuotesReport } from "./billing-report-quotes";
+import { RecurringReport } from "./billing-report-recurring";
 import { SalesReport } from "./billing-report-sales";
 
 /** [slug de la URL, nombre de la pestaña, módulo de origen que falta (si aplica)]. Orden y nombres definitivos. */
@@ -26,7 +27,7 @@ const reportTabs = [
   ["gestion-cobro", "Gestión de cobro cartera Betel", null],
   ["cotizaciones", "Cotizaciones", null],
   ["remisiones", "Remisiones", null],
-  ["facturas-recurrentes", "Facturas recurrentes", "Facturas recurrentes"],
+  ["facturas-recurrentes", "Facturas recurrentes", null],
   ["envio-masivo", "Envío masivo", "Envío masivo de documentos (registro de correos enviados)"],
   ["clientes", "Clientes", null],
   ["seguimiento-comercial", "Seguimiento comercial", "Seguimiento comercial (oportunidades y contactos)"],
@@ -55,6 +56,7 @@ export function BillingReport() {
       {slug === "gestion-cobro" && <PaymentsReport />}
       {slug === "cotizaciones" && <QuotesReport />}
       {slug === "remisiones" && <DeliveriesReport />}
+      {slug === "facturas-recurrentes" && <RecurringReport />}
       {slug === "clientes" && <CustomersReport />}
       {missingModule && <UnavailableReport name={label} module={missingModule} />}
     </div>
@@ -90,7 +92,7 @@ const pending = (label: string): ActionMenuItem => ({
  * recibo de caja de Recaudos.
  */
 const invoiceDocuments: ActionMenuItem[] = [
-  pending("Factura recurrente"),
+  { label: "Factura recurrente", href: "/facturas-recurrentes/nueva" },
   pending("Nota crédito"),
   pending("Nota débito"),
   { label: "Documento de ingreso", href: "/recaudos/nuevo", note: "Recibo de caja" },

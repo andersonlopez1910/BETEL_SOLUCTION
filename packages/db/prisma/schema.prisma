@@ -104,6 +104,16 @@ enum DeliveryStatus {
   INVOICED
   VOID
 }
+/// Frecuencia de una factura recurrente.
+enum RecurrenceFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
 /// Estado de un recibo de caja. Anulado (VOID) no suma y devuelve el saldo a las facturas.
 enum CashReceiptStatus {
   ACTIVE
@@ -178,6 +188,7 @@ model Organization {
   documentEmails     DocumentEmail[]
   quotes             Quote[]
   deliveries         Delivery[]
+  recurringInvoices  RecurringInvoice[]
 }
 
 /// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
@@ -198,6 +209,7 @@ model User {
   sentEmails   DocumentEmail[] @relation("DocumentEmailSender")
   quotes       Quote[]         @relation("QuoteCreator")
   deliveries   Delivery[]      @relation("DeliveryCreator")
+  recurringInvoices RecurringInvoice[] @relation("RecurringInvoiceCreator")
 }
 
 /// Relación usuario ↔ organización con su rol. Única por (organizationId, userId).
@@ -241,6 +253,7 @@ model Party {
   onlinePayments       OnlinePayment[] @relation("OnlinePaymentCustomer")
   quotes               Quote[]         @relation("QuoteCustomer")
   deliveries           Delivery[]      @relation("DeliveryCustomer")
+  recurringInvoices    RecurringInvoice[] @relation("RecurringInvoiceCustomer")
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
 }
@@ -273,6 +286,7 @@ model Product {
   invoiceLines   InvoiceLine[]
   quoteLines     QuoteLine[]
   deliveryLines  DeliveryLine[]
+  recurringLines RecurringInvoiceLine[]
   @@unique([organizationId, sku])
 }
 
@@ -306,6 +320,7 @@ model Invoice {
   onlinePayments    OnlinePayment[]
   quote             Quote?
   delivery          Delivery?
+  recurringRun      RecurringInvoiceRun?
   @@unique([organizationId, prefix, number])
   @@index([organizationId, status, issueDate])
   /// Reporte de facturación por cliente (agrupa por customerId dentro de un período).
@@ -674,4 +689,68 @@ model DeliveryLine {
   lineTotal    Decimal  @db.Decimal(18, 2)
   delivery     Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   product      Product? @relation(fields: [productId], references: [id])
+}
+
+/// Factura recurrente (FR-n): plantilla que genera una factura EN BORRADOR en cada período, con la fecha
+/// del día en que se genera (la DIAN exige que la fecha de elaboración coincida con la de envío).
+/// periodIndex = siguiente período a generar; nextRunDate = su fecha (null cuando ya terminó).
+model RecurringInvoice {
+  id             String              @id @default(uuid())
+  organizationId String
+  customerId     String
+  number         Int                 /// Consecutivo por organización; se muestra como FR-<número>.
+  frequency      RecurrenceFrequency
+  startDate      DateTime            @db.Date
+  occurrences    Int?                /// "Número de veces"; null = sin límite
+  generatedCount Int                 @default(0)
+  periodIndex    Int                 @default(0)
+  nextRunDate    DateTime?           @db.Date
+  lastRunAt      DateTime?
+  paymentTerm    PaymentTerm         @default(CASH)
+  dueDays        Int?                /// Plazo en días para las facturas a crédito
+  currency       String              @default("COP")
+  subtotal       Decimal             @db.Decimal(18, 2)
+  discountTotal  Decimal             @db.Decimal(18, 2)
+  taxTotal       Decimal             @db.Decimal(18, 2)
+  total          Decimal             @db.Decimal(18, 2)
+  notes          String?
+  active         Boolean             @default(true)
+  createdById    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Party               @relation("RecurringInvoiceCustomer", fields: [customerId], references: [id])
+  createdBy      User?               @relation("RecurringInvoiceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lines          RecurringInvoiceLine[]
+  runs           RecurringInvoiceRun[]
+  @@unique([organizationId, number])
+  @@index([organizationId, startDate])
+  @@index([active, nextRunDate])
+}
+
+/// Línea de la plantilla (mismos campos que InvoiceLine).
+model RecurringInvoiceLine {
+  id                 String           @id @default(uuid())
+  recurringInvoiceId String
+  productId          String?
+  description        String
+  quantity           Decimal          @db.Decimal(18, 4)
+  unitPrice          Decimal          @db.Decimal(18, 2)
+  discountRate       Decimal          @default(0) @db.Decimal(5, 2)
+  taxRate            Decimal          @default(19) @db.Decimal(5, 2)
+  lineTotal          Decimal          @db.Decimal(18, 2)
+  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+  product            Product?         @relation(fields: [productId], references: [id])
+}
+
+/// Cada factura generada por una factura recurrente (la tabla Invoice no se modifica).
+model RecurringInvoiceRun {
+  id                 String           @id @default(uuid())
+  recurringInvoiceId String
+  invoiceId          String           @unique
+  periodDate         DateTime         @db.Date /// Fecha programada del período
+  createdAt          DateTime         @default(now())
+  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+  invoice            Invoice          @relation(fields: [invoiceId], references: [id])
+  @@index([recurringInvoiceId])
 }

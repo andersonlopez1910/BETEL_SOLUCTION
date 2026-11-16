@@ -1,7 +1,8 @@
 /**
- * Formulario de documentos de venta previos a la factura: "Crear cotización" (POST /v1/quotes) y
- * "Crear remisión" (POST /v1/deliveries). Comparten clientes (GET /v1/quotes/customers), ítems y totales;
- * la cotización agrega la validez y la remisión el tipo de transacción.
+ * Formulario de documentos de venta: "Crear cotización" (POST /v1/quotes), "Crear remisión"
+ * (POST /v1/deliveries) y "Crear factura recurrente" (POST /v1/recurring-invoices). Comparten clientes
+ * (GET /v1/quotes/customers), ítems y totales; la cotización agrega la validez, la remisión el tipo de
+ * transacción y la recurrente la frecuencia, el número de veces y la forma de pago.
  *
  * Cliente, fecha de elaboración, observaciones e ítems. Cada ítem
  * puede tomarse del catálogo (GET /v1/products) o escribirse a mano. Los totales que se ven aquí son
@@ -56,7 +57,7 @@ function preview(lines: Line[]) {
   return { rows, subtotal: round(subtotal), discount: round(discount), tax: round(tax), total: round(total) };
 }
 
-/** Diferencias entre cotización y remisión. */
+/** Diferencias entre cotización, remisión y factura recurrente. */
 const kinds = {
   quote: {
     endpoint: "/v1/quotes",
@@ -72,7 +73,24 @@ const kinds = {
     noun: "la remisión",
     view: "/remisiones/documento",
   },
+  recurring: {
+    endpoint: "/v1/recurring-invoices",
+    tab: "facturas-recurrentes",
+    back: "Facturas recurrentes",
+    noun: "la factura recurrente",
+    view: "/facturas-recurrentes/documento",
+  },
 } as const;
+
+export const frequencyLabels: Record<string, string> = {
+  WEEKLY: "Semanal",
+  BIWEEKLY: "Quincenal",
+  MONTHLY: "Mensual",
+  BIMONTHLY: "Bimestral",
+  QUARTERLY: "Trimestral",
+  SEMIANNUAL: "Semestral",
+  ANNUAL: "Anual",
+};
 
 export const deliveryTypeLabels: Record<string, string> = {
   SALE: "Venta",
@@ -82,6 +100,7 @@ export const deliveryTypeLabels: Record<string, string> = {
 
 export const QuoteForm = () => <SalesDocumentForm kind="quote" />;
 export const DeliveryForm = () => <SalesDocumentForm kind="delivery" />;
+export const RecurringInvoiceForm = () => <SalesDocumentForm kind="recurring" />;
 
 function SalesDocumentForm({ kind }: { kind: keyof typeof kinds }) {
   const config = kinds[kind];
@@ -97,6 +116,10 @@ function SalesDocumentForm({ kind }: { kind: keyof typeof kinds }) {
     issueDate: today,
     validUntil: in30,
     transactionType: "SALE",
+    frequency: "MONTHLY",
+    occurrences: "",
+    paymentMethod: "CASH",
+    dueDays: "30",
     notes: "",
   });
   const [lines, setLines] = useState<Line[]>([newLine()]);
@@ -130,10 +153,17 @@ function SalesDocumentForm({ kind }: { kind: keyof typeof kinds }) {
     try {
       const created = await apiPost<{ data: { id: string } }>(config.endpoint, {
         customerId: form.customerId,
-        issueDate: form.issueDate,
-        ...(kind === "quote"
-          ? { validUntil: form.validUntil || undefined }
-          : { transactionType: form.transactionType }),
+        ...(kind === "recurring"
+          ? {
+              startDate: form.issueDate,
+              frequency: form.frequency,
+              ...(form.occurrences && { occurrences: Number(form.occurrences) }),
+              paymentMethod: form.paymentMethod,
+              ...(form.paymentMethod === "CREDIT" && { dueDays: Number(form.dueDays) }),
+            }
+          : { issueDate: form.issueDate }),
+        ...(kind === "quote" && { validUntil: form.validUntil || undefined }),
+        ...(kind === "delivery" && { transactionType: form.transactionType }),
         notes: form.notes || undefined,
         lines: lines.map(line => ({
           ...(line.productId && { productId: line.productId }),
@@ -195,10 +225,53 @@ function SalesDocumentForm({ kind }: { kind: keyof typeof kinds }) {
             )}
           </div>
           <label className="field">
-            Fecha de elaboración
-            <input type="date" value={form.issueDate} onChange={setField("issueDate")} required />
+            {kind === "recurring" ? "Fecha inicio (primera factura)" : "Fecha de elaboración"}
+            <input
+              type="date"
+              value={form.issueDate}
+              onChange={setField("issueDate")}
+              min={kind === "recurring" ? today : undefined}
+              required
+            />
           </label>
-          {kind === "quote" ? (
+          {kind === "recurring" ? (
+            <>
+              <label className="field">
+                Recurrencia
+                <select value={form.frequency} onChange={setField("frequency")}>
+                  {Object.entries(frequencyLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                Número de veces
+                <input
+                  type="number"
+                  min="1"
+                  max="360"
+                  value={form.occurrences}
+                  onChange={setField("occurrences")}
+                  placeholder="Sin límite"
+                />
+              </label>
+              <label className="field">
+                Forma de pago
+                <select value={form.paymentMethod} onChange={setField("paymentMethod")}>
+                  <option value="CASH">Contado</option>
+                  <option value="CREDIT">Crédito</option>
+                </select>
+              </label>
+              {form.paymentMethod === "CREDIT" && (
+                <label className="field">
+                  Plazo (días)
+                  <input type="number" min="1" max="365" value={form.dueDays} onChange={setField("dueDays")} required />
+                </label>
+              )}
+            </>
+          ) : kind === "quote" ? (
             <label className="field">
               Válida hasta
               <input type="date" value={form.validUntil} onChange={setField("validUntil")} min={form.issueDate} />
@@ -357,7 +430,7 @@ function SalesDocumentForm({ kind }: { kind: keyof typeof kinds }) {
 
       <section className="panel receipt-footer">
         <div>
-          <span>Total de {config.noun}</span>
+          <span>{kind === "recurring" ? "Total de cada factura" : `Total de ${config.noun}`}</span>
           <b>{money(totals.total)}</b>
         </div>
         {state.error && (
@@ -370,7 +443,11 @@ function SalesDocumentForm({ kind }: { kind: keyof typeof kinds }) {
             Cancelar
           </Link>
           <button type="submit" className="primary" disabled={state.busy || !form.customerId}>
-            {state.busy ? "Guardando…" : kind === "quote" ? "Guardar cotización" : "Guardar remisión"}
+            {state.busy
+              ? "Guardando…"
+              : { quote: "Guardar cotización", delivery: "Guardar remisión", recurring: "Guardar factura recurrente" }[
+                  kind
+                ]}
           </button>
         </div>
       </section>

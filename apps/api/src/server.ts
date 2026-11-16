@@ -28,6 +28,7 @@
  *   Cobro en línea ... GET/POST /online-payments/*, GET/POST /public/payments/:token (ver src/payments.ts)
  *   Cotizaciones ..... GET/POST /quotes, /quotes/:id/(email|void|invoice) (ver src/quotes.ts)
  *   Remisiones ....... GET/POST /deliveries, /deliveries/:id/(email|void|invoice) (ver src/deliveries.ts)
+ *   Recurrentes ...... GET/POST /recurring-invoices, /recurring-invoices/:id/(active|generate) (ver src/recurring.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -51,6 +52,7 @@ import { registerCollectionRoutes } from "./collections.js";
 import { registerPaymentRoutes } from "./payments.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
 import { registerQuoteRoutes } from "./quotes.js";
+import { registerRecurringRoutes, startRecurringScheduler } from "./recurring.js";
 import { registerBillingReportRoutes } from "./reports.js";
 
 // ─── Configuración ────────────────────────────────────────────────────────────
@@ -651,9 +653,12 @@ registerCollectionRoutes(app, { auditIp });
 registerPaymentRoutes(app, { auditIp });
 registerQuoteRoutes(app, { auditIp });
 registerDeliveryRoutes(app, { auditIp });
+registerRecurringRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
 // host 0.0.0.0 permite acceder desde Docker u otros equipos de la red local.
 const port = Number(process.env.BETEL_API_PORT ?? 4000);
 await app.listen({ port, host: "0.0.0.0" });
+// Generación automática de facturas recurrentes (al arrancar y cada hora).
+startRecurringScheduler(app.log);

@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Facturas recurrentes** en el Reporte de facturación: plantillas con frecuencia, fecha de inicio, número de
+  veces y forma de pago (`/facturas-recurrentes/nueva`); generación automática cada hora de facturas en borrador
+  con la fecha del día (requisito DIAN), generar ahora, activar/desactivar, historial de facturas generadas y
+  pestaña con aviso, filtro de recurrencia, más filtros con etiquetas y descarga. Tablas `RecurringInvoice`,
+  `RecurringInvoiceLine` y `RecurringInvoiceRun` con RLS.
 - **Remisiones** en el Reporte de facturación: crear remisión (`/remisiones/nueva`) con tipo de transacción, lista
   con buscador de cliente, más filtros (últimos 15 días por defecto, usuario, tipo, estado, correo) con etiquetas,
   descarga, ver e imprimir, enviar por correo, anular y convertir en factura en borrador. Tablas `Delivery` y

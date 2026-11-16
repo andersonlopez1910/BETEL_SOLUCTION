@@ -305,6 +305,52 @@ export const deliveryQuerySchema = z
 /** Convertir una cotización o remisión abierta en factura en borrador (mismo esquema). */
 export const convertToInvoiceSchema = convertQuoteSchema;
 
+// ─── Facturas recurrentes ─────────────────────────────────────────────────────
+
+/** Frecuencias (mismo orden que el enum RecurrenceFrequency de schema.prisma). */
+export const recurrenceFrequencies = [
+  "WEEKLY",
+  "BIWEEKLY",
+  "MONTHLY",
+  "BIMONTHLY",
+  "QUARTERLY",
+  "SEMIANNUAL",
+  "ANNUAL",
+] as const;
+
+/** Plantilla de factura recurrente. Sin `occurrences` se repite sin límite. */
+export const createRecurringInvoiceSchema = z
+  .object({
+    customerId: z.string().uuid(),
+    frequency: z.enum(recurrenceFrequencies),
+    startDate: z.coerce.date(), // Fecha de la primera factura
+    occurrences: z.coerce.number().int().min(1).max(360).optional(), // "Número de veces"
+    paymentMethod: z.enum(["CASH", "CREDIT"]),
+    dueDays: z.coerce.number().int().min(1).max(365).optional(), // Plazo de las facturas a crédito
+    notes: z.string().trim().max(2000).optional(),
+    lines: z.array(invoiceLineSchema).min(1, "Agrega al menos un ítem."),
+  })
+  .refine(value => value.paymentMethod === "CASH" || !!value.dueDays, {
+    message: "Indica el plazo en días de las facturas a crédito.",
+    path: ["dueDays"],
+  });
+
+/** Filtros de la pestaña Facturas recurrentes (y de su descarga). */
+export const recurringInvoiceQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de inicio
+    frequency: z.enum(recurrenceFrequencies).optional(),
+    active: z.enum(["true", "false"]).optional(),
+    customer: optionalText,
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(periodInOrder, periodMessage);
+
+export const toggleRecurringInvoiceSchema = z.object({ active: z.boolean() });
+
+export type CreateRecurringInvoiceInput = z.infer<typeof createRecurringInvoiceSchema>;
+export type RecurringInvoiceQuery = z.infer<typeof recurringInvoiceQuerySchema>;
 export type CreateDeliveryInput = z.infer<typeof createDeliverySchema>;
 export type DeliveryQuery = z.infer<typeof deliveryQuerySchema>;
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
