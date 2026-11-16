@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Clientes** (cartera por cliente) en el Reporte de facturación: saldo vencido, por vencer, a favor y total cartera,
+  filtros de saldo y estado con etiquetas, columnas configurables, descarga, crear cliente, activar/desactivar y
+  **estado de cuenta** imprimible y enviable por correo (`/clientes/estado-de-cuenta`). Estado del cliente
+  `Party.active`. El reporte anterior queda en "Ver reportes → Facturación por cliente".
 - **Tablero principal** (Resumen) con datos reales (`GET /v1/dashboard`): ingresos, gastos, utilidad y margen del mes
   con variación frente al mes anterior, evolución de la utilidad por mes, trimestre o año (gráfica de área), flujo de
   caja del mes y accesos rápidos. Reemplaza las cifras de ejemplo que tenía la página.

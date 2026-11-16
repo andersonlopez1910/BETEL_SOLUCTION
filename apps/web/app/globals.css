@@ -3217,3 +3217,83 @@ button.mass-button:disabled {
 .dash-cash dl > div {
   flex-wrap: wrap;
 }
+
+/* ── Clientes: cartera y estado de cuenta (billing-report-portfolio.tsx, customer-statement.tsx) ── */
+.portfolio-columns {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.portfolio-summary {
+  margin: 0 20px 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.portfolio-summary b {
+  color: var(--navy);
+}
+.portfolio-table td.portfolio-overdue {
+  color: #c2353a;
+  font-weight: 600;
+}
+.customer-form {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.customer-id {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+.customer-form input,
+.customer-form select {
+  height: 36px;
+  border: 1px solid #cfdde8;
+  border-radius: 6px;
+  padding: 0 10px;
+  font: inherit;
+  font-weight: 400;
+}
+.statement-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.statement-kpis > div {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.statement-kpis > div.is-bad {
+  border-color: #f2b8bd;
+  background: #fdf2f3;
+}
+.statement-kpis span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.statement-kpis b {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  color: var(--navy);
+}
+.statement-kpis .statement-contact {
+  font-size: 14px;
+  word-break: break-all;
+}
+.statement-kpis small {
+  color: var(--muted);
+}
+.statement-title {
+  margin: 20px 0 10px;
+  font-size: 15px;
+  color: var(--navy);
+}

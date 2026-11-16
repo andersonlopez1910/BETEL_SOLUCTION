@@ -385,6 +385,23 @@ export const massSendQuerySchema = z
   })
   .refine(periodInOrder, periodMessage);
 
+// ─── Clientes (cartera) ───────────────────────────────────────────────────────
+
+/** Filtro "Saldo de cartera". */
+export const portfolioBalanceFilters = ["ALL", "WITH_BALANCE", "OVERDUE", "NO_BALANCE"] as const;
+
+/** Filtros de la pestaña Clientes (cartera por cliente) y de su descarga. */
+export const portfolioQuerySchema = z.object({
+  search: optionalText, // Nombre, nombre comercial o identificación
+  balance: z.enum(portfolioBalanceFilters).default("ALL"),
+  status: z.enum(["ACTIVE", "INACTIVE", "ALL"]).default("ACTIVE"), // Estado del cliente
+  page: pagination.page,
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export const toggleCustomerSchema = z.object({ active: z.boolean() });
+
+export type PortfolioQuery = z.infer<typeof portfolioQuerySchema>;
 export type MassSendQuery = z.infer<typeof massSendQuerySchema>;
 export type CreateRecurringInvoiceInput = z.infer<typeof createRecurringInvoiceSchema>;
 export type RecurringInvoiceQuery = z.infer<typeof recurringInvoiceQuerySchema>;

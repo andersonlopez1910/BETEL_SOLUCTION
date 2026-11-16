@@ -15,7 +15,7 @@ Seguimiento comercial**. La pestaña activa va en la URL (`?tab=ventas`, `?tab=c
 | Remisiones                     | ✅ Datos reales                       | `Delivery`, `DeliveryLine`, `DocumentEmail`                                   |
 | Facturas recurrentes           | ✅ Datos reales                       | `RecurringInvoice`, `RecurringInvoiceLine`, `RecurringInvoiceRun`, `Invoice`  |
 | Envío masivo                   | ✅ Datos reales                       | `Invoice`, `CashReceipt`, `Quote`, `Delivery`, `DocumentEmail`                |
-| Clientes                       | ✅ Parcial                            | `Party` + `Invoice`. Falta mostrar recaudado y saldo (tarea 25)               |
+| Clientes                       | ✅ Datos reales                       | `Party` (con `active`), `Invoice`, `CashReceiptApplication`                   |
 | Seguimiento comercial          | ⛔ Sin fuente de datos                | No existe el módulo comercial                                                 |
 
 Las pestañas sin fuente muestran ese estado en lugar de cifras inventadas, y no tienen filtros ni
@@ -207,6 +207,27 @@ electrónico, Total, Envío por email y Envío a la DIAN, con "Mostrando a-b de 
 | Flujo de caja | Entradas = recaudos del mes (contado + recibos activos); Salidas = documentos soporte del mes; neto = diferencia. |
 | Evolución     | Utilidad de los últimos 10 meses, 8 trimestres o 5 años; el detalle muestra ingresos y gastos de cada período.    |
 
+## Clientes (cartera por cliente)
+
+Pestaña `?tab=clientes`, como la referencia: **Búsqueda**, **Más filtros** (saldo de cartera y estado del cliente)
+con etiquetas, **Limpiar filtros**, **Columnas** (mostrar u ocultar; se recuerda en el navegador), **Descargar**,
+**Ver reportes** (Actualizar y "Facturación por cliente", el reporte anterior de la pestaña) y **Crear cliente**
+(diálogo que guarda con `POST /v1/parties`; la flecha crea un cliente que también es proveedor). Columnas:
+Cliente, Sucursal, Saldo vencido, Saldo por vencer, Saldo a favor, Total cartera, Estado y Acciones (**Ver estado
+de cuenta** y menú: facturación del cliente, enviar estado de cuenta, registrar recibo de caja, activar o desactivar).
+
+| Concepto           | Definición                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Saldo de factura   | Total − abonos de recibos activos de las facturas a crédito vigentes (las de contado no tienen saldo).                   |
+| Saldo vencido      | Saldo de las facturas con vencimiento anterior a hoy (Colombia) o en estado vencida.                                     |
+| Saldo por vencer   | El resto del saldo, incluidas las facturas sin fecha de vencimiento.                                                     |
+| Saldo a favor      | Betel aún no registra anticipos ni pagos mayores al saldo: hoy siempre es 0.                                             |
+| Total cartera      | Vencido + por vencer − a favor.                                                                                          |
+| Estado del cliente | `Party.active`. Un cliente inactivo no se ofrece ni se acepta al crear cotizaciones, remisiones o facturas recurrentes.  |
+| Estado de cuenta   | `/clientes/estado-de-cuenta`: saldos, facturas pendientes con días de mora y recibos de 12 meses; imprimible y enviable. |
+
+`POST /v1/parties` ahora responde 409 si ya existe un tercero con el mismo tipo y número de identificación.
+
 ## API
 
 Rutas en `apps/api/src/reports.ts` y `apps/api/src/collections.ts` (Recaudos). Los datos de entrada se
@@ -259,6 +280,11 @@ validan con los esquemas de `@betel/contracts` (422 si son inválidos).
 | `POST /v1/recurring-invoices/:id/active`            | Activar o desactivar                                       |
 | `POST /v1/recurring-invoices/:id/generate`          | Generar ya la factura del período pendiente                |
 | `GET /v1/reports/billing/mass-send`                 | Envío masivo: comprobantes de los cuatro tipos, paginados  |
+| `GET /v1/reports/billing/portfolio`                 | Clientes: cartera por cliente, paginada                    |
+| `GET /v1/reports/billing/portfolio/export`          | Todos los clientes filtrados (Descargar)                   |
+| `GET /v1/customers/:id/statement`                   | Estado de cuenta del cliente                               |
+| `POST /v1/customers/:id/statement/email`            | Enviar el estado de cuenta por correo                      |
+| `POST /v1/customers/:id/active`                     | Activar o desactivar el cliente                            |
 
 Filtros de Ventas: `from`, `to` (AAAA-MM-DD), `customer` (nombre o identificación), `number` (prefijo o
 número), `status`, `userId`, `page`, `pageSize` (máx. 100). Filtros de Clientes: `from`, `to`, `search`,
@@ -355,7 +381,8 @@ totales de facturas vigentes.
 3. **Descuadre de un centavo en `calculateDocumentTotals`:** redondea con `Number`, así que una línea
    de $50.000,50 con IVA 19 % se guarda con IVA 9.500,09 y total 59.500,60 (subtotal + IVA = 59.500,59).
    El reporte suma los valores guardados, como debe, pero el cálculo de origen debería usar `Decimal`.
-4. No existe el estado del cliente (activo/inactivo) en `Party`, por eso no se muestra.
+4. ~~No existe el estado del cliente (activo/inactivo) en `Party`~~: agregado (`Party.active`, migración
+   `20261116500000_add_party_active`).
 5. **Las facturas de contado no registran la entrada de dinero en contabilidad:** la emisión (módulo Ventas,
    que no se modificó) debita 130505 Clientes también para contado, así que esa cuenta queda con saldo por
    facturas ya pagadas. Recaudos las cuenta como recaudo (son de contado), pero falta el asiento

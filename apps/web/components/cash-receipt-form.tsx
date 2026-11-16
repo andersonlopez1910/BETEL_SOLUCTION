@@ -10,7 +10,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { apiPost } from "../lib/api";
 import { date, money, ReportStatus, useReport } from "./billing-report-common";
@@ -42,7 +42,8 @@ const cents = (value: string) => Math.round(Number(value || 0) * 100);
 export function CashReceiptForm() {
   const router = useRouter();
   const customers = useReport<{ data: PendingCustomer[] }>("/v1/collections/pending-customers");
-  const [customerId, setCustomerId] = useState("");
+  // ?cliente=<id> llega desde la cartera o el estado de cuenta con el cliente ya elegido.
+  const [customerId, setCustomerId] = useState(useSearchParams().get("cliente") ?? "");
   const invoices = useReport<{ data: PendingInvoice[] }>(customerId ? "/v1/collections/pending-invoices" : null, {
     customerId,
   });

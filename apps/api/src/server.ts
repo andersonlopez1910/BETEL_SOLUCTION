@@ -31,6 +31,7 @@
  *   Recurrentes ...... GET/POST /recurring-invoices, /recurring-invoices/:id/(active|generate) (ver src/recurring.ts)
  *   Envío masivo ..... GET /reports/billing/mass-send (ver src/mass-send.ts)
  *   Tablero ......... GET /dashboard (ver src/dashboard.ts)
+ *   Clientes ......... GET /reports/billing/portfolio, GET/POST /customers/:id/(statement|active) (ver src/portfolio.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -52,6 +53,7 @@ import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "
 import { getDianProvider } from "./dian.js";
 import { registerCollectionRoutes } from "./collections.js";
 import { registerPaymentRoutes } from "./payments.js";
+import { registerPortfolioRoutes } from "./portfolio.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
 import { registerMassSendRoutes } from "./mass-send.js";
@@ -160,6 +162,17 @@ app.post("/v1/parties", { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT",
   if (!parsed.success)
     return reply.code(422).send({ error: "Datos del tercero inválidos", details: parsed.error.flatten() });
   const actor = request.actor!;
+  const duplicate = await withOrganizationScope(actor.organizationId, tx =>
+    tx.party.findFirst({
+      where: {
+        identificationType: parsed.data.identificationType,
+        identificationNumber: parsed.data.identificationNumber,
+      },
+      select: { id: true },
+    })
+  );
+  if (duplicate)
+    return reply.code(409).send({ error: "Ya existe un tercero con ese tipo y número de identificación." });
   const party = await withOrganizationScope(actor.organizationId, async tx => {
     const created = await tx.party.create({ data: { ...parsed.data, organizationId: actor.organizationId } });
     await tx.auditLog.create({
@@ -660,6 +673,7 @@ registerDeliveryRoutes(app, { auditIp });
 registerRecurringRoutes(app, { auditIp });
 registerMassSendRoutes(app);
 registerDashboardRoutes(app);
+registerPortfolioRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

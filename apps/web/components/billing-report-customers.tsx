@@ -1,15 +1,13 @@
 /**
- * Pestaña "Clientes" del Reporte de facturación.
+ * "Facturación por cliente": reporte de la pestaña Clientes que se abre desde "Ver reportes"
+ * (la vista principal de la pestaña es la cartera, en billing-report-portfolio.tsx).
  *
  * Lista: GET /v1/reports/billing/customers (consolidado paginado, búsqueda por nombre o identificación).
  * Detalle: GET /v1/reports/billing/customers/:id (historial de facturas y evolución mensual).
- *
- * Total recaudado y saldo pendiente NO se muestran: no existe todavía el módulo de Recaudos,
- * así que cualquier cifra sería inventada.
+ * Los saldos por cliente están en la cartera y en el estado de cuenta.
  */
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { ReportColumn } from "../lib/report-export";
 import {
@@ -80,17 +78,27 @@ const customerColumns: ReportColumn<CustomerRow>[] = [
   { header: "Última facturación", value: row => date(row.lastInvoiceDate) },
 ];
 
-export function CustomersReport() {
+export function CustomersReport({
+  initialCustomer = null,
+  onClose,
+}: {
+  /** Abre directamente el detalle de este cliente. */
+  initialCustomer?: string | null;
+  /** Volver a la cartera. */
+  onClose: () => void;
+}) {
   const { company, canExport } = useSession();
   const [draft, setDraft] = useState<Filters>(emptyFilters);
   const [applied, setApplied] = useState<Filters>(draft);
   const [page, setPage] = useState(1);
-  // ?cliente=<id> abre directamente el detalle (enlace desde Recaudos).
-  const [selected, setSelected] = useState<string | null>(useSearchParams().get("cliente"));
+  const [selected, setSelected] = useState<string | null>(initialCustomer);
   const report = useReport<CustomersResponse>("/v1/reports/billing/customers", { ...applied, page });
   const data = report.data;
 
-  if (selected) return <CustomerDetail id={selected} period={applied} onBack={() => setSelected(null)} />;
+  if (selected)
+    return (
+      <CustomerDetail id={selected} period={applied} onBack={() => (initialCustomer ? onClose() : setSelected(null))} />
+    );
 
   const set = (field: keyof Filters) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setDraft({ ...draft, [field]: event.target.value });
@@ -117,6 +125,12 @@ export function CustomersReport() {
 
   return (
     <>
+      <div className="report-detail-head">
+        <button type="button" className="secondary" onClick={onClose}>
+          ‹ Volver a la cartera de clientes
+        </button>
+        <h2>Facturación por cliente</h2>
+      </div>
       <form
         className="report-filters"
         onSubmit={event => {

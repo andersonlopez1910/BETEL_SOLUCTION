@@ -59,7 +59,7 @@ en un _Issue_ con la plantilla "Tarea".
 | 22  | `calculateDocumentTotals` con `Decimal` (descuadre de 1 centavo, ver `docs/reporte-facturacion.md`)              | api         | —          |             |
 | 23  | Guardar `createdById` en `Invoice` para el filtro "Usuario responsable" a gran escala                            | base-datos  | —          |             |
 | 24  | Módulos de origen pendientes del reporte: Seguimiento comercial                                                  | varios      | —          |             |
-| 25  | Clientes del reporte: mostrar recaudado y saldo por cliente con los recibos de caja                              | facturación | 19         |             |
+| 25  | ~~Clientes del reporte: mostrar recaudado y saldo por cliente~~ Hecho: cartera por cliente y estado de cuenta    | facturación | 19         |             |
 | 26  | Asiento de recaudo al emitir una factura de contado (Débito Caja/Bancos, Crédito Clientes)                       | facturación | 19         |             |
 | 27  | Adjuntar el PDF de la factura o del recibo en el correo (hoy va el detalle en HTML)                              | facturación | —          |             |
 | 28  | Adaptador de pasarela real (Wompi, Mercado Pago o PayU) con webhook firmado para Gestión de cobro                | facturación | —          |             |
@@ -67,6 +67,7 @@ en un _Issue_ con la plantilla "Tarea".
 | 30  | Sucursales de la organización (columna "Sucursal" de Cotizaciones y Remisiones)                                  | config      | —          |             |
 | 31  | Ver y emitir desde la pantalla la factura en borrador creada desde una cotización                                | facturación | 8          |             |
 | 32  | Generación de facturas recurrentes en una cola o job independiente cuando haya varias instancias de la API       | api         | —          |             |
+| 33  | Anticipos y saldos a favor de clientes (columna "Saldo a favor" de la cartera)                                   | facturación | 19         |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):
 > falta el manejo de 422 en formularios y el login real (tarea 3).

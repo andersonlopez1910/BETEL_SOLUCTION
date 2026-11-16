@@ -239,6 +239,7 @@ export function registerQuoteRoutes(app: FastifyInstance, options: { auditIp: (i
       tx.party.findMany({
         where: {
           isCustomer: true,
+          active: true,
           ...(search && {
             OR: [
               { legalName: contains(search) },
@@ -272,10 +273,10 @@ export function registerQuoteRoutes(app: FastifyInstance, options: { auditIp: (i
     try {
       const quote = await withOrganizationScope(actor.organizationId, async tx => {
         const customer = await tx.party.findFirst({
-          where: { id: parsed.data.customerId, isCustomer: true },
+          where: { id: parsed.data.customerId, isCustomer: true, active: true },
           select: { id: true },
         });
-        if (!customer) throw httpError(404, "Cliente no encontrado en esta organización.");
+        if (!customer) throw httpError(404, "Cliente no encontrado o inactivo en esta organización.");
         const organization = await tx.organization.findUniqueOrThrow({
           where: { id: actor.organizationId },
           select: { currency: true },

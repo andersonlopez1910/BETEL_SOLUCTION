@@ -13,10 +13,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ActionMenu, type ActionMenuItem } from "./action-menu";
 import { CollectionsReport } from "./billing-report-collections";
-import { CustomersReport } from "./billing-report-customers";
 import { MassSendReport } from "./billing-report-mass-send";
 import { DeliveriesReport } from "./billing-report-deliveries";
 import { PaymentsReport } from "./billing-report-payments";
+import { PortfolioReport } from "./billing-report-portfolio";
 import { QuotesReport } from "./billing-report-quotes";
 import { RecurringReport } from "./billing-report-recurring";
 import { SalesReport } from "./billing-report-sales";
@@ -59,7 +59,7 @@ export function BillingReport() {
       {slug === "remisiones" && <DeliveriesReport />}
       {slug === "facturas-recurrentes" && <RecurringReport />}
       {slug === "envio-masivo" && <MassSendReport />}
-      {slug === "clientes" && <CustomersReport />}
+      {slug === "clientes" && <PortfolioReport />}
       {missingModule && <UnavailableReport name={label} module={missingModule} />}
     </div>
   );

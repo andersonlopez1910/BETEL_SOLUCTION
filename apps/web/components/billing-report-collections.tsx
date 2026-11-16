@@ -431,10 +431,7 @@ export function CollectionsReport() {
                         <small>{isVoid(row) ? `${row.description} · Anulado` : row.description}</small>
                       </td>
                       <td>
-                        <Link
-                          href={`/reportes/facturacion?tab=clientes&cliente=${row.customer.id}`}
-                          className="collections-doc"
-                        >
+                        <Link href={`/clientes/estado-de-cuenta?id=${row.customer.id}`} className="collections-doc">
                           {row.customer.legalName}
                         </Link>
                         <small>{row.customer.identificationNumber}</small>

@@ -243,6 +243,8 @@ model Party {
   isCustomer           Boolean      @default(false)
   isSupplier           Boolean      @default(false)
   isPayer              Boolean      @default(false)
+  /// Cliente activo. Un cliente inactivo no aparece al crear documentos nuevos; su historial se conserva.
+  active               Boolean      @default(true)
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
