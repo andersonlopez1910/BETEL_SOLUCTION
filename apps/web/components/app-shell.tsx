@@ -4,29 +4,63 @@
  * Uso en una página:
  *   <AppShell title="Terceros" subtitle="Crea clientes y proveedores">...contenido...</AppShell>
  *
- * Para agregar un módulo al menú, añadir una fila a `mainNav` ([ícono, texto, ruta]).
+ * Para agregar un módulo al menú, añadir una fila a `mainNav` (ícono, texto, ruta y rutas que lo resaltan).
  *
- * ESTADO ACTUAL: el nombre del usuario ("Camila Morales"), la empresa y las notificaciones son
- * datos de ejemplo fijos. PENDIENTE: obtenerlos de GET /v1/me y GET /v1/notifications.
+ * La empresa de la barra superior sale de GET /v1/me (nombre y NIT). ESTADO ACTUAL: el nombre del
+ * usuario ("Camila Morales") y las notificaciones siguen siendo datos de ejemplo fijos.
+ * PENDIENTE: obtenerlos de GET /v1/me y GET /v1/notifications.
  */
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { apiGet } from "../lib/api";
+import { BrandMark, Icon, type IconName } from "./brand";
 
 /** Desplegables de la barra superior. Solo uno puede estar abierto a la vez. */
 type TopMenu = "notifications" | "settings" | "profile";
 
-/** Menú lateral: [ícono, etiqueta, ruta]. */
-const mainNav = [
-  ["⌂", "Resumen", "/resumen"],
-  ["▥", "Reporte de facturación", "/reportes/facturacion"],
-  ["▣", "Documento soporte", "/documentos-soporte/nuevo"],
-  ["♧", "Terceros", "/terceros/nuevo"],
-  ["◫", "Calendario", "/calendario"],
-  ["◈", "Cuenta", "/cuenta"],
-] as const;
+/** Menú lateral. `match`: prefijos de ruta que resaltan el ítem (incluye las pantallas que dependen de él). */
+const mainNav: { icon: IconName; label: string; href: string; match: string[] }[] = [
+  { icon: "home", label: "Resumen", href: "/resumen", match: ["/resumen"] },
+  {
+    icon: "report",
+    label: "Reporte de facturación",
+    href: "/reportes/facturacion",
+    match: [
+      "/reportes",
+      "/facturacion",
+      "/recaudos",
+      "/cotizaciones",
+      "/remisiones",
+      "/facturas-recurrentes",
+      "/envio-masivo",
+    ],
+  },
+  { icon: "document", label: "Documento soporte", href: "/documentos-soporte/nuevo", match: ["/documentos-soporte"] },
+  { icon: "users", label: "Terceros", href: "/terceros/nuevo", match: ["/terceros"] },
+  { icon: "calendar", label: "Calendario", href: "/calendario", match: ["/calendario"] },
+  { icon: "account", label: "Cuenta", href: "/cuenta", match: ["/cuenta"] },
+];
+
+type Organization = { legalName: string; nit: string };
+
+/** Empresa de la sesión (GET /v1/me). Sin API disponible queda null y se muestra el nombre del producto. */
+function useOrganization() {
+  const [organization, setOrganization] = useState<Organization | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<{ organization: Organization }>("/v1/me").then(
+      me => !cancelled && setOrganization(me.organization),
+      () => undefined
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return organization;
+}
 
 export function AppShell({
   title,
@@ -41,6 +75,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname(); // Ruta actual, para resaltar el ítem activo del menú.
+  const organization = useOrganization();
   // Qué menú desplegable está abierto (null = ninguno).
   const [openMenu, setOpenMenu] = useState<TopMenu | null>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -74,27 +109,27 @@ export function AppShell({
     <div className="app-shell">
       {/* ── Barra lateral ── */}
       <aside className="sidebar">
-        <Link className="brand" href="/resumen">
-          B<span>e</span>tel
+        <Link className="brand" href="/resumen" aria-label="Betel Solution, ir al resumen">
+          <BrandMark id="sidebar-brand" />
+          <span>
+            <b>BETEL</b> Solution
+          </span>
         </Link>
-        <nav>
-          {mainNav.map(([icon, label, href]) => (
-            // OBSERVACIÓN (bug conocido): para rutas distintas de /resumen se compara contra
-            // "facturacion" (sin "/"), y como pathname empieza por "/" nunca coincide; por eso solo
-            // "Resumen" se resalta. Corrección sugerida: pathname.startsWith("/" + href.split("/")[1]).
-            <Link
-              className={
-                pathname.startsWith(href.split("/")[1] === "resumen" ? "/resumen" : href.split("/")[1])
-                  ? "nav-link active"
-                  : "nav-link"
-              }
-              href={href}
-              key={href}
-            >
-              <i>{icon}</i>
-              <span>{label}</span>
-            </Link>
-          ))}
+        <nav aria-label="Menú principal">
+          {mainNav.map(item => {
+            const active = item.match.some(prefix => pathname.startsWith(prefix));
+            return (
+              <Link
+                className={active ? "nav-link active" : "nav-link"}
+                aria-current={active ? "page" : undefined}
+                href={item.href}
+                key={item.href}
+              >
+                <Icon name={item.icon} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
         <div className="sidebar-foot">
           <span className="status-dot" /> DIAN en pruebas
@@ -104,15 +139,22 @@ export function AppShell({
         {/* ── Barra superior ── */}
         <header className="topbar">
           <div className="company">
-            <strong>Betel Solution</strong>
-            <span>Soluciones empresariales S.A.S.</span>
+            <span className="company-icon">
+              <Icon name="building" size={18} />
+            </span>
+            <span>
+              <strong>{organization?.legalName ?? "Betel Solution"}</strong>
+              <small>
+                {organization ? `NIT ${organization.nit}` : "Contabilidad inteligente para decisiones claras"}
+              </small>
+            </span>
           </div>
           <div className="top-actions" ref={actionsRef}>
             <button className="icon-button" aria-label="Buscar">
-              ⌕
+              <Icon name="search" />
             </button>
             <Link href="/facturacion/nueva" className="create-button">
-              ＋ Crear
+              <Icon name="plus" size={16} /> Crear
             </Link>
             <button className="help-button">Ayuda⌄</button>
             <div className="popover-anchor">
@@ -123,7 +165,8 @@ export function AppShell({
                 aria-expanded={openMenu === "notifications"}
                 aria-controls="notifications-menu"
               >
-                ♟<b />
+                <Icon name="bell" />
+                <b />
               </button>
               <Notifications open={openMenu === "notifications"} onClose={close} />
             </div>
@@ -136,7 +179,7 @@ export function AppShell({
                 aria-expanded={openMenu === "settings"}
                 aria-controls="settings-menu"
               >
-                ⚙
+                <Icon name="gear" />
               </button>
               <SettingsMenu open={openMenu === "settings"} onClose={close} />
             </div>

@@ -55,6 +55,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Cambiado
 
+- Nueva identidad visual de Betel Solution: paleta #061724, #0D293B, #22D3C5, #3B82F6, #8B5CF6, #F2F7FA y #9CB3C9
+  como variables en `globals.css`, tipografía Inter, isotipo "B" en degradado (también como ícono del navegador),
+  menú lateral oscuro con íconos de línea e ítem activo en turquesa, barra superior con la empresa y el NIT reales
+  (GET /v1/me) e íconos de línea en la barra y en los accesos rápidos.
+- El menú lateral resalta la sección actual en todas sus pantallas (corrige la tarea 1).
 - Los artefactos de compilación (`out/`, `apps/web/out/`) dejan de versionarse.
 - Dependencias que estaban en `latest` quedan con versión fija.
 - El ítem "Facturación" del menú lateral pasa a llamarse "Ventas" (la ruta no cambia).

@@ -1,25 +1,32 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 * {
   box-sizing: border-box;
 }
+/* Identidad visual Betel Solution: paleta #061724 · #0D293B · #22D3C5 · #3B82F6 · #8B5CF6 · #F2F7FA · #9CB3C9 */
 :root {
-  --navy: #162a46;
-  --ink: #1d2d44;
-  --muted: #66758a;
-  --line: #dfe7ef;
-  --bg: #f4f7fb;
-  --blue: #0797ed;
-  --blue-dark: #087fc9;
-  --pale: #e9f5fe;
-  --green: #78c43b;
-  --red: #e63843;
-  --amber: #f3a718;
+  --navy: #061724; /* Fondo del menú lateral y textos más oscuros */
+  --navy-2: #0d293b; /* Superficies oscuras secundarias */
+  --ink: #0d293b; /* Texto principal */
+  --muted: #5b7186; /* Texto secundario (versión legible de #9CB3C9 sobre fondo claro) */
+  --soft: #9cb3c9; /* Detalles, íconos y texto sobre fondo oscuro */
+  --line: #dde7ef;
+  --bg: #f2f7fa;
+  --blue: #3b82f6;
+  --blue-dark: #2563eb;
+  --pale: #eaf2fe;
+  --teal: #22d3c5;
+  --teal-dark: #0f9e93;
+  --violet: #8b5cf6;
+  --brand-gradient: linear-gradient(135deg, #22d3c5 0%, #3b82f6 100%);
+  --green: #16a34a;
+  --red: #e5484d;
+  --amber: #f59e0b;
 }
 html,
 body {
   margin: 0;
   min-height: 100%;
-  font-family: "DM Sans", Arial, sans-serif;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
   color: var(--ink);
   background: var(--bg);
 }
@@ -39,55 +46,70 @@ button {
 }
 .sidebar {
   position: fixed;
-  width: 240px;
+  width: 248px;
   inset: 0 auto 0 0;
   padding: 22px 14px;
-  background: #102641;
-  color: #d3e0ef;
+  background: radial-gradient(120% 60% at 0% 0%, #0d293b 0%, transparent 60%), var(--navy);
+  border-right: 1px solid #0f2c40;
+  color: var(--soft);
   display: flex;
   flex-direction: column;
   z-index: 10;
 }
 .brand {
-  font: bold 28px Manrope;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 30px;
   color: white;
   text-decoration: none;
-  padding: 0 14px 30px;
+  font-size: 17px;
+  letter-spacing: -0.01em;
 }
-.brand span {
-  color: #35b9ff;
+.brand b {
+  font-weight: 800;
 }
 .sidebar nav {
   display: grid;
-  gap: 5px;
+  gap: 4px;
 }
 .nav-link {
-  color: #aebed0;
+  position: relative;
+  color: var(--soft);
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
+  gap: 12px;
+  padding: 11px 14px;
   border-radius: 10px;
   font-size: 14px;
+  font-weight: 500;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
-.nav-link i {
-  font-style: normal;
-  font-size: 19px;
-  width: 20px;
-  text-align: center;
+.nav-link svg {
+  flex: none;
 }
-.nav-link:hover,
+.nav-link:hover {
+  color: white;
+  background: #0d293b;
+}
 .nav-link.active {
   color: white;
-  background: #1c416a;
+  background: linear-gradient(90deg, #22d3c529, #22d3c50a);
+  box-shadow: inset 0 0 0 1px #22d3c533;
 }
-.nav-link.active {
-  box-shadow: inset 3px 0 #24aeff;
+.nav-link.active svg {
+  color: var(--teal);
+}
+.nav-link:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
 }
 .sidebar-foot {
   margin-top: auto;
-  border-top: 1px solid #31506e;
+  border-top: 1px solid #12324a;
   padding: 18px 12px 0;
   font-size: 12px;
 }
@@ -96,17 +118,22 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #a9db3a;
+  background: var(--teal);
+  box-shadow: 0 0 0 3px #22d3c533;
   margin-right: 6px;
 }
 .main-area {
-  width: calc(100% - 240px);
-  margin-left: 240px;
+  width: calc(100% - 248px);
+  margin-left: 248px;
   min-height: 100vh;
 }
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 9;
   height: 70px;
-  background: white;
+  background: #ffffffe6;
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
   padding: 0 32px;
   display: flex;
@@ -114,13 +141,25 @@ button {
   justify-content: space-between;
 }
 .company {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.company-icon {
   display: grid;
-  gap: 3px;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--navy);
+  color: var(--teal);
 }
 .company strong {
+  display: block;
   font-size: 14px;
+  color: var(--navy);
 }
-.company span {
+.company small {
   color: var(--muted);
   font-size: 12px;
 }
@@ -135,7 +174,7 @@ button {
 .secondary {
   background: white;
   color: var(--blue-dark);
-  border: 1px solid #b8dffa;
+  border: 1px solid #bcd3f5;
   border-radius: 8px;
   height: 36px;
   padding: 0 11px;
@@ -151,7 +190,8 @@ button {
   justify-content: center;
   background: var(--blue);
   color: white;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 6px 14px -8px #3b82f6aa;
   padding: 10px 16px;
   text-decoration: none;
   font-weight: 700;
@@ -165,7 +205,7 @@ button {
 .avatar {
   border: 0;
   border-radius: 50%;
-  background: #e2f3ff;
+  background: #eaf2fe;
   width: 34px;
   padding: 0;
   font-size: 12px;
@@ -181,7 +221,7 @@ button {
   background: white;
   border: 1px solid var(--line);
   border-radius: 12px;
-  box-shadow: 0 12px 32px #233c5729;
+  box-shadow: 0 12px 32px #06172429;
   z-index: 30;
   overflow: hidden;
   /* Cerrado: invisible y fuera del orden de foco. `visibility` cambia al final del cierre
@@ -311,8 +351,8 @@ button {
   color: var(--muted);
 }
 .profile-menu em {
-  color: #087fc9;
-  background: #e5f5ff;
+  color: #2563eb;
+  background: #eaf2fe;
   width: max-content;
   padding: 2px 6px;
   font-style: normal;
@@ -357,13 +397,15 @@ button {
 }
 .eyebrow {
   font-size: 11px;
-  letter-spacing: 1px;
-  font-weight: 800;
-  color: var(--blue-dark);
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--teal-dark);
   margin: 0 0 7px;
 }
 .page-head h1 {
-  font: 700 28px Manrope;
+  font: 800 28px Inter;
+  letter-spacing: -0.02em;
+  color: var(--navy);
   margin: 0;
 }
 .subtitle {
@@ -376,7 +418,9 @@ button {
   padding: 0 40px 45px;
 }
 .hero-card {
-  background: linear-gradient(115deg, #173b63, #075d99);
+  background:
+    radial-gradient(60% 120% at 100% 0%, #3b82f655 0%, transparent 60%),
+    radial-gradient(50% 90% at 85% 100%, #22d3c533 0%, transparent 60%), linear-gradient(120deg, #061724, #0d293b);
   color: white;
   border-radius: 18px;
   padding: 40px 48px;
@@ -386,27 +430,30 @@ button {
   min-height: 218px;
 }
 .hero-card h2 {
-  font: 800 32px/1.1 Manrope;
+  font: 800 32px/1.1 Inter;
   margin: 4px 0 12px;
 }
 .hero-card h2 em {
-  color: #7ed4ff;
+  color: #7fe7de;
   font-style: normal;
 }
 .hero-card > div > p:not(.eyebrow) {
-  color: #c7e1f1;
+  color: #c6d8ee;
   max-width: 530px;
   margin-bottom: 23px;
 }
 .hero-card .primary {
-  background: white;
-  color: #097abe;
-  border-color: white;
+  background: var(--teal);
+  color: var(--navy);
+  border-color: var(--teal);
+}
+.hero-card .primary:hover {
+  background: #5ee6da;
 }
 .hero-stat {
   align-self: center;
-  border: 1px solid #63c5ee55;
-  background: #5dc1ea1a;
+  border: 1px solid #22d3c566;
+  background: #22d3c51a;
   border-radius: 50%;
   height: 138px;
   width: 138px;
@@ -421,7 +468,7 @@ button {
 .hero-stat span {
   font-size: 12px;
   text-align: center;
-  color: #cbeeff;
+  color: #dbe8fd;
 }
 .metric-grid {
   display: grid;
@@ -441,7 +488,10 @@ button {
 .settings {
   background: white;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px #0617240a,
+    0 8px 24px -16px #06172426;
 }
 .metric {
   padding: 20px;
@@ -453,7 +503,7 @@ button {
 }
 .metric b {
   display: block;
-  font: 700 23px Manrope;
+  font: 700 23px Inter;
   margin: 10px 0;
 }
 .metric small,
@@ -462,7 +512,7 @@ button {
   font-size: 12px;
 }
 .section-title {
-  font: 700 18px Manrope;
+  font: 700 18px Inter;
   margin: 0 0 15px;
 }
 .quick-grid {
@@ -483,9 +533,14 @@ button {
   gap: 7px;
 }
 .quick-card i {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--pale);
   color: var(--blue);
   font-style: normal;
-  font-size: 23px;
 }
 .quick-card span {
   font-size: 12px;
@@ -519,7 +574,7 @@ button {
 .legal-grid h2,
 .license h2,
 .party-form h2 {
-  font: 700 17px Manrope;
+  font: 700 17px Inter;
   margin: 0;
 }
 .panel-head a {
@@ -535,7 +590,7 @@ button {
   border-top: 1px solid var(--line);
 }
 .deadline time {
-  background: #e9f6ff;
+  background: #eaf2fe;
   color: var(--blue-dark);
   border-radius: 8px;
   width: 43px;
@@ -588,7 +643,7 @@ button {
   color: var(--muted);
 }
 .compliance-note {
-  background: #e5f5ff;
+  background: #eaf2fe;
   border-left: 4px solid var(--blue);
   padding: 13px 15px;
   border-radius: 6px;
@@ -598,7 +653,7 @@ button {
   margin-bottom: 18px;
 }
 .compliance-note span {
-  color: #456275;
+  color: #3e5568;
 }
 .document-card {
   overflow: hidden;
@@ -622,7 +677,7 @@ button {
 .line-row select,
 .payment-choice select,
 .notes textarea {
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 5px;
   padding: 9px;
   background: white;
@@ -647,7 +702,7 @@ button {
 }
 .line-head {
   background: #eef3f8;
-  color: #536578;
+  color: #3e5568;
   font-size: 11px;
   font-weight: bold;
 }
@@ -668,7 +723,7 @@ button {
   color: var(--red);
 }
 .text-button {
-  color: #4d9b35;
+  color: var(--blue-dark);
   background: none;
   margin: 14px 28px;
   font-size: 13px;
@@ -700,7 +755,7 @@ button {
 .notes {
   display: grid;
   gap: 7px;
-  color: #536578;
+  color: #3e5568;
   font-size: 12px;
   margin-top: 24px;
 }
@@ -721,7 +776,7 @@ button {
   color: var(--muted);
 }
 .payment-total .grand {
-  font: 700 18px Manrope;
+  font: 700 18px Inter;
   border-top: 1px solid var(--line);
   margin-top: 7px;
 }
@@ -758,7 +813,7 @@ button {
   font-size: 13px;
 }
 .form-banner b {
-  font: 700 16px Manrope;
+  font: 700 16px Inter;
   margin-right: 14px;
 }
 .party-columns {
@@ -855,7 +910,7 @@ button {
   overflow: hidden;
 }
 .blue-event {
-  background: #d7efff;
+  background: #dbe8fd;
   color: #0871b0;
 }
 .green-event {
@@ -903,14 +958,14 @@ button {
   color: #536579;
 }
 .settings aside button.selected {
-  background: #e4f4ff;
+  background: #eaf2fe;
   color: var(--blue-dark);
 }
 .settings section {
   padding: 26px;
 }
 .settings section > h2 {
-  font: 700 19px Manrope;
+  font: 700 19px Inter;
   margin: 0 0 20px;
 }
 .settings-groups {
@@ -943,7 +998,7 @@ button {
 .tabs button {
   padding: 12px 18px;
   background: white;
-  color: #4d6178;
+  color: #3e5568;
   border: 1px solid transparent;
   border-bottom: 0;
 }
@@ -971,12 +1026,12 @@ button {
   margin: 0;
 }
 .large-money {
-  font: 700 33px Manrope;
+  font: 700 33px Inter;
 }
 .cards {
   color: var(--blue-dark);
   font-weight: bold;
-  border: 1px solid #c4e5fc;
+  border: 1px solid #bcd3f5;
   border-radius: 5px;
   padding: 8px;
   width: max-content;
@@ -1008,7 +1063,7 @@ button {
   border-top: 1px solid var(--line);
 }
 .table b {
-  color: #526478;
+  color: #3e5568;
   font-size: 11px;
 }
 .product-table {
@@ -1062,7 +1117,7 @@ button {
 .profile-avatar {
   height: 78px;
   width: 78px;
-  background: #e0f4ff;
+  background: #eaf2fe;
   border: 2px dashed var(--blue);
   border-radius: 50%;
   display: grid;
@@ -1071,7 +1126,7 @@ button {
   font-weight: bold;
 }
 .profile-top h2 {
-  font: 700 18px Manrope;
+  font: 700 18px Inter;
   margin: 0;
 }
 .profile-top p {
@@ -1138,8 +1193,10 @@ button {
     padding: 16px 8px;
   }
   .brand {
-    padding: 0 8px 24px;
-    font-size: 20px;
+    padding: 0 6px 24px;
+  }
+  .brand > span {
+    display: none;
   }
   .nav-link {
     justify-content: center;
@@ -1156,7 +1213,7 @@ button {
   .topbar {
     padding: 0 14px;
   }
-  .company span,
+  .company > span:last-child,
   .help-button {
     display: none;
   }
@@ -1222,7 +1279,7 @@ button {
 }
 .field select:disabled {
   background: #f2f5f8;
-  color: #8290a1;
+  color: #7d93a7;
   cursor: not-allowed;
 }
 .field-help {
@@ -1272,7 +1329,7 @@ button {
 }
 .party-form .party-location {
   grid-column: 1 / -1;
-  border-top: 3px solid #9ed8fb;
+  border-top: 3px solid #a9c6f5;
   padding: 24px;
 }
 .location-heading {
@@ -1312,8 +1369,8 @@ button {
   border: 1px solid var(--line);
   border-radius: 20px;
   padding: 6px 11px;
-  color: #52677d;
-  background: #f7f9fc;
+  color: #3e5568;
+  background: #f6f9fb;
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
@@ -1346,8 +1403,8 @@ button {
   grid-column: 1 / -1;
 }
 .location-grid input[readonly] {
-  background-color: #f7f9fc;
-  color: #52677d;
+  background-color: #f6f9fb;
+  color: #3e5568;
 }
 @media (max-width: 1100px) {
   .party-columns {
@@ -1416,7 +1473,7 @@ button {
 .report-tabs a {
   flex: none;
   padding: 12px 14px;
-  color: #4d6178;
+  color: #3e5568;
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
@@ -1428,7 +1485,7 @@ button {
 }
 .report-tabs a:hover {
   color: var(--blue-dark);
-  border-bottom-color: #c9dff0;
+  border-bottom-color: #c6d8ee;
 }
 .report-tabs a.active {
   color: var(--blue-dark);
@@ -1523,7 +1580,7 @@ button {
 }
 .report-table th {
   text-align: left;
-  color: #526478;
+  color: #3e5568;
   font-size: 11px;
   padding: 10px;
   border-bottom: 1px solid var(--line);
@@ -1571,7 +1628,7 @@ button {
 }
 .report-unavailable p {
   font-size: 14px;
-  color: #456275;
+  color: #3e5568;
   max-width: 760px;
   line-height: 1.5;
 }
@@ -1582,7 +1639,7 @@ button {
   margin-bottom: 20px;
 }
 .report-detail-head h2 {
-  font: 700 18px Manrope;
+  font: 700 18px Inter;
   margin: 0 0 4px;
 }
 .report-detail-head span {
@@ -1627,7 +1684,7 @@ button {
   stroke-linejoin: round;
 }
 .chart-crosshair {
-  stroke: #9fb3c8;
+  stroke: #9cb3c9;
   stroke-dasharray: 3 3;
 }
 .chart-marker {
@@ -1659,7 +1716,7 @@ button {
   display: block;
 }
 .chart-tooltip span {
-  color: #c7e1f1;
+  color: #c6d8ee;
 }
 @media (max-width: 760px) {
   .report-field-wide {
@@ -1707,7 +1764,7 @@ button {
   align-items: center;
   margin-left: 16px;
   padding: 0 12px;
-  border-left: 1px solid #b8dffa;
+  border-left: 1px solid #bcd3f5;
   font-size: 15px;
 }
 
@@ -1729,7 +1786,7 @@ button {
   width: min(340px, 100%);
   height: 36px;
   padding: 0 10px;
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 6px;
   color: var(--muted);
 }
@@ -1742,7 +1799,7 @@ button {
 }
 .collections-search:focus-within {
   border-color: var(--blue);
-  box-shadow: 0 0 0 3px #0797ed22;
+  box-shadow: 0 0 0 3px #3b82f622;
 }
 .collections-spacer {
   flex: 1;
@@ -1816,13 +1873,13 @@ button {
   font-weight: 600;
 }
 .collections-table thead th {
-  background: #f6f8fa;
+  background: #f4f8fb;
   font-size: 12px;
   color: var(--ink);
   padding: 12px 10px;
 }
 .collections-table th + th {
-  background-image: linear-gradient(#c9d4df, #c9d4df);
+  background-image: linear-gradient(#c3d3e0, #c3d3e0);
   background-size: 1px 14px;
   background-position: left center;
   background-repeat: no-repeat;
@@ -1838,7 +1895,7 @@ button {
 .collections-table td small {
   display: block;
   margin-top: 2px;
-  color: #4d6178;
+  color: #3e5568;
   font-size: 12px;
 }
 .collections-doc {
@@ -1925,14 +1982,14 @@ button {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 22px;
-  box-shadow: 0 20px 50px #233c5740;
+  box-shadow: 0 20px 50px #06172440;
 }
 .report-dialog::backdrop {
-  background: #162a4666;
+  background: #06172473;
 }
 .report-dialog h2 {
   margin: 0 0 14px;
-  font: 700 18px Manrope;
+  font: 700 18px Inter;
 }
 .report-dialog form {
   display: grid;
@@ -1971,7 +2028,7 @@ button {
   grid-column: 1 / -1;
 }
 .receipt-notes textarea {
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 5px;
   padding: 8px;
   font: inherit;
@@ -1987,7 +2044,7 @@ button {
 .receipt-amount input {
   width: 140px;
   height: 32px;
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 5px;
   padding: 0 8px;
   text-align: right;
@@ -2011,7 +2068,7 @@ button {
   font-size: 13px;
 }
 .receipt-footer > div:first-child b {
-  font: 700 24px Manrope;
+  font: 700 24px Inter;
 }
 .receipt-cancel {
   display: inline-flex;
@@ -2047,7 +2104,7 @@ button {
 }
 .document-head h2 {
   margin: 0 0 4px;
-  font: 700 22px Manrope;
+  font: 700 22px Inter;
 }
 .document-head p {
   margin: 0;
@@ -2062,7 +2119,7 @@ button {
   font-size: 13px;
 }
 .document-total b {
-  font: 700 24px Manrope;
+  font: 700 24px Inter;
 }
 .document-void {
   display: block;
@@ -2195,7 +2252,7 @@ button {
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  color: #4d6178;
+  color: #3e5568;
 }
 .pay-kpi i {
   display: inline-block;
@@ -2270,7 +2327,7 @@ button {
 }
 .pay-empty h3 {
   margin: 12px 0 0;
-  font: 600 17px Manrope;
+  font: 600 17px Inter;
 }
 .pay-empty p {
   margin: 0;
@@ -2311,7 +2368,7 @@ button {
 .pay-created input {
   flex: 1;
   height: 36px;
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 6px;
   padding: 0 10px;
 }
@@ -2374,11 +2431,11 @@ button {
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 28px;
-  box-shadow: 0 16px 40px #233c5718;
+  box-shadow: 0 16px 40px #06172418;
 }
 .checkout-brand {
   margin: 0 0 18px;
-  font: 800 24px Manrope;
+  font: 800 24px Inter;
   color: var(--navy);
 }
 .checkout-brand span {
@@ -2386,12 +2443,12 @@ button {
 }
 .checkout-brand small {
   margin-left: 6px;
-  font: 600 12px Manrope;
+  font: 600 12px Inter;
   color: var(--muted);
 }
 .checkout-card h1 {
   margin: 0 0 12px;
-  font: 700 20px Manrope;
+  font: 700 20px Inter;
 }
 .checkout-detail {
   display: grid;
@@ -2425,7 +2482,7 @@ button {
   font-size: 13px;
 }
 .checkout-amount b {
-  font: 700 26px Manrope;
+  font: 700 26px Inter;
 }
 .checkout-methods {
   display: grid;
@@ -2498,7 +2555,7 @@ button {
 .quotes-user {
   display: grid;
   gap: 8px;
-  color: #4d6178;
+  color: #3e5568;
   font-size: 13px;
 }
 .quotes-user select {
@@ -2547,7 +2604,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 4px 6px 4px 10px;
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 999px;
   font-size: 12px;
 }
@@ -2557,7 +2614,7 @@ button {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #c9d4df;
+  background: #c3d3e0;
   color: white;
   font-size: 12px;
   line-height: 1;
@@ -2585,7 +2642,7 @@ button {
   width: 100%;
   min-width: 70px;
   height: 32px;
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 5px;
   padding: 0 8px;
   font: inherit;
@@ -2598,7 +2655,7 @@ button {
 }
 .receipt-customer .pay-invoice-search + select {
   height: 36px;
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 5px;
   padding: 0 8px;
   font: inherit;
@@ -2625,9 +2682,9 @@ button {
   gap: 12px;
   margin-bottom: 16px;
   padding: 14px 16px;
-  border: 1px solid #9fd6f7;
+  border: 1px solid #a9c6f5;
   border-radius: 10px;
-  background: #eef8ff;
+  background: #eef6fd;
   font-size: 13px;
 }
 .recurring-banner > span {
@@ -2639,7 +2696,7 @@ button {
   border-radius: 50%;
   background: var(--blue);
   color: white;
-  font: 700 11px Manrope;
+  font: 700 11px Inter;
 }
 .recurring-banner p {
   flex: 1;
@@ -2648,11 +2705,11 @@ button {
 .recurring-banner small {
   display: block;
   margin-top: 6px;
-  color: #4d6178;
+  color: #3e5568;
 }
 .recurring-banner-close {
   background: none;
-  color: #4d6178;
+  color: #3e5568;
   font-size: 20px;
   line-height: 1;
 }
@@ -2662,7 +2719,7 @@ button {
   height: 22px;
   padding: 0;
   border-radius: 999px;
-  background: #c9d4df;
+  background: #c3d3e0;
   transition: background 0.15s;
 }
 .recurring-switch span {
@@ -2701,7 +2758,7 @@ button {
 .mass-head h2 {
   margin: 0 0 6px;
   color: var(--blue-dark);
-  font: 600 22px Manrope;
+  font: 600 22px Inter;
 }
 .mass-head p {
   margin: 0 0 10px;
@@ -2749,7 +2806,7 @@ button {
 .mass-grid > .field > input {
   height: 36px;
   min-width: 0;
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 5px;
   padding: 0 8px;
   font: inherit;
@@ -2766,7 +2823,7 @@ button {
   width: 100%;
   min-height: 36px;
   padding: 4px 10px;
-  border: 1px solid #cbd8e4;
+  border: 1px solid #cfdde8;
   border-radius: 5px;
   background: white;
   font-weight: 400;
@@ -2812,7 +2869,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: white;
-  box-shadow: 0 12px 32px #233c5729;
+  box-shadow: 0 12px 32px #06172429;
 }
 .mass-multi-list label {
   display: flex;
@@ -2913,4 +2970,10 @@ button.mass-button:disabled {
   width: auto;
   height: auto;
   margin: 0;
+}
+.create-button svg {
+  margin-right: 4px;
+}
+.icon-button svg {
+  vertical-align: middle;
 }

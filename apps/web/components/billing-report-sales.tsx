@@ -251,7 +251,7 @@ export function SalesReport() {
             <div className="panel-head">
               <h2>Facturas</h2>
               <span className="report-hint">
-                Estado del pago: no disponible hasta que exista el módulo de Recaudos.
+                Pagos y saldos: ver las pestañas Recaudos y Gestión de cobro cartera Betel.
               </span>
             </div>
             <InvoiceTable rows={data.data} />

@@ -536,14 +536,14 @@ export function QuotesReport() {
 export function SearchIllustration() {
   return (
     <svg width="110" height="100" viewBox="0 0 110 100" aria-hidden="true">
-      <ellipse cx="58" cy="92" rx="32" ry="5" fill="#e3edf6" />
-      <circle cx="62" cy="50" r="36" fill="#eaf5fe" />
-      <rect x="44" y="14" width="44" height="58" rx="6" fill="#2c9ff0" transform="rotate(8 66 43)" />
-      <rect x="40" y="16" width="44" height="58" rx="6" fill="#ffffff" stroke="#1186d8" strokeWidth="2" />
-      <path d="M48 30h28M48 38h28M48 46h20M48 54h24" stroke="#9ccff5" strokeWidth="3" strokeLinecap="round" />
-      <rect x="54" y="10" width="16" height="8" rx="3" fill="#1186d8" />
-      <circle cx="40" cy="62" r="13" fill="#d9eefd" stroke="#4d6178" strokeWidth="4" />
-      <path d="M31 72l-10 11" stroke="#2a3b4f" strokeWidth="6" strokeLinecap="round" />
+      <ellipse cx="58" cy="92" rx="32" ry="5" fill="#e2ebf3" />
+      <circle cx="62" cy="50" r="36" fill="#eaf2fe" />
+      <rect x="44" y="14" width="44" height="58" rx="6" fill="#3b82f6" transform="rotate(8 66 43)" />
+      <rect x="40" y="16" width="44" height="58" rx="6" fill="#ffffff" stroke="#2563eb" strokeWidth="2" />
+      <path d="M48 30h28M48 38h28M48 46h20M48 54h24" stroke="#a9c6f5" strokeWidth="3" strokeLinecap="round" />
+      <rect x="54" y="10" width="16" height="8" rx="3" fill="#2563eb" />
+      <circle cx="40" cy="62" r="13" fill="#dbe8fd" stroke="#3e5568" strokeWidth="4" />
+      <path d="M31 72l-10 11" stroke="#0d293b" strokeWidth="6" strokeLinecap="round" />
     </svg>
   );
 }

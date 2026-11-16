@@ -579,12 +579,12 @@ function PayKpi({
 function EmptyIllustration() {
   return (
     <svg width="110" height="96" viewBox="0 0 110 96" aria-hidden="true">
-      <ellipse cx="55" cy="88" rx="34" ry="5" fill="#e3edf6" />
-      <circle cx="58" cy="50" r="34" fill="#eaf5fe" />
-      <path d="M22 34h26l6 7h34a4 4 0 0 1 4 4v33a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V38a4 4 0 0 1 4-4z" fill="#1186d8" />
-      <path d="M18 46h74v32a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#2c9ff0" />
-      <path d="M40 8l30 8-17 6-3 10-4-9z" fill="#78c43b" />
-      <path d="M53 22l-7 1 4 9z" fill="#5a9a2a" />
+      <ellipse cx="55" cy="88" rx="34" ry="5" fill="#e2ebf3" />
+      <circle cx="58" cy="50" r="34" fill="#eaf2fe" />
+      <path d="M22 34h26l6 7h34a4 4 0 0 1 4 4v33a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V38a4 4 0 0 1 4-4z" fill="#2563eb" />
+      <path d="M18 46h74v32a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#3b82f6" />
+      <path d="M40 8l30 8-17 6-3 10-4-9z" fill="#22d3c5" />
+      <path d="M53 22l-7 1 4 9z" fill="#0f9e93" />
     </svg>
   );
 }

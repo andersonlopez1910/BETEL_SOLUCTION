@@ -4,11 +4,12 @@
  */
 import Link from "next/link";
 import { AppShell } from "../../../components/app-shell";
-const actions = [
-  ["＋", "Nueva factura", "Emite, guarda o transmite documentos electrónicos.", "/facturacion/nueva"],
-  ["⌑", "Documento soporte", "Registra compras a no obligados a facturar.", "/documentos-soporte/nuevo"],
-  ["♧", "Crear tercero", "Administra clientes, proveedores y contactos.", "/terceros/nuevo"],
-  ["▦", "Calendario tributario", "No dejes pasar vencimientos críticos.", "/calendario"],
+import { Icon, type IconName } from "../../../components/brand";
+const actions: [IconName, string, string, string][] = [
+  ["plus", "Nueva factura", "Emite, guarda o transmite documentos electrónicos.", "/facturacion/nueva"],
+  ["document", "Documento soporte", "Registra compras a no obligados a facturar.", "/documentos-soporte/nuevo"],
+  ["users", "Crear tercero", "Administra clientes, proveedores y contactos.", "/terceros/nuevo"],
+  ["calendar", "Calendario tributario", "No dejes pasar vencimientos críticos.", "/calendario"],
 ];
 export default function Summary() {
   return (
@@ -48,7 +49,9 @@ export default function Summary() {
         <section className="quick-grid">
           {actions.map(([icon, name, desc, href]) => (
             <Link href={href} className="quick-card" key={name}>
-              <i>{icon}</i>
+              <i>
+                <Icon name={icon} size={22} />
+              </i>
               <b>{name}</b>
               <span>{desc}</span>
               <em>→</em>
