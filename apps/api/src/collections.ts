@@ -32,6 +32,7 @@ import {
 } from "@betel/contracts";
 import { allowRoles, type MembershipRole } from "./auth.js";
 import { assertBalanced, ensureDefaultAccounts } from "./accounting.js";
+import { invoiceEmailBlocked } from "./dian.js";
 import { mailerConfigured, sendMail } from "./mailer.js";
 import { BILLED_STATUSES, EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod } from "./reports.js";
 
@@ -390,6 +391,7 @@ async function loadDocument(tx: Tx, type: DocumentType, id: string) {
     id: invoice.id,
     number: invoiceNumber(invoice),
     title: invoice.paymentTerm === "CASH" ? "Factura de venta (contado)" : "Factura de venta (crédito)",
+    emailBlocked: invoiceEmailBlocked(invoice),
     date: dateOnly(invoice.issueDate),
     status: invoice.status as string,
     customer: invoice.customer,
@@ -785,6 +787,8 @@ export function registerCollectionRoutes(app: FastifyInstance, options: { auditI
       return document && { document, company: organization.legalName };
     });
     if (!loaded) return reply.code(404).send({ error: "Documento no encontrado." });
+    if ("emailBlocked" in loaded.document && loaded.document.emailBlocked)
+      return reply.code(422).send({ error: loaded.document.emailBlocked });
     const recipient = parsed.data.to ?? loaded.document.customer.email;
     if (!recipient)
       return reply.code(422).send({ error: "El cliente no tiene correo registrado. Escribe un correo de destino." });

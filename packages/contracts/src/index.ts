@@ -349,6 +349,43 @@ export const recurringInvoiceQuerySchema = z
 
 export const toggleRecurringInvoiceSchema = z.object({ active: z.boolean() });
 
+// ─── Impresión y envío masivo de comprobantes ────────────────────────────────
+
+/** Comprobantes que se pueden imprimir y enviar en lote. */
+export const massSendDocumentTypes = ["Invoice", "CashReceipt", "Quote", "Delivery"] as const;
+/** Estado de envío a la DIAN. NOT_SENT = PENDING; NOT_APPLICABLE = documentos que no van a la DIAN. */
+export const massSendDianStatuses = [
+  "NOT_SENT",
+  "QUEUED",
+  "SENT",
+  "ACCEPTED",
+  "REJECTED",
+  "ERROR",
+  "NOT_APPLICABLE",
+] as const;
+
+/** Lista separada por comas en la query (?types=Invoice,Quote). Vacía = todos. */
+const csvOf = <T extends readonly [string, ...string[]]>(values: T) =>
+  z
+    .string()
+    .optional()
+    .transform(value => (value ? value.split(",").filter(Boolean) : undefined))
+    .pipe(z.array(z.enum(values)).min(1).optional());
+
+/** Filtros de "Impresión y envío masivo de comprobantes". */
+export const massSendQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de elaboración
+    customer: optionalText,
+    types: csvOf(massSendDocumentTypes),
+    dian: csvOf(massSendDianStatuses),
+    email: z.enum(["SENT", "UNSENT"]).optional(),
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  })
+  .refine(periodInOrder, periodMessage);
+
+export type MassSendQuery = z.infer<typeof massSendQuerySchema>;
 export type CreateRecurringInvoiceInput = z.infer<typeof createRecurringInvoiceSchema>;
 export type RecurringInvoiceQuery = z.infer<typeof recurringInvoiceQuerySchema>;
 export type CreateDeliveryInput = z.infer<typeof createDeliverySchema>;

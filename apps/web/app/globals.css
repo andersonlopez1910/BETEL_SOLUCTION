@@ -2693,3 +2693,224 @@ button {
 .quotes-user .collections-search select {
   min-width: 0;
 }
+
+/* ── Impresión y envío masivo (components/billing-report-mass-send.tsx, mass-print.tsx) ── */
+.mass-head {
+  padding: 20px 20px 8px;
+}
+.mass-head h2 {
+  margin: 0 0 6px;
+  color: var(--blue-dark);
+  font: 600 22px Manrope;
+}
+.mass-head p {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.mass-head .pay-badge {
+  margin-left: 8px;
+}
+.mass-criteria {
+  margin: 0 20px 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafcfe;
+}
+.mass-criteria-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.mass-criteria-actions > * {
+  height: 36px;
+  padding: 0 16px;
+}
+.mass-search {
+  background: #5cb85c;
+  border-color: #5cb85c;
+}
+.mass-search:hover {
+  background: #4a9d4a;
+}
+.mass-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px 28px;
+}
+.mass-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.mass-dates select,
+.mass-dates input,
+.mass-grid > .field > select,
+.mass-grid > .field > input {
+  height: 36px;
+  min-width: 0;
+  border: 1px solid #cbd8e4;
+  border-radius: 5px;
+  padding: 0 8px;
+  font: inherit;
+  font-weight: 400;
+}
+.mass-multi {
+  position: relative;
+}
+.mass-multi-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid #cbd8e4;
+  border-radius: 5px;
+  background: white;
+  font-weight: 400;
+  text-align: left;
+}
+.mass-multi-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mass-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.mass-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #1f6fb2;
+  color: white;
+  font-size: 12px;
+}
+.mass-chip span {
+  cursor: pointer;
+}
+.mass-more {
+  align-self: center;
+  padding: 0 4px;
+  font-size: 12px;
+}
+.mass-multi-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 12px 32px #233c5729;
+}
+.mass-multi-list label {
+  display: flex;
+  justify-content: flex-start;
+  text-align: left;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.mass-multi-list label:hover {
+  background: var(--pale);
+}
+.mass-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px 12px;
+  font-size: 13px;
+}
+.mass-toolbar > span {
+  margin-right: auto;
+  color: var(--muted);
+}
+.mass-button {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+button.mass-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mass-footer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.mass-pages {
+  display: flex;
+  gap: 18px;
+}
+.mass-pages button {
+  background: none;
+  font-size: 20px;
+  color: var(--ink);
+}
+.mass-pages button:disabled {
+  color: #c5cfda;
+  cursor: default;
+}
+.mass-footer label {
+  justify-self: end;
+}
+.mass-footer select {
+  border: 0;
+  background: none;
+  color: var(--blue-dark);
+  font: 600 13px inherit;
+}
+.mass-print .print-sheet {
+  margin-bottom: 20px;
+}
+
+@media (max-width: 760px) {
+  .mass-dates {
+    grid-template-columns: 1fr 1fr;
+  }
+  .mass-footer {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media print {
+  .mass-print .document-toolbar {
+    display: none !important;
+  }
+  .print-sheet {
+    border: 0;
+    break-after: page;
+  }
+  .print-sheet:last-child {
+    break-after: auto;
+  }
+}
+.mass-multi-list input {
+  width: auto;
+  height: auto;
+  margin: 0;
+}

@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Envío masivo** (impresión y envío masivo de comprobantes): facturas, recibos, cotizaciones y remisiones en una
+  lista con criterios (cliente, comprobante, año/mes o rango, estado DIAN, estado del email), selección para
+  imprimir (uno por página) o enviar por correo. Las facturas electrónicas solo se envían aprobadas por la DIAN
+  (permitido con el proveedor DIAN de pruebas).
 - **Facturas recurrentes** en el Reporte de facturación: plantillas con frecuencia, fecha de inicio, número de
   veces y forma de pago (`/facturas-recurrentes/nueva`); generación automática cada hora de facturas en borrador
   con la fecha del día (requisito DIAN), generar ahora, activar/desactivar, historial de facturas generadas y

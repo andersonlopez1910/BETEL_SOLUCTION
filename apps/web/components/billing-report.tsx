@@ -3,8 +3,8 @@
  *
  * La pestaña activa va en la URL (?tab=ventas) para poder compartir el enlace y usar Atrás/Adelante.
  *
- * Datos reales: Ventas, Recaudos, Gestión de cobro, Cotizaciones, Remisiones, Facturas recurrentes y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
- * dependen de módulos que aún no existen en Betel (no hay tablas de envío masivo ni de seguimiento comercial)
+ * Datos reales: Ventas, Recaudos, Gestión de cobro, Cotizaciones, Remisiones, Facturas recurrentes, Envío masivo y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
+ * dependen de módulos que aún no existen en Betel (no hay tablas de seguimiento comercial)
  * y muestran ese estado en lugar de datos inventados. Ver docs/reporte-facturacion.md.
  */
 "use client";
@@ -14,6 +14,7 @@ import { useSearchParams } from "next/navigation";
 import { ActionMenu, type ActionMenuItem } from "./action-menu";
 import { CollectionsReport } from "./billing-report-collections";
 import { CustomersReport } from "./billing-report-customers";
+import { MassSendReport } from "./billing-report-mass-send";
 import { DeliveriesReport } from "./billing-report-deliveries";
 import { PaymentsReport } from "./billing-report-payments";
 import { QuotesReport } from "./billing-report-quotes";
@@ -28,7 +29,7 @@ const reportTabs = [
   ["cotizaciones", "Cotizaciones", null],
   ["remisiones", "Remisiones", null],
   ["facturas-recurrentes", "Facturas recurrentes", null],
-  ["envio-masivo", "Envío masivo", "Envío masivo de documentos (registro de correos enviados)"],
+  ["envio-masivo", "Envío masivo", null],
   ["clientes", "Clientes", null],
   ["seguimiento-comercial", "Seguimiento comercial", "Seguimiento comercial (oportunidades y contactos)"],
 ] as const;
@@ -57,6 +58,7 @@ export function BillingReport() {
       {slug === "cotizaciones" && <QuotesReport />}
       {slug === "remisiones" && <DeliveriesReport />}
       {slug === "facturas-recurrentes" && <RecurringReport />}
+      {slug === "envio-masivo" && <MassSendReport />}
       {slug === "clientes" && <CustomersReport />}
       {missingModule && <UnavailableReport name={label} module={missingModule} />}
     </div>

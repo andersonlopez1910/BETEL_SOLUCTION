@@ -14,7 +14,7 @@ Seguimiento comercial**. La pestaña activa va en la URL (`?tab=ventas`, `?tab=c
 | Cotizaciones                   | ✅ Datos reales                       | `Quote`, `QuoteLine`, `DocumentEmail`                                         |
 | Remisiones                     | ✅ Datos reales                       | `Delivery`, `DeliveryLine`, `DocumentEmail`                                   |
 | Facturas recurrentes           | ✅ Datos reales                       | `RecurringInvoice`, `RecurringInvoiceLine`, `RecurringInvoiceRun`, `Invoice`  |
-| Envío masivo                   | ⛔ Sin fuente de datos                | No existe el módulo. Los envíos individuales ya quedan en `DocumentEmail`     |
+| Envío masivo                   | ✅ Datos reales                       | `Invoice`, `CashReceipt`, `Quote`, `Delivery`, `DocumentEmail`                |
 | Clientes                       | ✅ Parcial                            | `Party` + `Invoice`. Falta mostrar recaudado y saldo (tarea 25)               |
 | Seguimiento comercial          | ⛔ Sin fuente de datos                | No existe el módulo comercial                                                 |
 
@@ -176,6 +176,23 @@ Las facturas generadas quedan relacionadas en `RecurringInvoiceRun` (la tabla `I
 responsable en Ventas es quien la generó a mano o, si fue automática, quien creó la plantilla. Igual que en
 Cotizaciones y Remisiones, la emisión DIAN es un paso aparte (tarea 31).
 
+## Envío masivo (impresión y envío masivo de comprobantes)
+
+Pestaña `?tab=envio-masivo`, como la referencia: aviso de la DIAN, criterios que se ocultan o muestran
+(**Buscar**, **Limpiar filtro**, Clientes, Comprobante, Fecha de elaboración por año y mes o rango, Envío a la
+DIAN como etiquetas con "+N", Envío por email), botones **Imprimir** y **Enviar** sobre las filas seleccionadas
+y la tabla Tipo transacción, Comprobante, Fecha de elaboración, Identificación, Sucursal, Clientes, Correo
+electrónico, Total, Envío por email y Envío a la DIAN, con "Mostrando a-b de n" y "10 por página".
+
+| Concepto        | Definición                                                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Comprobantes    | Facturas de venta (sin borradores), recibos de caja, cotizaciones y remisiones de la organización.                                                                                                                             |
+| Envío a la DIAN | Estado DIAN de la factura (`PENDING` = "No enviado"). Recibos, cotizaciones y remisiones no van a la DIAN: "No aplica".                                                                                                        |
+| Envío por email | "Enviado" si hay al menos un envío exitoso registrado.                                                                                                                                                                         |
+| Regla DIAN      | **Una factura electrónica solo se envía al cliente cuando la DIAN la aprueba** (`invoiceEmailBlocked`, aplicada también en Recaudos). Con el proveedor DIAN de pruebas, que nunca aprueba, se permite y la pantalla lo indica. |
+| Enviar          | Envía cada seleccionado con la ruta de su módulo, uno tras otro; omite los que no se pueden enviar o no tienen correo y lo explica.                                                                                            |
+| Imprimir        | Abre `/envio-masivo/imprimir` con hasta 50 comprobantes, uno por página, y el diálogo de impresión (Guardar como PDF).                                                                                                         |
+
 ## API
 
 Rutas en `apps/api/src/reports.ts` y `apps/api/src/collections.ts` (Recaudos). Los datos de entrada se
@@ -227,6 +244,7 @@ validan con los esquemas de `@betel/contracts` (422 si son inválidos).
 | `POST /v1/recurring-invoices`                       | Crear factura recurrente                                   |
 | `POST /v1/recurring-invoices/:id/active`            | Activar o desactivar                                       |
 | `POST /v1/recurring-invoices/:id/generate`          | Generar ya la factura del período pendiente                |
+| `GET /v1/reports/billing/mass-send`                 | Envío masivo: comprobantes de los cuatro tipos, paginados  |
 
 Filtros de Ventas: `from`, `to` (AAAA-MM-DD), `customer` (nombre o identificación), `number` (prefijo o
 número), `status`, `userId`, `page`, `pageSize` (máx. 100). Filtros de Clientes: `from`, `to`, `search`,
@@ -308,6 +326,11 @@ totales de facturas vigentes.
 - Facturas recurrentes de punta a punta (26 comprobaciones), incluida la generación automática real: fecha de
   hoy, crédito a 30 días, no repite el período, responsable, límite de veces, inactivas no se generan,
   reactivación sin atrasos, descarga, permisos y aislamiento.
+- `apps/api/test/mass-send.test.ts` (unitarias): combinación de tipos y estados DIAN, "No aplica", lista por comas y
+  la regla de envío de facturas con DIAN real y de pruebas.
+- Envío masivo de punta a punta (21 comprobaciones): cuatro tipos sin borradores, estados DIAN, paginación entre
+  tipos, filtros, envío de los cuatro a Mailpit, columna de email, documentos imprimibles, permisos y
+  aislamiento. Verificado también desde la pantalla (selección, Enviar e Imprimir).
 
 ## Problemas encontrados en el sistema existente
 

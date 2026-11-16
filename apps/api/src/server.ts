@@ -29,6 +29,7 @@
  *   Cotizaciones ..... GET/POST /quotes, /quotes/:id/(email|void|invoice) (ver src/quotes.ts)
  *   Remisiones ....... GET/POST /deliveries, /deliveries/:id/(email|void|invoice) (ver src/deliveries.ts)
  *   Recurrentes ...... GET/POST /recurring-invoices, /recurring-invoices/:id/(active|generate) (ver src/recurring.ts)
+ *   Envío masivo ..... GET /reports/billing/mass-send (ver src/mass-send.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -51,6 +52,7 @@ import { getDianProvider } from "./dian.js";
 import { registerCollectionRoutes } from "./collections.js";
 import { registerPaymentRoutes } from "./payments.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
+import { registerMassSendRoutes } from "./mass-send.js";
 import { registerQuoteRoutes } from "./quotes.js";
 import { registerRecurringRoutes, startRecurringScheduler } from "./recurring.js";
 import { registerBillingReportRoutes } from "./reports.js";
@@ -654,6 +656,7 @@ registerPaymentRoutes(app, { auditIp });
 registerQuoteRoutes(app, { auditIp });
 registerDeliveryRoutes(app, { auditIp });
 registerRecurringRoutes(app, { auditIp });
+registerMassSendRoutes(app);
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
