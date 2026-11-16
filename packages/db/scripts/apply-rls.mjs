@@ -11,6 +11,7 @@ const migrations = [
   ["20261116200000_add_quotes", true],
   ["20261116300000_add_deliveries", true],
   ["20261116400000_add_recurring_invoices", true],
+  ["20261116600000_add_commercial_tasks", true],
 ];
 const statements = [];
 for (const [name, onlyRls] of migrations) {

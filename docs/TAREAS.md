@@ -58,7 +58,7 @@ en un _Issue_ con la plantilla "Tarea".
 | 21  | Asignar prefijo y consecutivo al emitir la factura (hoy el reporte muestra "Sin numerar")                        | facturación | 8          |             |
 | 22  | `calculateDocumentTotals` con `Decimal` (descuadre de 1 centavo, ver `docs/reporte-facturacion.md`)              | api         | —          |             |
 | 23  | Guardar `createdById` en `Invoice` para el filtro "Usuario responsable" a gran escala                            | base-datos  | —          |             |
-| 24  | Módulos de origen pendientes del reporte: Seguimiento comercial                                                  | varios      | —          |             |
+| 24  | ~~Módulos de origen pendientes del reporte~~ Hecho: las nueve pestañas tienen datos reales                       | varios      | —          |             |
 | 25  | ~~Clientes del reporte: mostrar recaudado y saldo por cliente~~ Hecho: cartera por cliente y estado de cuenta    | facturación | 19         |             |
 | 26  | Asiento de recaudo al emitir una factura de contado (Débito Caja/Bancos, Crédito Clientes)                       | facturación | 19         |             |
 | 27  | Adjuntar el PDF de la factura o del recibo en el correo (hoy va el detalle en HTML)                              | facturación | —          |             |

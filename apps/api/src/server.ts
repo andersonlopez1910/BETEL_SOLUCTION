@@ -32,6 +32,7 @@
  *   Envío masivo ..... GET /reports/billing/mass-send (ver src/mass-send.ts)
  *   Tablero ......... GET /dashboard (ver src/dashboard.ts)
  *   Clientes ......... GET /reports/billing/portfolio, GET/POST /customers/:id/(statement|active) (ver src/portfolio.ts)
+ *   Comercial ........ GET/POST /commercial-tasks, /commercial-tasks/:id/(complete|reopen) (ver src/commercial.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -54,6 +55,7 @@ import { getDianProvider } from "./dian.js";
 import { registerCollectionRoutes } from "./collections.js";
 import { registerPaymentRoutes } from "./payments.js";
 import { registerPortfolioRoutes } from "./portfolio.js";
+import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
 import { registerMassSendRoutes } from "./mass-send.js";
@@ -674,6 +676,7 @@ registerRecurringRoutes(app, { auditIp });
 registerMassSendRoutes(app);
 registerDashboardRoutes(app);
 registerPortfolioRoutes(app, { auditIp });
+registerCommercialRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

@@ -17,13 +17,24 @@ export const sendDocumentEmail = (document: { type: string; id: string }, to?: s
     ...(to && { to }),
   });
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  wide = false,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  /** Formularios largos (p. ej. tarea comercial). */
+  wide?: boolean;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     ref.current?.showModal();
   }, []);
   return (
-    <dialog ref={ref} className="report-dialog" aria-label={title} onClose={onClose}>
+    <dialog ref={ref} className={wide ? "report-dialog is-wide" : "report-dialog"} aria-label={title} onClose={onClose}>
       <h2>{title}</h2>
       {children}
     </dialog>

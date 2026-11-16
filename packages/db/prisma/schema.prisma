@@ -114,6 +114,55 @@ enum RecurrenceFrequency {
   SEMIANNUAL
   ANNUAL
 }
+/// Seguimiento comercial: estado de la tarea.
+enum CommercialTaskStatus {
+  PENDING
+  COMPLETED
+}
+/// Compromiso de la tarea comercial (qué hay que hacer).
+enum CommitmentType {
+  CALL
+  MEETING
+  VISIT
+  EMAIL
+  SEND_QUOTE
+  FOLLOW_UP
+  OTHER
+}
+/// Etapa de la oportunidad en el embudo comercial.
+enum SalesStage {
+  PROSPECT
+  CONTACTED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+/// Avance de la negociación.
+enum NegotiationProgress {
+  NONE
+  INITIAL
+  INTERMEDIATE
+  ADVANCED
+  CLOSED
+}
+/// Origen del contacto u oportunidad.
+enum LeadOrigin {
+  REFERRAL
+  WEBSITE
+  SOCIAL
+  CALL
+  EVENT
+  CUSTOMER
+  OTHER
+}
+/// Tamaño de la empresa del contacto.
+enum CompanySize {
+  MICRO
+  SMALL
+  MEDIUM
+  LARGE
+}
 /// Estado de un recibo de caja. Anulado (VOID) no suma y devuelve el saldo a las facturas.
 enum CashReceiptStatus {
   ACTIVE
@@ -189,6 +238,7 @@ model Organization {
   quotes             Quote[]
   deliveries         Delivery[]
   recurringInvoices  RecurringInvoice[]
+  commercialTasks    CommercialTask[]
 }
 
 /// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
@@ -210,6 +260,8 @@ model User {
   quotes       Quote[]         @relation("QuoteCreator")
   deliveries   Delivery[]      @relation("DeliveryCreator")
   recurringInvoices RecurringInvoice[] @relation("RecurringInvoiceCreator")
+  commercialTasksCreated     CommercialTask[] @relation("CommercialTaskCreator")
+  commercialTasksResponsible CommercialTask[] @relation("CommercialTaskResponsible")
 }
 
 /// Relación usuario ↔ organización con su rol. Única por (organizationId, userId).
@@ -256,6 +308,7 @@ model Party {
   quotes               Quote[]         @relation("QuoteCustomer")
   deliveries           Delivery[]      @relation("DeliveryCustomer")
   recurringInvoices    RecurringInvoice[] @relation("RecurringInvoiceCustomer")
+  commercialTasks      CommercialTask[] @relation("CommercialTaskParty")
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
 }
@@ -755,4 +808,36 @@ model RecurringInvoiceRun {
   recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
   invoice            Invoice          @relation(fields: [invoiceId], references: [id])
   @@index([recurringInvoiceId])
+}
+
+/// Tarea de seguimiento comercial (TC-n): una gestión pendiente con un contacto (tercero), con su
+/// responsable, fecha de compromiso y los datos de la oportunidad (etapa, avance, probabilidad, valor).
+model CommercialTask {
+  id             String               @id @default(uuid())
+  organizationId String
+  number         Int                  /// Consecutivo por organización; se muestra como TC-<número>.
+  partyId        String               /// Contacto (cliente o prospecto)
+  description    String
+  commitment     CommitmentType
+  dueDate        DateTime?            @db.Date /// Fecha de compromiso
+  stage          SalesStage           @default(PROSPECT)
+  progress       NegotiationProgress  @default(NONE)
+  probability    Int                  @default(0) /// Probabilidad de cierre, 0 a 100 %
+  expectedValue  Decimal?             @db.Decimal(18, 2)
+  origin         LeadOrigin?
+  companyType    CompanySize?
+  status         CommercialTaskStatus @default(PENDING)
+  result         String?              /// Resultado registrado al completar
+  completedAt    DateTime?
+  responsibleId  String
+  createdById    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  party          Party                @relation("CommercialTaskParty", fields: [partyId], references: [id])
+  responsible    User                 @relation("CommercialTaskResponsible", fields: [responsibleId], references: [id])
+  createdBy      User?                @relation("CommercialTaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  @@unique([organizationId, number])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status, responsibleId])
 }

@@ -1572,6 +1572,7 @@ button {
   color: var(--muted);
 }
 .report-table-wrap {
+  position: relative; /* Contiene los elementos absolutos (p. ej. .sr-only) dentro del desplazamiento. */
   overflow-x: auto;
 }
 .report-table {
@@ -3296,4 +3297,149 @@ button.mass-button:disabled {
   margin: 20px 0 10px;
   font-size: 15px;
   color: var(--navy);
+}
+
+/* ── Seguimiento comercial (components/billing-report-commercial.tsx) ── */
+.crm-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 6px;
+}
+.crm-head h2 {
+  margin: 0;
+  color: var(--blue-dark);
+  font: 600 22px Inter;
+}
+.crm-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.crm-tools > *,
+.crm-icon {
+  height: 36px;
+  padding: 0 12px;
+}
+.crm-toggle {
+  margin: 0 20px 10px;
+}
+.crm-criteria {
+  margin: 0 20px 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafcfe;
+}
+.crm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 0 32px;
+}
+.crm-row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.crm-row > span:first-child {
+  color: var(--muted);
+  text-align: right;
+}
+.crm-row select,
+.crm-row input:not([type="checkbox"]),
+.crm-range select,
+.crm-range input,
+.crm-users select {
+  height: 34px;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #cfdde8;
+  border-radius: 6px;
+  padding: 0 8px;
+  background: white;
+  font: inherit;
+}
+.crm-range {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+}
+.crm-users {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+}
+.crm-users select {
+  flex: 1;
+  width: auto;
+  min-width: 150px;
+}
+.crm-check {
+  grid-template-columns: 160px auto 1fr;
+}
+.crm-check small {
+  color: var(--muted);
+}
+.crm-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 6px;
+}
+.crm-actions .primary {
+  height: 36px;
+  padding: 0 22px;
+}
+.crm-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px 12px;
+  font-size: 13px;
+}
+.crm-count select {
+  margin-left: 8px;
+  height: 30px;
+  border: 1px solid #cfdde8;
+  border-radius: 6px;
+  font: inherit;
+}
+.crm-placeholder {
+  margin: 40px 20px 50px;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+}
+.crm-description {
+  min-width: 220px;
+  white-space: normal !important;
+}
+.crm-form textarea {
+  border: 1px solid #cfdde8;
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  font-weight: 400;
+  resize: vertical;
+}
+@media (max-width: 760px) {
+  .crm-row,
+  .crm-check {
+    grid-template-columns: 1fr;
+  }
+  .crm-row > span:first-child {
+    text-align: left;
+  }
+}
+.report-dialog.is-wide {
+  width: min(680px, calc(100vw - 32px));
 }

@@ -401,6 +401,83 @@ export const portfolioQuerySchema = z.object({
 
 export const toggleCustomerSchema = z.object({ active: z.boolean() });
 
+// ─── Seguimiento comercial ────────────────────────────────────────────────────
+
+export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;
+export const salesStages = ["PROSPECT", "CONTACTED", "PROPOSAL", "NEGOTIATION", "WON", "LOST"] as const;
+export const negotiationProgress = ["NONE", "INITIAL", "INTERMEDIATE", "ADVANCED", "CLOSED"] as const;
+export const leadOrigins = ["REFERRAL", "WEBSITE", "SOCIAL", "CALL", "EVENT", "CUSTOMER", "OTHER"] as const;
+export const companySizes = ["MICRO", "SMALL", "MEDIUM", "LARGE"] as const;
+/** Rangos del filtro "Probabilidad de cierre". */
+export const probabilityRanges = ["0-25", "26-50", "51-75", "76-100"] as const;
+
+const optionalDate = z
+  .union([z.literal(""), z.coerce.date()])
+  .optional()
+  .transform(value => (value === "" ? undefined : value));
+
+/** Datos de una tarea comercial (crear y editar). */
+export const commercialTaskSchema = z.object({
+  partyId: z.string().uuid(), // Contacto (tercero)
+  description: z.string().trim().min(3).max(1000),
+  commitment: z.enum(commitmentTypes),
+  dueDate: optionalDate, // Fecha de compromiso
+  responsibleId: z.string().uuid(),
+  stage: z.enum(salesStages).default("PROSPECT"),
+  progress: z.enum(negotiationProgress).default("NONE"),
+  probability: z.coerce.number().int().min(0).max(100).default(0),
+  expectedValue: z
+    .union([z.literal(""), z.coerce.number().nonnegative()])
+    .optional()
+    .transform(value => (value === "" ? undefined : value)),
+  origin: z.enum(leadOrigins).optional(),
+  companyType: z.enum(companySizes).optional(),
+});
+
+/** Completar una tarea: el resultado queda registrado. */
+export const completeCommercialTaskSchema = z.object({ result: z.string().trim().min(3).max(1000) });
+
+const uuidList = z
+  .string()
+  .optional()
+  .transform(value => (value ? value.split(",").filter(Boolean) : undefined))
+  .pipe(z.array(z.string().uuid()).optional());
+
+/** Criterios de búsqueda de Seguimiento comercial (y de su exportación). */
+export const commercialTaskQuerySchema = z
+  .object({
+    status: z.enum(["PENDING", "COMPLETED", "ALL"]).default("PENDING"),
+    createdFrom: optionalDate,
+    createdTo: optionalDate,
+    updatedFrom: optionalDate,
+    updatedTo: optionalDate,
+    dueFrom: optionalDate,
+    dueTo: optionalDate,
+    responsibleIds: uuidList, // Usuarios responsables (varios, separados por coma)
+    createdById: z.string().uuid().optional(),
+    description: optionalText,
+    allContacts: z.enum(["true", "false"]).default("false"), // false: solo contactos activos
+    progress: z.enum(negotiationProgress).optional(),
+    stage: z.enum(salesStages).optional(),
+    probability: z.enum(probabilityRanges).optional(),
+    minExpectedValue: z.coerce.number().nonnegative().optional(),
+    commitment: z.enum(commitmentTypes).optional(),
+    origin: z.enum(leadOrigins).optional(),
+    companyType: z.enum(companySizes).optional(),
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .refine(value => !value.createdFrom || !value.createdTo || value.createdFrom <= value.createdTo, {
+    message: "La fecha de creación inicial no puede ser posterior a la final.",
+    path: ["createdTo"],
+  })
+  .refine(value => !value.dueFrom || !value.dueTo || value.dueFrom <= value.dueTo, {
+    message: "La fecha de compromiso inicial no puede ser posterior a la final.",
+    path: ["dueTo"],
+  });
+
+export type CommercialTaskInput = z.infer<typeof commercialTaskSchema>;
+export type CommercialTaskQuery = z.infer<typeof commercialTaskQuerySchema>;
 export type PortfolioQuery = z.infer<typeof portfolioQuerySchema>;
 export type MassSendQuery = z.infer<typeof massSendQuerySchema>;
 export type CreateRecurringInvoiceInput = z.infer<typeof createRecurringInvoiceSchema>;

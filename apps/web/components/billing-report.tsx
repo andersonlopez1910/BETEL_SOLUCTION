@@ -3,9 +3,9 @@
  *
  * La pestaña activa va en la URL (?tab=ventas) para poder compartir el enlace y usar Atrás/Adelante.
  *
- * Datos reales: Ventas, Recaudos, Gestión de cobro, Cotizaciones, Remisiones, Facturas recurrentes, Envío masivo y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
- * dependen de módulos que aún no existen en Betel (no hay tablas de seguimiento comercial)
- * y muestran ese estado en lugar de datos inventados. Ver docs/reporte-facturacion.md.
+ * Las nueve pestañas consultan datos reales de la API (/v1/reports/billing/*). Si en el futuro se agrega
+ * una pestaña cuyo módulo de origen aún no exista, se marca con su tercer campo en `reportTabs` y muestra
+ * UnavailableReport en lugar de datos inventados. Ver docs/reporte-facturacion.md.
  */
 "use client";
 
@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ActionMenu, type ActionMenuItem } from "./action-menu";
 import { CollectionsReport } from "./billing-report-collections";
+import { CommercialReport } from "./billing-report-commercial";
 import { MassSendReport } from "./billing-report-mass-send";
 import { DeliveriesReport } from "./billing-report-deliveries";
 import { PaymentsReport } from "./billing-report-payments";
@@ -31,7 +32,7 @@ const reportTabs = [
   ["facturas-recurrentes", "Facturas recurrentes", null],
   ["envio-masivo", "Envío masivo", null],
   ["clientes", "Clientes", null],
-  ["seguimiento-comercial", "Seguimiento comercial", "Seguimiento comercial (oportunidades y contactos)"],
+  ["seguimiento-comercial", "Seguimiento comercial", null],
 ] as const;
 
 export function BillingReport() {
@@ -60,6 +61,7 @@ export function BillingReport() {
       {slug === "facturas-recurrentes" && <RecurringReport />}
       {slug === "envio-masivo" && <MassSendReport />}
       {slug === "clientes" && <PortfolioReport />}
+      {slug === "seguimiento-comercial" && <CommercialReport />}
       {missingModule && <UnavailableReport name={label} module={missingModule} />}
     </div>
   );

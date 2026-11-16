@@ -16,11 +16,10 @@ Seguimiento comercial**. La pestaña activa va en la URL (`?tab=ventas`, `?tab=c
 | Facturas recurrentes           | ✅ Datos reales                       | `RecurringInvoice`, `RecurringInvoiceLine`, `RecurringInvoiceRun`, `Invoice`  |
 | Envío masivo                   | ✅ Datos reales                       | `Invoice`, `CashReceipt`, `Quote`, `Delivery`, `DocumentEmail`                |
 | Clientes                       | ✅ Datos reales                       | `Party` (con `active`), `Invoice`, `CashReceiptApplication`                   |
-| Seguimiento comercial          | ⛔ Sin fuente de datos                | No existe el módulo comercial                                                 |
+| Seguimiento comercial          | ✅ Datos reales                       | `CommercialTask`, `Party`, `User`                                             |
 
-Las pestañas sin fuente muestran ese estado en lugar de cifras inventadas, y no tienen filtros ni
-botones. Cuando exista el módulo de origen se agrega su consulta en `apps/api/src/reports.ts` y su
-pestaña en `apps/web/components/`, con el mismo patrón de Ventas.
+Las nueve pestañas tienen datos reales. Si se agrega una pestaña cuyo módulo de origen aún no exista, se marca en
+`reportTabs` (`apps/web/components/billing-report.tsx`) y muestra ese estado en lugar de cifras inventadas.
 
 ## Definiciones de cálculo
 
@@ -228,6 +227,27 @@ de cuenta** y menú: facturación del cliente, enviar estado de cuenta, registra
 
 `POST /v1/parties` ahora responde 409 si ya existe un tercero con el mismo tipo y número de identificación.
 
+## Seguimiento comercial
+
+Pestaña `?tab=seguimiento-comercial`, como la referencia: criterios que se ocultan o muestran (estado de la tarea,
+fecha de creación, usuarios responsables como etiquetas —por defecto el usuario de la sesión—, fecha de compromiso,
+avance de la negociación, etapa, probabilidad de cierre, valor esperado desde, creado por, fecha de modificación,
+descripción, todos los contactos, compromiso, origen y tipo de empresa), **Buscar** (el reporte se genera al
+pulsarlo), **Limpiar filtros**, "Encontrados (n)", registros por página, **Copiar** (pega en Excel), **Imprimir**,
+**Exportar** (PDF, XLSX, CSV) y **Nueva tarea comercial**. Cada tarea se edita, se completa con su resultado o se reabre.
+
+| Concepto                          | Definición                                                                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Tarea (TC-n)                      | Gestión con un contacto (cliente o prospecto): descripción, compromiso, fecha, responsable y oportunidad.                     |
+| Oportunidad                       | Etapa (prospecto → ganada/perdida), avance de la negociación, probabilidad 0-100 %, valor esperado, origen y tipo de empresa. |
+| Vencida                           | Pendiente con fecha de compromiso anterior a hoy (se calcula).                                                                |
+| Todos los contactos               | Sin marcar, solo tareas de contactos activos; marcado, también de inactivos.                                                  |
+| Fechas de creación y modificación | Filtran por día completo en hora de Colombia.                                                                                 |
+| Responsable                       | Debe ser usuario de la organización.                                                                                          |
+
+Crean, editan, completan y reabren OWNER, ADMIN, ACCOUNTANT y SALES; consultan los roles del reporte; exportan
+OWNER, ADMIN y ACCOUNTANT. Cada acción queda en `AuditLog` (`CommercialTask`).
+
 ## API
 
 Rutas en `apps/api/src/reports.ts` y `apps/api/src/collections.ts` (Recaudos). Los datos de entrada se
@@ -285,6 +305,13 @@ validan con los esquemas de `@betel/contracts` (422 si son inválidos).
 | `GET /v1/customers/:id/statement`                   | Estado de cuenta del cliente                               |
 | `POST /v1/customers/:id/statement/email`            | Enviar el estado de cuenta por correo                      |
 | `POST /v1/customers/:id/active`                     | Activar o desactivar el cliente                            |
+| `GET /v1/reports/billing/commercial-tasks`          | Seguimiento comercial: búsqueda paginada                   |
+| `GET /v1/reports/billing/commercial-tasks/export`   | Todas las tareas filtradas (exportar)                      |
+| `GET /v1/commercial/contacts`                       | Contactos para una tarea (clientes y prospectos activos)   |
+| `POST /v1/commercial-tasks`                         | Crear tarea                                                |
+| `POST /v1/commercial-tasks/:id`                     | Editar tarea pendiente                                     |
+| `POST /v1/commercial-tasks/:id/complete`            | Completar con resultado                                    |
+| `POST /v1/commercial-tasks/:id/reopen`              | Reabrir                                                    |
 
 Filtros de Ventas: `from`, `to` (AAAA-MM-DD), `customer` (nombre o identificación), `number` (prefijo o
 número), `status`, `userId`, `page`, `pageSize` (máx. 100). Filtros de Clientes: `from`, `to`, `search`,

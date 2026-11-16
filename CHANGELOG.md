@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Seguimiento comercial** en el Reporte de facturación: tareas comerciales con contacto, compromiso, fecha,
+  responsable y oportunidad (etapa, avance, probabilidad, valor esperado, origen, tipo de empresa); criterios de
+  búsqueda completos, reporte al pulsar "Buscar", copiar, imprimir, exportar, editar, completar y reabrir.
+  Tabla `CommercialTask` con RLS. Con esto las nueve pestañas del reporte tienen datos reales.
 - **Clientes** (cartera por cliente) en el Reporte de facturación: saldo vencido, por vencer, a favor y total cartera,
   filtros de saldo y estado con etiquetas, columnas configurables, descarga, crear cliente, activar/desactivar y
   **estado de cuenta** imprimible y enviable por correo (`/clientes/estado-de-cuenta`). Estado del cliente
