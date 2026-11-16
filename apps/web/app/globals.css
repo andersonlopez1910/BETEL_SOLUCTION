@@ -58,13 +58,17 @@ button {
 }
 .brand {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 1px; /* Pegado a la B para que se lea como una sola palabra */
   padding: 0 10px 30px;
   color: white;
   text-decoration: none;
-  font-size: 17px;
+  font-size: 20px;
+  line-height: 1;
   letter-spacing: -0.01em;
+}
+.brand > span {
+  padding-bottom: 3px;
 }
 .brand b {
   font-weight: 800;

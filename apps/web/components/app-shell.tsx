@@ -114,9 +114,10 @@ export function AppShell({
       {/* ── Barra lateral ── */}
       <aside className="sidebar">
         <Link className="brand" href="/resumen" aria-label="Betel Solution, ir al resumen">
-          <BrandMark size={36} />
+          {/* La B del logo es la inicial de "BETEL": se lee [B]ETEL Solution. */}
+          <BrandMark size={40} />
           <span>
-            <b>BETEL</b> Solution
+            <b>ETEL</b> Solution
           </span>
         </Link>
         <nav aria-label="Menú principal">
