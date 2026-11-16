@@ -11,7 +11,7 @@ Seguimiento comercial**. La pestaña activa va en la URL (`?tab=ventas`, `?tab=c
 | Ventas                         | ✅ Datos reales                       | `Invoice`, `Party`, `AuditLog` (responsable), `User`                          |
 | Recaudos                       | ✅ Datos reales                       | `Invoice` (contado), `CashReceipt`, `CashReceiptApplication`, `DocumentEmail` |
 | Gestión de cobro cartera Betel | ✅ Datos reales (pasarela de pruebas) | `OnlinePayment`, `CashReceipt`, `Invoice`                                     |
-| Cotizaciones                   | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
+| Cotizaciones                   | ✅ Datos reales                       | `Quote`, `QuoteLine`, `DocumentEmail`                                         |
 | Remisiones                     | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
 | Facturas recurrentes           | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
 | Envío masivo                   | ⛔ Sin fuente de datos                | No existe el módulo. Los envíos individuales ya quedan en `DocumentEmail`     |
@@ -110,6 +110,28 @@ de la pasarela).
 **Contabilidad:** al aprobarse, Débito 138095 Pasarela por desembolsar (neto) + Débito 530515 Comisiones
 (comisión) / Crédito 130505 Clientes (total). Al desembolsar, Débito 111005 Bancos / Crédito 138095 (neto).
 
+## Cotizaciones
+
+Pestaña `?tab=cotizaciones`, como la referencia: filtro **Usuario** (quien la elaboró), **Más filtros**
+(fecha de elaboración con períodos rápidos o rango, cliente, estado) con contador, etiquetas de filtros
+activos que se quitan con ×, **Limpiar filtros**, **Descargar** (PDF, XLSX o CSV; deshabilitado sin
+resultados) y **Crear cotización** (`/cotizaciones/nueva`). Columnas: Comprobante, Fecha elaboración,
+Identificación, Sucursal, Cliente, Total y Moneda; por fila: ver, enviar por correo (al cliente o a otro
+correo), convertir en factura y anular. "Ver cotización" (`/cotizaciones/documento?id=`) es imprimible.
+
+| Concepto             | Definición                                                                                                                 |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Cotización (COT-n)   | Propuesta de venta. **No es factura, no suma en Ventas ni genera contabilidad.** Consecutivo por organización.             |
+| Totales              | Los calcula el servidor con `calculateDocumentTotals`, igual que la factura (el formulario muestra una vista previa).      |
+| Estados              | Abierta; **Vencida** = abierta con "Válida hasta" anterior a hoy (se calcula); Facturada; Anulada (con motivo).            |
+| Convertir en factura | Crea una **factura en borrador** con las mismas líneas y totales y la marca como facturada. La emisión es aparte (Ventas). |
+| Sucursal             | Betel aún no maneja sucursales: la columna se muestra vacía.                                                               |
+| Moneda               | La de la organización al crearla (hoy COP).                                                                                |
+
+Permisos: consultan los roles del reporte; crean, envían, convierten y anulan OWNER, ADMIN, ACCOUNTANT y
+SALES; descargan OWNER, ADMIN y ACCOUNTANT. Cada acción queda en `AuditLog` (`Quote`); la factura creada
+registra `Invoice CREATE_DRAFT`, así que el reporte de Ventas muestra su responsable.
+
 ## API
 
 Rutas en `apps/api/src/reports.ts` y `apps/api/src/collections.ts` (Recaudos). Los datos de entrada se
@@ -140,6 +162,14 @@ validan con los esquemas de `@betel/contracts` (422 si son inválidos).
 | `POST /v1/online-payments/:id/disburse`          | Registrar el desembolso de la pasarela                     |
 | `GET /v1/public/payments/:token`                 | **Pública:** datos del link para la página de pago         |
 | `POST /v1/public/payments/:token/sandbox`        | **Pública, solo pruebas:** simular el resultado del pago   |
+| `GET /v1/reports/billing/quotes`                 | Cotizaciones: filas paginadas                              |
+| `GET /v1/reports/billing/quotes/export`          | Todas las cotizaciones filtradas (Descargar)               |
+| `GET /v1/quotes/customers`                       | Clientes para el formulario                                |
+| `GET /v1/quotes/:id`                             | Ver cotización con historial de correos                    |
+| `POST /v1/quotes`                                | Crear cotización                                           |
+| `POST /v1/quotes/:id/email`                      | Enviar por correo                                          |
+| `POST /v1/quotes/:id/void`                       | Anular (con motivo)                                        |
+| `POST /v1/quotes/:id/invoice`                    | Convertir en factura en borrador                           |
 
 Filtros de Ventas: `from`, `to` (AAAA-MM-DD), `customer` (nombre o identificación), `number` (prefijo o
 número), `status`, `userId`, `page`, `pageSize` (máx. 100). Filtros de Clientes: `from`, `to`, `search`,
@@ -209,6 +239,10 @@ totales de facturas vigentes.
   pago bloqueado, recibo en Recaudos y cartera, asiento cuadrado, rechazo por saldo cambiado y por la entidad,
   anulación, indicadores y filtros, desembolso con cuenta de pasarela en cero, exportación, permisos
   VIEWER/SALES/anónimo y aislamiento entre organizaciones.
+- `apps/api/test/quotes.test.ts` (unitarias): estado vencida, filtros de estado y usuario, validaciones.
+- Cotizaciones de punta a punta (36 comprobaciones): totales del servidor con descuento e IVA, filtros por
+  estado, usuario y cliente, correo en Mailpit, conversión a factura en borrador con mismas líneas y total y
+  su auditoría, conversión única, anulación, descarga, permisos y aislamiento entre organizaciones.
 
 ## Problemas encontrados en el sistema existente
 

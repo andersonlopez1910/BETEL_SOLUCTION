@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Cotizaciones** en el Reporte de facturación: crear cotización (`/cotizaciones/nueva`), lista con filtro por
+  usuario, más filtros con etiquetas, descarga PDF/XLSX/CSV, ver e imprimir, enviar por correo, anular y
+  convertir en factura en borrador. Tablas `Quote` y `QuoteLine` con RLS. "Cotización" en el menú
+  "Remisión y cotización" abre el formulario.
 - **Gestión de cobro cartera Betel** (pagos en línea): links de pago para facturas a crédito, página pública
   `/pago`, comisión y neto recibido, estados del pago y del desembolso, indicadores con "Filtrar", exportación
   y envío del link por correo. Al aprobarse, el pago crea el recibo de caja y el asiento contable. Pasarela
