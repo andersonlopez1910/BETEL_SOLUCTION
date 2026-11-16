@@ -12,7 +12,7 @@ Seguimiento comercial**. La pestaña activa va en la URL (`?tab=ventas`, `?tab=c
 | Recaudos                       | ✅ Datos reales                       | `Invoice` (contado), `CashReceipt`, `CashReceiptApplication`, `DocumentEmail` |
 | Gestión de cobro cartera Betel | ✅ Datos reales (pasarela de pruebas) | `OnlinePayment`, `CashReceipt`, `Invoice`                                     |
 | Cotizaciones                   | ✅ Datos reales                       | `Quote`, `QuoteLine`, `DocumentEmail`                                         |
-| Remisiones                     | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
+| Remisiones                     | ✅ Datos reales                       | `Delivery`, `DeliveryLine`, `DocumentEmail`                                   |
 | Facturas recurrentes           | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
 | Envío masivo                   | ⛔ Sin fuente de datos                | No existe el módulo. Los envíos individuales ya quedan en `DocumentEmail`     |
 | Clientes                       | ✅ Parcial                            | `Party` + `Invoice`. Falta mostrar recaudado y saldo (tarea 25)               |
@@ -132,6 +132,25 @@ Permisos: consultan los roles del reporte; crean, envían, convierten y anulan O
 SALES; descargan OWNER, ADMIN y ACCOUNTANT. Cada acción queda en `AuditLog` (`Quote`); la factura creada
 registra `Invoice CREATE_DRAFT`, así que el reporte de Ventas muestra su responsable.
 
+## Remisiones
+
+Pestaña `?tab=remisiones`, como la referencia: buscador **Cliente**, **Más filtros** (fecha de elaboración,
+por defecto **últimos 15 días**; usuario; tipo de transacción; estado; estado del envío de correo) con
+contador y etiquetas removibles, **Limpiar filtros**, **Descargar** y **Crear remisión** (`/remisiones/nueva`).
+Columnas: Tipo transacción, Comprobante, Fecha elaboración, Identificación, Sucursal, Cliente, Estado envío de
+correo, Total y Moneda. Por fila: ver, enviar por correo, convertir en factura y anular.
+
+| Concepto               | Definición                                                                                                                    |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Remisión (REM-n)       | Constancia de mercancía entregada. **No es factura, no suma en Ventas ni genera contabilidad.** Consecutivo por organización. |
+| Tipo de transacción    | Venta, Consignación o Muestra.                                                                                                |
+| Estados                | Abierta, Facturada (se creó la factura en borrador) y Anulada (con motivo).                                                   |
+| Estado envío de correo | "Enviado" si hay al menos un envío exitoso registrado.                                                                        |
+| Convertir en factura   | Igual que la cotización: factura en borrador idéntica (`createDraftInvoiceFrom`, compartida por ambos módulos).               |
+
+El formulario, la vista imprimible y el diálogo de conversión son los mismos de Cotizaciones con otra
+configuración (`quote-form.tsx`, `quote-document.tsx`, `quote-dialogs.tsx`). Permisos iguales a Cotizaciones.
+
 ## API
 
 Rutas en `apps/api/src/reports.ts` y `apps/api/src/collections.ts` (Recaudos). Los datos de entrada se
@@ -170,6 +189,13 @@ validan con los esquemas de `@betel/contracts` (422 si son inválidos).
 | `POST /v1/quotes/:id/email`                      | Enviar por correo                                          |
 | `POST /v1/quotes/:id/void`                       | Anular (con motivo)                                        |
 | `POST /v1/quotes/:id/invoice`                    | Convertir en factura en borrador                           |
+| `GET /v1/reports/billing/deliveries`             | Remisiones: filas paginadas                                |
+| `GET /v1/reports/billing/deliveries/export`      | Todas las remisiones filtradas (Descargar)                 |
+| `GET /v1/deliveries/:id`                         | Ver remisión con historial de correos                      |
+| `POST /v1/deliveries`                            | Crear remisión                                             |
+| `POST /v1/deliveries/:id/email`                  | Enviar por correo                                          |
+| `POST /v1/deliveries/:id/void`                   | Anular (con motivo)                                        |
+| `POST /v1/deliveries/:id/invoice`                | Convertir en factura en borrador                           |
 
 Filtros de Ventas: `from`, `to` (AAAA-MM-DD), `customer` (nombre o identificación), `number` (prefijo o
 número), `status`, `userId`, `page`, `pageSize` (máx. 100). Filtros de Clientes: `from`, `to`, `search`,
@@ -243,6 +269,9 @@ totales de facturas vigentes.
 - Cotizaciones de punta a punta (36 comprobaciones): totales del servidor con descuento e IVA, filtros por
   estado, usuario y cliente, correo en Mailpit, conversión a factura en borrador con mismas líneas y total y
   su auditoría, conversión única, anulación, descarga, permisos y aislamiento entre organizaciones.
+- `apps/api/test/deliveries.test.ts` (unitarias): filtros (cliente, usuario, tipo, estado, correo) y validaciones.
+- Remisiones de punta a punta (23 comprobaciones): totales, período de 15 días, filtros, estado del correo
+  con Mailpit, conversión a factura a crédito idéntica, anulación, descarga, permisos y aislamiento.
 
 ## Problemas encontrados en el sistema existente
 

@@ -1,6 +1,6 @@
 /**
- * "Convertir en factura": crea una factura EN BORRADOR con las líneas de la cotización
- * (POST /v1/quotes/:id/invoice). La emisión DIAN y la contabilidad siguen siendo un paso aparte.
+ * "Convertir en factura": crea una factura EN BORRADOR con las líneas de una cotización o una remisión
+ * (POST /v1/quotes/:id/invoice o /v1/deliveries/:id/invoice). La emisión DIAN y la contabilidad siguen siendo un paso aparte.
  */
 "use client";
 
@@ -11,10 +11,16 @@ import { Modal } from "./collection-dialogs";
 
 export function ConvertQuoteDialog({
   quote,
+  path = `/v1/quotes/${quote.id}/invoice`,
+  noun = "La cotización",
   onClose,
   onConverted,
 }: {
   quote: { id: string; number: string };
+  /** Ruta de la API; por defecto la de cotizaciones. */
+  path?: string;
+  /** "La cotización" o "La remisión". */
+  noun?: string;
   onClose: () => void;
   onConverted: () => void;
 }) {
@@ -28,7 +34,7 @@ export function ConvertQuoteDialog({
     event.preventDefault();
     setState({ busy: true });
     try {
-      await apiPost(`/v1/quotes/${quote.id}/invoice`, {
+      await apiPost(path, {
         paymentMethod: form.paymentMethod,
         issueDate: form.issueDate,
         ...(form.paymentMethod === "CREDIT" && { dueDate: form.dueDate }),
@@ -43,8 +49,8 @@ export function ConvertQuoteDialog({
     <Modal title={`Convertir ${quote.number} en factura`} onClose={onClose}>
       <form onSubmit={submit}>
         <p className="report-dialog-text">
-          Se crea una factura en <b>borrador</b> con los mismos ítems y totales. La cotización queda como facturada; la
-          factura se emite (DIAN y contabilidad) desde Ventas.
+          Se crea una factura en <b>borrador</b> con los mismos ítems y totales. {noun} queda como facturada; la factura
+          se emite (DIAN y contabilidad) desde Ventas.
         </p>
         <label className="field">
           Forma de pago

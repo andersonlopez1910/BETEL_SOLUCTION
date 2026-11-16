@@ -273,6 +273,40 @@ export const convertQuoteSchema = z
     path: ["dueDate"],
   });
 
+// ─── Remisiones ───────────────────────────────────────────────────────────────
+
+/** Tipo de transacción de una remisión (mismo orden que el enum DeliveryType de schema.prisma). */
+export const deliveryTypes = ["SALE", "CONSIGNMENT", "SAMPLE"] as const;
+export const deliveryStatuses = ["OPEN", "INVOICED", "VOID"] as const;
+
+/** Remisión: mercancía entregada al cliente. Mismas líneas que la factura; no genera contabilidad. */
+export const createDeliverySchema = z.object({
+  customerId: z.string().uuid(),
+  issueDate: z.coerce.date(), // Fecha de elaboración
+  transactionType: z.enum(deliveryTypes).default("SALE"),
+  notes: z.string().trim().max(2000).optional(),
+  lines: z.array(invoiceLineSchema).min(1, "Agrega al menos un ítem."),
+});
+
+/** Filtros de la pestaña Remisiones (y de su descarga). */
+export const deliveryQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de elaboración
+    customer: optionalText, // Nombre o identificación del cliente
+    userId: z.string().uuid().optional(), // Usuario que elaboró la remisión
+    transactionType: z.enum(deliveryTypes).optional(),
+    status: z.enum(deliveryStatuses).optional(),
+    email: z.enum(["SENT", "UNSENT"]).optional(), // Estado del envío de correo
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(periodInOrder, periodMessage);
+
+/** Convertir una cotización o remisión abierta en factura en borrador (mismo esquema). */
+export const convertToInvoiceSchema = convertQuoteSchema;
+
+export type CreateDeliveryInput = z.infer<typeof createDeliverySchema>;
+export type DeliveryQuery = z.infer<typeof deliveryQuerySchema>;
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export type QuoteQuery = z.infer<typeof quoteQuerySchema>;
 export type OnlinePaymentQuery = z.infer<typeof onlinePaymentQuerySchema>;

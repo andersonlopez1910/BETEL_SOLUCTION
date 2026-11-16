@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Remisiones** en el Reporte de facturación: crear remisión (`/remisiones/nueva`) con tipo de transacción, lista
+  con buscador de cliente, más filtros (últimos 15 días por defecto, usuario, tipo, estado, correo) con etiquetas,
+  descarga, ver e imprimir, enviar por correo, anular y convertir en factura en borrador. Tablas `Delivery` y
+  `DeliveryLine` con RLS. "Remisión" en el menú de la cabecera abre el formulario.
 - **Cotizaciones** en el Reporte de facturación: crear cotización (`/cotizaciones/nueva`), lista con filtro por
   usuario, más filtros con etiquetas, descarga PDF/XLSX/CSV, ver e imprimir, enviar por correo, anular y
   convertir en factura en borrador. Tablas `Quote` y `QuoteLine` con RLS. "Cotización" en el menú

@@ -92,6 +92,18 @@ enum QuoteStatus {
   INVOICED
   VOID
 }
+/// Tipo de transacción de una remisión: entrega por venta, en consignación o como muestra.
+enum DeliveryType {
+  SALE
+  CONSIGNMENT
+  SAMPLE
+}
+/// Estado de una remisión: abierta, facturada (se creó la factura en borrador) o anulada.
+enum DeliveryStatus {
+  OPEN
+  INVOICED
+  VOID
+}
 /// Estado de un recibo de caja. Anulado (VOID) no suma y devuelve el saldo a las facturas.
 enum CashReceiptStatus {
   ACTIVE
@@ -165,6 +177,7 @@ model Organization {
   onlinePayments     OnlinePayment[]
   documentEmails     DocumentEmail[]
   quotes             Quote[]
+  deliveries         Delivery[]
 }
 
 /// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
@@ -184,6 +197,7 @@ model User {
   cashReceipts CashReceipt[] @relation("CashReceiptCreator")
   sentEmails   DocumentEmail[] @relation("DocumentEmailSender")
   quotes       Quote[]         @relation("QuoteCreator")
+  deliveries   Delivery[]      @relation("DeliveryCreator")
 }
 
 /// Relación usuario ↔ organización con su rol. Única por (organizationId, userId).
@@ -226,6 +240,7 @@ model Party {
   cashReceipts         CashReceipt[] @relation("CashReceiptCustomer")
   onlinePayments       OnlinePayment[] @relation("OnlinePaymentCustomer")
   quotes               Quote[]         @relation("QuoteCustomer")
+  deliveries           Delivery[]      @relation("DeliveryCustomer")
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
 }
@@ -257,6 +272,7 @@ model Product {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoiceLines   InvoiceLine[]
   quoteLines     QuoteLine[]
+  deliveryLines  DeliveryLine[]
   @@unique([organizationId, sku])
 }
 
@@ -289,6 +305,7 @@ model Invoice {
   receiptApplications CashReceiptApplication[]
   onlinePayments    OnlinePayment[]
   quote             Quote?
+  delivery          Delivery?
   @@unique([organizationId, prefix, number])
   @@index([organizationId, status, issueDate])
   /// Reporte de facturación por cliente (agrupa por customerId dentro de un período).
@@ -610,5 +627,51 @@ model QuoteLine {
   taxRate      Decimal  @default(19) @db.Decimal(5, 2)
   lineTotal    Decimal  @db.Decimal(18, 2)
   quote        Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id])
+}
+
+/// Remisión (REM-n): constancia de mercancía entregada a un cliente. No es factura ni genera contabilidad;
+/// se puede convertir en una factura en borrador (invoiceId) o anular.
+model Delivery {
+  id              String         @id @default(uuid())
+  organizationId  String
+  customerId      String
+  number          Int            /// Consecutivo por organización; se muestra como REM-<número>.
+  transactionType DeliveryType   @default(SALE)
+  issueDate       DateTime       @db.Date /// Fecha de elaboración
+  currency        String         @default("COP")
+  subtotal        Decimal        @db.Decimal(18, 2)
+  discountTotal   Decimal        @db.Decimal(18, 2)
+  taxTotal        Decimal        @db.Decimal(18, 2)
+  total           Decimal        @db.Decimal(18, 2)
+  notes           String?
+  status          DeliveryStatus @default(OPEN)
+  voidReason      String?
+  invoiceId       String?        @unique /// Factura en borrador creada desde la remisión
+  createdById     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer        Party          @relation("DeliveryCustomer", fields: [customerId], references: [id])
+  createdBy       User?          @relation("DeliveryCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  invoice         Invoice?       @relation(fields: [invoiceId], references: [id])
+  lines           DeliveryLine[]
+  @@unique([organizationId, number])
+  @@index([organizationId, issueDate])
+  @@index([organizationId, createdById])
+}
+
+/// Línea de una remisión (mismos campos que InvoiceLine).
+model DeliveryLine {
+  id           String   @id @default(uuid())
+  deliveryId   String
+  productId    String?
+  description  String
+  quantity     Decimal  @db.Decimal(18, 4)
+  unitPrice    Decimal  @db.Decimal(18, 2)
+  discountRate Decimal  @default(0) @db.Decimal(5, 2)
+  taxRate      Decimal  @default(19) @db.Decimal(5, 2)
+  lineTotal    Decimal  @db.Decimal(18, 2)
+  delivery     Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   product      Product? @relation(fields: [productId], references: [id])
 }

@@ -32,6 +32,7 @@ import { z } from "zod";
 import { allowRoles, type MembershipRole } from "./auth.js";
 import { calculateDocumentTotals } from "./accounting.js";
 import { documentEmail } from "./collections.js";
+import { createDraftInvoiceFrom } from "./draft-invoice.js";
 import { mailerConfigured, sendMail } from "./mailer.js";
 import { EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod, todayIn } from "./reports.js";
 
@@ -417,32 +418,12 @@ export function registerQuoteRoutes(app: FastifyInstance, options: { auditIp: (i
         include: { lines: true },
       });
       if (!quote) return null;
-      const created = await tx.invoice.create({
-        data: {
-          organizationId: actor.organizationId,
-          customerId: quote.customerId,
-          issueDate: parsed.data.issueDate,
-          dueDate: parsed.data.dueDate,
-          paymentTerm: parsed.data.paymentMethod,
-          currency: quote.currency,
-          notes: [`Generada desde la cotización ${quoteNumber(quote.number)}.`, quote.notes].filter(Boolean).join("\n"),
-          subtotal: quote.subtotal,
-          discountTotal: quote.discountTotal,
-          taxTotal: quote.taxTotal,
-          total: quote.total,
-          lines: {
-            create: quote.lines.map(line => ({
-              productId: line.productId,
-              description: line.description,
-              quantity: line.quantity,
-              unitPrice: line.unitPrice,
-              discountRate: line.discountRate,
-              taxRate: line.taxRate,
-              lineTotal: line.lineTotal,
-            })),
-          },
-        },
-      });
+      const created = await createDraftInvoiceFrom(
+        tx,
+        quote,
+        parsed.data,
+        `Generada desde la cotización ${quoteNumber(quote.number)}.`
+      );
       await tx.quote.update({ where: { id: quote.id }, data: { status: "INVOICED", invoiceId: created.id } });
       await audit(tx, request, "Invoice", created.id, "CREATE_DRAFT", {
         total: created.total.toString(),

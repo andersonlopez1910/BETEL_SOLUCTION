@@ -66,17 +66,18 @@ export const quoteBadge: Record<string, string> = {
 };
 
 /** Períodos rápidos de "Fecha elaboración". "all" quita el filtro de fecha. */
-const periodPresets = {
+export const periodPresets = {
   month: "Este mes",
+  last15: "Últimos 15 días",
   lastMonth: "Mes anterior",
   last30: "Últimos 30 días",
   year: "Este año",
   all: "Todas las fechas",
   custom: "Rango personalizado",
 } as const;
-type Preset = keyof typeof periodPresets;
+export type Preset = keyof typeof periodPresets;
 
-function presetRange(preset: Preset, custom: { from: string; to: string }) {
+export function presetRange(preset: Preset, custom: { from: string; to: string }) {
   const today = defaultPeriod().to;
   const shift = (days: number) =>
     new Date(Date.parse(`${today}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
@@ -89,6 +90,8 @@ function presetRange(preset: Preset, custom: { from: string; to: string }) {
       const last = new Date(Date.UTC(year, month - 1, 0));
       return { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10) };
     }
+    case "last15":
+      return { from: shift(-14), to: today };
     case "last30":
       return { from: shift(-29), to: today };
     case "year":
@@ -530,7 +533,7 @@ export function QuotesReport() {
 }
 
 /** Documento con lupa (sin resultados). */
-function SearchIllustration() {
+export function SearchIllustration() {
   return (
     <svg width="110" height="100" viewBox="0 0 110 100" aria-hidden="true">
       <ellipse cx="58" cy="92" rx="32" ry="5" fill="#e3edf6" />

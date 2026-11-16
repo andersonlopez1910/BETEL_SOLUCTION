@@ -1,5 +1,6 @@
 /**
- * "Ver cotización" (GET /v1/quotes/:id): detalle imprimible con acciones para enviar por correo,
+ * "Ver cotización" (GET /v1/quotes/:id) y "Ver remisión" (GET /v1/deliveries/:id): detalle imprimible
+ * con acciones para enviar por correo,
  * convertir en factura en borrador y anular, más el historial de envíos.
  */
 "use client";
@@ -12,12 +13,14 @@ import { date, money, ReportStatus, useReport, useSession } from "./billing-repo
 import { quoteBadge, quoteStatusLabels } from "./billing-report-quotes";
 import { SendEmailDialog, VoidDocumentDialog } from "./collection-dialogs";
 import { ConvertQuoteDialog } from "./quote-dialogs";
+import { deliveryTypeLabels } from "./quote-form";
 
 type QuoteDocument = {
   id: string;
   number: string;
   date: string;
   validUntil: string | null;
+  transactionType?: string;
   status: string;
   currency: string;
   customer: { legalName: string; identificationType: string; identificationNumber: string; email: string | null };
@@ -43,14 +46,25 @@ type QuoteDocument = {
   }[];
 };
 
-export function QuoteDocumentView() {
+/** Diferencias entre cotización y remisión. */
+const kinds = {
+  quote: { api: "/v1/quotes", tab: "cotizaciones", back: "Cotizaciones", title: "Cotización", noun: "la cotización" },
+  delivery: { api: "/v1/deliveries", tab: "remisiones", back: "Remisiones", title: "Remisión", noun: "la remisión" },
+} as const;
+
+export const QuoteDocumentView = () => <SalesDocumentView kind="quote" />;
+export const DeliveryDocumentView = () => <SalesDocumentView kind="delivery" />;
+
+function SalesDocumentView({ kind }: { kind: keyof typeof kinds }) {
+  const config = kinds[kind];
+  const Noun = config.noun.charAt(0).toUpperCase() + config.noun.slice(1);
   const params = useSearchParams();
   const id = params.get("id") ?? "";
   const { company, canEmail: canQuote } = useSession();
-  const quote = useReport<{ data: QuoteDocument }>(`/v1/quotes/${id}`);
+  const quote = useReport<{ data: QuoteDocument }>(`${config.api}/${id}`);
   const [dialog, setDialog] = useState<"email" | "void" | "convert" | null>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(
-    params.get("creada") ? { kind: "ok", text: "Cotización guardada." } : null
+    params.get("creada") ? { kind: "ok", text: `${config.title} guardada.` } : null
   );
   const [sending, setSending] = useState(false);
   const doc = quote.data?.data;
@@ -65,7 +79,7 @@ export function QuoteDocumentView() {
     setSending(true);
     setNotice(null);
     try {
-      const result = await apiPost<{ data: { recipient: string } }>(`/v1/quotes/${id}/email`);
+      const result = await apiPost<{ data: { recipient: string } }>(`${config.api}/${id}/email`);
       done(`Enviada a ${result.data.recipient}.`);
     } catch (error) {
       setNotice({ kind: "error", text: (error as Error).message });
@@ -77,8 +91,8 @@ export function QuoteDocumentView() {
   return (
     <div className="page-content">
       <div className="document-toolbar">
-        <Link href="/reportes/facturacion?tab=cotizaciones" className="report-link">
-          ‹ Volver a Cotizaciones
+        <Link href={`/reportes/facturacion?tab=${config.tab}`} className="report-link">
+          ‹ Volver a {config.back}
         </Link>
         {doc && (
           <div className="page-actions">
@@ -128,10 +142,13 @@ export function QuoteDocumentView() {
             <header className="document-head">
               <div>
                 <p className="eyebrow">{company}</p>
-                <h2>Cotización {doc.number}</h2>
+                <h2>
+                  {config.title} {doc.number}
+                </h2>
                 <p>
                   Elaborada el {date(doc.date)}
                   {doc.validUntil && ` · Válida hasta el ${date(doc.validUntil)}`}
+                  {doc.transactionType && ` · Tipo: ${deliveryTypeLabels[doc.transactionType]}`}
                 </p>
               </div>
               <div className="document-total">
@@ -232,7 +249,7 @@ export function QuoteDocumentView() {
                 ))}
               </ul>
             ) : (
-              <p className="report-message">Esta cotización no se ha enviado por correo.</p>
+              <p className="report-message">{Noun} no se ha enviado por correo.</p>
             )}
           </section>
         </>
@@ -241,23 +258,25 @@ export function QuoteDocumentView() {
       {doc && dialog === "email" && (
         <SendEmailDialog
           document={{ type: "Quote", id: doc.id, number: doc.number, customerEmail: doc.customer.email }}
-          send={to => apiPost(`/v1/quotes/${doc.id}/email`, { to })}
+          send={to => apiPost(`${config.api}/${doc.id}/email`, { to })}
           onClose={() => setDialog(null)}
           onSent={recipient => done(`Enviada a ${recipient}.`)}
         />
       )}
       {doc && dialog === "void" && (
         <VoidDocumentDialog
-          title={`Anular cotización ${doc.number}`}
-          description="La cotización queda anulada y ya no se podrá enviar ni convertir en factura."
-          path={`/v1/quotes/${doc.id}/void`}
-          confirmLabel="Anular cotización"
+          title={`Anular ${config.noun.slice(3)} ${doc.number}`}
+          description={`${Noun} queda anulada y ya no se podrá enviar ni convertir en factura.`}
+          path={`${config.api}/${doc.id}/void`}
+          confirmLabel={`Anular ${config.noun.slice(3)}`}
           onClose={() => setDialog(null)}
-          onVoided={() => done(`Cotización ${doc.number} anulada.`)}
+          onVoided={() => done(`${config.title} ${doc.number} anulada.`)}
         />
       )}
       {doc && dialog === "convert" && (
         <ConvertQuoteDialog
+          path={`${config.api}/${doc.id}/invoice`}
+          noun={Noun}
           quote={{ id: doc.id, number: doc.number }}
           onClose={() => setDialog(null)}
           onConverted={() => done("Factura creada en borrador. Se emite desde Ventas.")}

@@ -1,7 +1,9 @@
 /**
- * Formulario "Crear cotización" (POST /v1/quotes).
+ * Formulario de documentos de venta previos a la factura: "Crear cotización" (POST /v1/quotes) y
+ * "Crear remisión" (POST /v1/deliveries). Comparten clientes (GET /v1/quotes/customers), ítems y totales;
+ * la cotización agrega la validez y la remisión el tipo de transacción.
  *
- * Cliente (GET /v1/quotes/customers), fecha de elaboración, validez, observaciones e ítems. Cada ítem
+ * Cliente, fecha de elaboración, observaciones e ítems. Cada ítem
  * puede tomarse del catálogo (GET /v1/products) o escribirse a mano. Los totales que se ven aquí son
  * una vista previa con la misma fórmula del servidor; los definitivos los calcula la API al guardar.
  */
@@ -54,7 +56,35 @@ function preview(lines: Line[]) {
   return { rows, subtotal: round(subtotal), discount: round(discount), tax: round(tax), total: round(total) };
 }
 
-export function QuoteForm() {
+/** Diferencias entre cotización y remisión. */
+const kinds = {
+  quote: {
+    endpoint: "/v1/quotes",
+    tab: "cotizaciones",
+    back: "Cotizaciones",
+    noun: "la cotización",
+    view: "/cotizaciones/documento",
+  },
+  delivery: {
+    endpoint: "/v1/deliveries",
+    tab: "remisiones",
+    back: "Remisiones",
+    noun: "la remisión",
+    view: "/remisiones/documento",
+  },
+} as const;
+
+export const deliveryTypeLabels: Record<string, string> = {
+  SALE: "Venta",
+  CONSIGNMENT: "Consignación",
+  SAMPLE: "Muestra",
+};
+
+export const QuoteForm = () => <SalesDocumentForm kind="quote" />;
+export const DeliveryForm = () => <SalesDocumentForm kind="delivery" />;
+
+function SalesDocumentForm({ kind }: { kind: keyof typeof kinds }) {
+  const config = kinds[kind];
   const router = useRouter();
   const today = defaultPeriod().to;
   const in30 = new Date(Date.parse(`${today}T00:00:00Z`) + 30 * 86_400_000).toISOString().slice(0, 10);
@@ -62,7 +92,13 @@ export function QuoteForm() {
   const [query, setQuery] = useState("");
   const customers = useReport<{ data: Customer[] }>("/v1/quotes/customers", { search: query });
   const products = useReport<{ data: Product[] }>("/v1/products");
-  const [form, setForm] = useState({ customerId: "", issueDate: today, validUntil: in30, notes: "" });
+  const [form, setForm] = useState({
+    customerId: "",
+    issueDate: today,
+    validUntil: in30,
+    transactionType: "SALE",
+    notes: "",
+  });
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [state, setState] = useState<{ busy: boolean; error?: string }>({ busy: false });
   const totals = preview(lines);
@@ -92,10 +128,12 @@ export function QuoteForm() {
     event.preventDefault();
     setState({ busy: true });
     try {
-      const created = await apiPost<{ data: { id: string } }>("/v1/quotes", {
+      const created = await apiPost<{ data: { id: string } }>(config.endpoint, {
         customerId: form.customerId,
         issueDate: form.issueDate,
-        validUntil: form.validUntil || undefined,
+        ...(kind === "quote"
+          ? { validUntil: form.validUntil || undefined }
+          : { transactionType: form.transactionType }),
         notes: form.notes || undefined,
         lines: lines.map(line => ({
           ...(line.productId && { productId: line.productId }),
@@ -106,7 +144,7 @@ export function QuoteForm() {
           taxRate: Number(line.taxRate || 0),
         })),
       });
-      router.push(`/cotizaciones/documento?id=${created.data.id}&creada=1`);
+      router.push(`${config.view}?id=${created.data.id}&creada=1`);
     } catch (error) {
       setState({ busy: false, error: (error as Error).message });
     }
@@ -116,9 +154,9 @@ export function QuoteForm() {
     <form className="page-content receipt-form" onSubmit={submit}>
       <section className="panel">
         <div className="panel-head">
-          <h2>Datos de la cotización</h2>
-          <Link href="/reportes/facturacion?tab=cotizaciones" className="report-link">
-            ‹ Volver a Cotizaciones
+          <h2>Datos de {config.noun}</h2>
+          <Link href={`/reportes/facturacion?tab=${config.tab}`} className="report-link">
+            ‹ Volver a {config.back}
           </Link>
         </div>
         <div className="receipt-fields">
@@ -160,10 +198,23 @@ export function QuoteForm() {
             Fecha de elaboración
             <input type="date" value={form.issueDate} onChange={setField("issueDate")} required />
           </label>
-          <label className="field">
-            Válida hasta
-            <input type="date" value={form.validUntil} onChange={setField("validUntil")} min={form.issueDate} />
-          </label>
+          {kind === "quote" ? (
+            <label className="field">
+              Válida hasta
+              <input type="date" value={form.validUntil} onChange={setField("validUntil")} min={form.issueDate} />
+            </label>
+          ) : (
+            <label className="field">
+              Tipo de transacción
+              <select value={form.transactionType} onChange={setField("transactionType")}>
+                {Object.entries(deliveryTypeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="field receipt-notes">
             Observaciones
             <textarea value={form.notes} onChange={setField("notes")} maxLength={2000} rows={2} />
@@ -306,7 +357,7 @@ export function QuoteForm() {
 
       <section className="panel receipt-footer">
         <div>
-          <span>Total de la cotización</span>
+          <span>Total de {config.noun}</span>
           <b>{money(totals.total)}</b>
         </div>
         {state.error && (
@@ -315,11 +366,11 @@ export function QuoteForm() {
           </p>
         )}
         <div className="report-actions">
-          <Link href="/reportes/facturacion?tab=cotizaciones" className="secondary receipt-cancel">
+          <Link href={`/reportes/facturacion?tab=${config.tab}`} className="secondary receipt-cancel">
             Cancelar
           </Link>
           <button type="submit" className="primary" disabled={state.busy || !form.customerId}>
-            {state.busy ? "Guardando…" : "Guardar cotización"}
+            {state.busy ? "Guardando…" : kind === "quote" ? "Guardar cotización" : "Guardar remisión"}
           </button>
         </div>
       </section>

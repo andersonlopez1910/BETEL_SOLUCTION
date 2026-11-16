@@ -9,6 +9,7 @@ const migrations = [
   ["20261116000000_add_cash_receipts_and_document_emails", true],
   ["20261116100000_add_online_payments", true],
   ["20261116200000_add_quotes", true],
+  ["20261116300000_add_deliveries", true],
 ];
 const statements = [];
 for (const [name, onlyRls] of migrations) {
