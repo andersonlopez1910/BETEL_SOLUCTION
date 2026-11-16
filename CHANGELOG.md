@@ -6,6 +6,9 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Tablero principal** (Resumen) con datos reales (`GET /v1/dashboard`): ingresos, gastos, utilidad y margen del mes
+  con variación frente al mes anterior, evolución de la utilidad por mes, trimestre o año (gráfica de área), flujo de
+  caja del mes y accesos rápidos. Reemplaza las cifras de ejemplo que tenía la página.
 - **Envío masivo** (impresión y envío masivo de comprobantes): facturas, recibos, cotizaciones y remisiones en una
   lista con criterios (cliente, comprobante, año/mes o rango, estado DIAN, estado del email), selección para
   imprimir (uno por página) o enviar por correo. Las facturas electrónicas solo se envían aprobadas por la DIAN
@@ -55,6 +58,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Cambiado
 
+- Todos los botones usan el turquesa de la marca (#22D3C5): el principal relleno con texto azul oscuro y los
+  secundarios con borde y texto turquesa.
 - Nueva identidad visual de Betel Solution: paleta #061724, #0D293B, #22D3C5, #3B82F6, #8B5CF6, #F2F7FA y #9CB3C9
   como variables en `globals.css`, tipografía Inter, isotipo "B" en degradado (también como ícono del navegador),
   menú lateral oscuro con íconos de línea e ítem activo en turquesa, barra superior con la empresa y el NIT reales

@@ -9,7 +9,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 
 export type ChartPoint = { label: string; value: number; detail?: string };
 
@@ -22,13 +22,20 @@ const PLOT_H = HEIGHT - PAD.top - PAD.bottom;
 const money = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 2 });
 const compact = new Intl.NumberFormat("es-CO", { notation: "compact", maximumFractionDigits: 1 });
 
-/** Tope "redondo" del eje Y y tres líneas guía. */
+/** Redondea hacia arriba a un valor "limpio" (1, 2, 3… × potencia de 10). */
+const roundUp = (value: number) => {
+  const step = 10 ** Math.floor(Math.log10(value));
+  return Math.ceil(value / step) * step;
+};
+
+/** Límites "redondos" del eje Y y sus líneas guía. Admite valores negativos (p. ej. pérdidas). */
 function scale(points: ChartPoint[]) {
   const max = Math.max(...points.map(point => point.value), 0);
-  if (max === 0) return { top: 1, ticks: [0] };
-  const step = 10 ** Math.floor(Math.log10(max));
-  const top = Math.ceil(max / step) * step;
-  return { top, ticks: [0, top / 2, top] };
+  const min = Math.min(...points.map(point => point.value), 0);
+  if (max === 0 && min === 0) return { top: 1, bottom: 0, ticks: [0] };
+  const top = max > 0 ? roundUp(max) : 0;
+  const bottom = min < 0 ? -roundUp(-min) : 0;
+  return { top, bottom, ticks: bottom < 0 ? [bottom, 0, top] : [0, top / 2, top] };
 }
 
 function Frame({
@@ -44,10 +51,10 @@ function Frame({
   setActive: (index: number | null) => void;
   children: (geometry: { x: (index: number) => number; y: (value: number) => number; band: number }) => React.ReactNode;
 }) {
-  const { top, ticks } = scale(points);
+  const { top, bottom, ticks } = scale(points);
   const band = PLOT_W / Math.max(points.length, 1);
   const x = (index: number) => PAD.left + band * index + band / 2;
-  const y = (value: number) => PAD.top + PLOT_H - (value / top) * PLOT_H;
+  const y = (value: number) => PAD.top + PLOT_H - ((value - bottom) / (top - bottom || 1)) * PLOT_H;
   // Con muchos puntos se rotulan solo algunos para que las etiquetas del eje X no se encimen.
   const labelEvery = Math.ceil(points.length / 8);
   const current = active === null ? null : points[active];
@@ -129,13 +136,31 @@ export function BarChart({ points, label }: { points: ChartPoint[]; label: strin
   );
 }
 
-/** Línea de 2px con guía vertical y marcador en el punto activo. */
-export function LineChart({ points, label }: { points: ChartPoint[]; label: string }) {
+/**
+ * Línea de 2px con guía vertical y marcador en el punto activo. Con `area` se rellena hasta la línea
+ * del cero con un degradado suave del color de la serie.
+ */
+export function LineChart({ points, label, area = false }: { points: ChartPoint[]; label: string; area?: boolean }) {
   const [active, setActive] = useState<number | null>(null);
+  const gradient = useId();
   return (
     <Frame points={points} label={label} active={active} setActive={setActive}>
       {({ x, y }) => (
         <>
+          {area && points.length > 1 && (
+            <>
+              <defs>
+                <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" className="chart-area-start" />
+                  <stop offset="1" className="chart-area-end" />
+                </linearGradient>
+              </defs>
+              <path
+                fill={`url(#${gradient})`}
+                d={`M${x(0)},${y(0)} ${points.map((point, index) => `L${x(index)},${y(point.value)}`).join(" ")} L${x(points.length - 1)},${y(0)} Z`}
+              />
+            </>
+          )}
           <polyline
             className="chart-line"
             points={points.map((point, index) => `${x(index)},${y(point.value)}`).join(" ")}

@@ -65,11 +65,15 @@ function useOrganization() {
 export function AppShell({
   title,
   subtitle,
+  headClassName,
   actions,
   children,
 }: {
-  title: string;
+  /** Texto o contenido (p. ej. con una parte resaltada). */
+  title: React.ReactNode;
   subtitle?: string;
+  /** Clase extra del encabezado (p. ej. "page-head-welcome" en el tablero). */
+  headClassName?: string;
   /** Botones propios de la página, a la derecha del título. */
   actions?: React.ReactNode;
   children: React.ReactNode;
@@ -198,7 +202,7 @@ export function AppShell({
           </div>
         </header>
         {/* ── Título de la página ── */}
-        <section className="page-head">
+        <section className={headClassName ? `page-head ${headClassName}` : "page-head"}>
           <div>
             <p className="eyebrow">OPERACIÓN · COLOMBIA</p>
             <h1>{title}</h1>
