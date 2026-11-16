@@ -3443,3 +3443,8 @@ button.mass-button:disabled {
 .report-dialog.is-wide {
   width: min(680px, calc(100vw - 32px));
 }
+.brand-mark {
+  display: block;
+  flex: none;
+  filter: drop-shadow(0 0 10px #3b82f655);
+}

@@ -66,6 +66,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Cambiado
 
+- El isotipo del menú lateral y el ícono del navegador usan el logo oficial "B" de Betel (`public/brand/betel-b.png`,
+  `app/icon.png`, con fondo transparente).
 - Todos los botones usan el turquesa de la marca (#22D3C5): el principal relleno con texto azul oscuro y los
   secundarios con borde y texto turquesa.
 - Nueva identidad visual de Betel Solution: paleta #061724, #0D293B, #22D3C5, #3B82F6, #8B5CF6, #F2F7FA y #9CB3C9

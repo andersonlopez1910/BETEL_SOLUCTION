@@ -114,7 +114,7 @@ export function AppShell({
       {/* ── Barra lateral ── */}
       <aside className="sidebar">
         <Link className="brand" href="/resumen" aria-label="Betel Solution, ir al resumen">
-          <BrandMark id="sidebar-brand" />
+          <BrandMark size={36} />
           <span>
             <b>BETEL</b> Solution
           </span>

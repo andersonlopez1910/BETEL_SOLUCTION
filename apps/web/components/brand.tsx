@@ -1,30 +1,13 @@
 /**
- * Identidad visual de Betel Solution: el isotipo "B" (degradado turquesa #22D3C5 → azul #3B82F6) y los
- * íconos de línea del menú lateral. Todo en SVG para que se vea nítido en cualquier tamaño.
+ * Identidad visual de Betel Solution: el isotipo "B" y los íconos de línea (SVG) de la aplicación.
  */
 
-/** Isotipo "B". `id` distinto por instancia evita choques de degradados cuando hay varios en la página. */
-export function BrandMark({ size = 34, id = "brand" }: { size?: number; id?: string }) {
-  return (
-    <svg width={size} height={size * 1.1} viewBox="0 0 40 44" aria-hidden="true">
-      <defs>
-        <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#22d3c5" />
-          <stop offset="1" stopColor="#3b82f6" />
-        </linearGradient>
-        <linearGradient id={`${id}-stem`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#3b82f6" />
-          <stop offset="1" stopColor="#1d4ed8" />
-        </linearGradient>
-      </defs>
-      <path
-        fillRule="evenodd"
-        fill={`url(#${id}-fill)`}
-        d="M6 2h16.5C29.4 2 34 6.4 34 12.3c0 3.5-1.7 6.4-4.5 8 3.9 1.5 6.5 5 6.5 9.4C36 36.5 30.6 42 23.6 42H6zM14 9.5v8h7.4c2.3 0 3.9-1.7 3.9-4s-1.6-4-3.9-4zm0 15v10h8.8c3 0 5-2.1 5-5s-2-5-5-5z"
-      />
-      <path fill={`url(#${id}-stem)`} d="M6 2h8v40H6z" opacity="0.85" />
-    </svg>
-  );
+/**
+ * Isotipo "B" de Betel (cinta azul en degradado). Imagen de la marca con fondo transparente en
+ * public/brand/betel-b.png (proporción 730 × 829); el ícono del navegador es app/icon.png.
+ */
+export function BrandMark({ size = 34 }: { size?: number }) {
+  return <img src="/brand/betel-b.png" alt="" width={Math.round(size * 0.88)} height={size} className="brand-mark" />;
 }
 
 const paths = {
