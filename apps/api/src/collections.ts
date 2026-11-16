@@ -51,6 +51,7 @@ export const methodLabels: Record<string, string> = {
   CARD: "Tarjeta",
   CHECK: "Cheque",
   OTHER: "Otro",
+  ONLINE: "Pago en línea",
 };
 
 // ─── Cálculos puros (probados en test/collections.test.ts) ───────────────────
@@ -306,14 +307,19 @@ async function loadCollections(tx: Tx, query: CollectionReportQuery, rows: { ski
   };
 }
 
-/** Facturas a crédito vigentes con saldo pendiente (opcionalmente de un cliente o de unas facturas). */
-async function pendingInvoices(tx: Tx, options: { customerId?: string; invoiceIds?: string[] }) {
+/** Facturas a crédito vigentes con saldo pendiente (opcionalmente de un cliente, de unas facturas o de una búsqueda). */
+export async function pendingInvoices(
+  tx: Tx,
+  options: { customerId?: string; invoiceIds?: string[]; search?: string }
+) {
+  const customer = customerSearch(options.search);
   const invoices = await tx.invoice.findMany({
     where: {
       paymentTerm: "CREDIT",
       status: { in: [...BILLED_STATUSES] },
       ...(options.customerId && { customerId: options.customerId }),
       ...(options.invoiceIds && { id: { in: options.invoiceIds } }),
+      ...(customer && { customer }),
     },
     select: {
       id: true,
@@ -450,6 +456,12 @@ ${document.status === "VOID" ? `<p style="color:#c0392b"><b>Documento anulado.</
     ...document.totals.map(item => `${item.label}: ${cop(item.value)}`),
   ].join("\n");
   return { subject, html, text };
+}
+
+/** Siguiente consecutivo de recibo de caja (el índice único evita duplicados si dos se crean a la vez). */
+export async function nextReceiptNumber(tx: Tx) {
+  const last = await tx.cashReceipt.aggregate({ _max: { number: true } });
+  return (last._max.number ?? 0) + 1;
 }
 
 /** Error con código HTTP: Fastify responde con ese código y la transacción se revierte. */
@@ -613,8 +625,7 @@ export function registerCollectionRoutes(app: FastifyInstance, options: { auditI
         );
         if ("error" in result) throw httpError(422, result.error);
 
-        const last = await tx.cashReceipt.aggregate({ _max: { number: true } });
-        const number = (last._max.number ?? 0) + 1;
+        const number = await nextReceiptNumber(tx);
         const created = await tx.cashReceipt.create({
           data: {
             organizationId: actor.organizationId,
@@ -691,9 +702,12 @@ export function registerCollectionRoutes(app: FastifyInstance, options: { auditI
     const voided = await withOrganizationScope(actor.organizationId, async tx => {
       const receipt = await tx.cashReceipt.findFirst({
         where: { id: request.params.id, status: "ACTIVE" },
-        include: { customer: { select: { legalName: true } } },
+        include: { customer: { select: { legalName: true } }, onlinePayment: { select: { id: true } } },
       });
       if (!receipt) return null;
+      // Un pago en línea ya fue cobrado por la pasarela: se reversa con un reembolso, no anulando el recibo.
+      if (receipt.onlinePayment)
+        throw httpError(422, "Este recibo corresponde a un pago en línea; no se puede anular desde Recaudos.");
       const accounts = await ensureDefaultAccounts(tx, actor.organizationId);
       const amount = receipt.total.toNumber();
       const journalLines = [

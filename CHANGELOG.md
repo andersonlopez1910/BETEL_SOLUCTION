@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Gestión de cobro cartera Betel** (pagos en línea): links de pago para facturas a crédito, página pública
+  `/pago`, comisión y neto recibido, estados del pago y del desembolso, indicadores con "Filtrar", exportación
+  y envío del link por correo. Al aprobarse, el pago crea el recibo de caja y el asiento contable. Pasarela
+  conectada por adaptador; hoy solo la de pruebas (`PAYMENT_PROVIDER=sandbox`). Tabla `OnlinePayment` con RLS.
 - **Recaudos** en el Reporte de facturación: recibos de caja que abonan a facturas a crédito (asiento contable,
   consecutivo RC-n y anulación con asiento inverso) y lista de recaudos (facturas de contado + recibos) con
   buscador, filtros, indicadores, cartera por cobrar, selección múltiple, exportación y "Ver documento"

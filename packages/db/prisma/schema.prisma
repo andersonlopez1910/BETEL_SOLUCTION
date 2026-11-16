@@ -72,6 +72,19 @@ enum CollectionMethod {
   CARD
   CHECK
   OTHER
+  ONLINE /// Pago en línea por pasarela (Gestión de cobro cartera Betel)
+}
+/// Estado de un pago en línea: link generado (PENDING), aprobado, rechazado o anulado antes de pagarse.
+enum OnlinePaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+/// Desembolso de la pasarela a la cuenta bancaria de la empresa (solo pagos aprobados).
+enum DisbursementStatus {
+  PENDING
+  DISBURSED
 }
 /// Estado de un recibo de caja. Anulado (VOID) no suma y devuelve el saldo a las facturas.
 enum CashReceiptStatus {
@@ -143,6 +156,7 @@ model Organization {
   legalDocuments     LegalDocument[]
   subscriptions      Subscription[]
   cashReceipts       CashReceipt[]
+  onlinePayments     OnlinePayment[]
   documentEmails     DocumentEmail[]
 }
 
@@ -202,6 +216,7 @@ model Party {
   invoices             Invoice[]    @relation("InvoiceCustomer")
   supportDocuments     SupportDocument[] @relation("SupportSupplier")
   cashReceipts         CashReceipt[] @relation("CashReceiptCustomer")
+  onlinePayments       OnlinePayment[] @relation("OnlinePaymentCustomer")
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
 }
@@ -262,6 +277,7 @@ model Invoice {
   lines             InvoiceLine[]
   electronicEvents  ElectronicEvent[]
   receiptApplications CashReceiptApplication[]
+  onlinePayments    OnlinePayment[]
   @@unique([organizationId, prefix, number])
   @@index([organizationId, status, issueDate])
   /// Reporte de facturación por cliente (agrupa por customerId dentro de un período).
@@ -290,6 +306,7 @@ model CashReceipt {
   customer       Party             @relation("CashReceiptCustomer", fields: [customerId], references: [id])
   createdBy      User?             @relation("CashReceiptCreator", fields: [createdById], references: [id], onDelete: SetNull)
   applications   CashReceiptApplication[]
+  onlinePayment  OnlinePayment?
   @@unique([organizationId, number])
   @@index([organizationId, date])
   @@index([organizationId, customerId])
@@ -503,4 +520,38 @@ model AuditLog {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   @@index([organizationId, entity, entityId])
+}
+
+/// Pago en línea de una factura (Gestión de cobro cartera Betel). Se crea al generar el link de pago;
+/// la pasarela lo aprueba o rechaza. Al aprobarse se crea el recibo de caja (método ONLINE) que abona la
+/// factura, y queda pendiente el desembolso de la pasarela (neto = total pagado − comisión).
+model OnlinePayment {
+  id                String              @id @default(uuid())
+  organizationId    String
+  invoiceId         String
+  customerId        String
+  number            Int                 /// Consecutivo por organización; se muestra como PL-<número>.
+  amount            Decimal             @db.Decimal(18, 2) /// Valor cobrado en el link
+  fee               Decimal?            @db.Decimal(18, 2) /// Comisión de la pasarela (al aprobarse)
+  net               Decimal?            @db.Decimal(18, 2) /// Neto recibido = amount − fee
+  status            OnlinePaymentStatus @default(PENDING)
+  method            String?             /// Medio usado por el cliente: CARD, PSE, NEQUI…
+  provider          String              /// Adaptador de pasarela ("sandbox", "wompi"…)
+  providerReference String?
+  token             String              @unique /// Secreto del link público de pago
+  paidAt            DateTime?
+  rejectionReason   String?
+  disbursementStatus DisbursementStatus?
+  disbursedAt       DateTime?
+  cashReceiptId     String?             @unique
+  createdById       String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice           Invoice             @relation(fields: [invoiceId], references: [id])
+  customer          Party               @relation("OnlinePaymentCustomer", fields: [customerId], references: [id])
+  cashReceipt       CashReceipt?        @relation(fields: [cashReceiptId], references: [id])
+  @@unique([organizationId, number])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
 }

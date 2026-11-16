@@ -51,6 +51,8 @@ export function useSession() {
     canExport: exportRoles.includes(role),
     canReceive: receiptRoles.includes(role),
     canEmail: emailRoles.includes(role),
+    // Generar, enviar y anular links de pago (LINK_ROLES en apps/api/src/payments.ts: mismos roles que correo).
+    canLink: emailRoles.includes(role),
   };
 }
 

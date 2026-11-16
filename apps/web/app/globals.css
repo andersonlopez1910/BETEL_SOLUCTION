@@ -2147,3 +2147,342 @@ button {
   vertical-align: -2px;
   margin-right: 4px;
 }
+
+/* ── Gestión de cobro cartera Betel (components/billing-report-payments.tsx) y página /pago ── */
+.pay-sandbox {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff6e5;
+  color: #8a5300;
+  font-size: 13px;
+}
+.pay-sandbox.is-error {
+  background: #fdecee;
+  color: #b4232d;
+}
+.pay-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 28px;
+  padding: 26px 24px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.pay-kpi {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--tone);
+}
+.pay-kpi.is-blue {
+  --tone: var(--blue);
+}
+.pay-kpi.is-green {
+  --tone: #2fae6a;
+}
+.pay-kpi.is-amber {
+  --tone: var(--amber);
+}
+.pay-kpi.is-red {
+  --tone: var(--red);
+}
+.pay-kpi > b {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.pay-kpi > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #4d6178;
+}
+.pay-kpi i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+.pay-kpi .report-link {
+  font-size: 13px;
+  color: var(--blue-dark);
+}
+.pay-xlsx {
+  width: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.pay-xlsx span[aria-hidden] {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--blue);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+}
+.pay-badge {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #eef1f4;
+  color: #5b6b7d;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pay-badge.is-pending {
+  background: #fff1dc;
+  color: #b86a00;
+}
+.pay-badge.is-ok {
+  background: #e7f6dc;
+  color: #3d7a12;
+}
+.pay-badge.is-bad {
+  background: #fdecee;
+  color: #b4232d;
+}
+.pay-main {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  height: 36px;
+}
+.row-actions > .pay-main:first-child {
+  border-radius: 8px 0 0 8px;
+  border-right: 0;
+  padding: 0 14px;
+}
+.pay-empty {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 48px 16px 56px;
+  text-align: center;
+}
+.pay-empty h3 {
+  margin: 12px 0 0;
+  font: 600 17px Manrope;
+}
+.pay-empty p {
+  margin: 0;
+  font-size: 13px;
+}
+.pay-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.pay-pagination select {
+  margin-left: 8px;
+  border: 0;
+  background: none;
+  font: inherit;
+}
+.pay-pagination button {
+  background: none;
+  font-size: 18px;
+  color: var(--blue-dark);
+}
+.pay-pagination button:disabled {
+  color: #c5cfda;
+  cursor: default;
+}
+.pay-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.pay-invoice-search {
+  display: flex;
+  gap: 8px;
+}
+.pay-invoice-search input,
+.pay-created input {
+  flex: 1;
+  height: 36px;
+  border: 1px solid #cbd8e4;
+  border-radius: 6px;
+  padding: 0 10px;
+}
+.pay-invoice-search .secondary {
+  padding: 0 14px;
+}
+.pay-invoice-list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.pay-invoice-list button {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  text-align: left;
+  font-size: 13px;
+}
+.pay-invoice-list button small {
+  display: block;
+  color: var(--muted);
+}
+.pay-invoice-list button.is-selected {
+  border-color: var(--blue);
+  background: var(--pale);
+}
+.pay-created {
+  display: grid;
+  gap: 12px;
+}
+.pay-created p {
+  margin: 0;
+  font-size: 13px;
+}
+.pay-created input {
+  width: 100%;
+  font-size: 12px;
+}
+.pay-created .pay-main {
+  padding: 0 14px;
+}
+
+/* Página pública /pago */
+.checkout {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+.checkout-card {
+  width: min(460px, 100%);
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 16px 40px #233c5718;
+}
+.checkout-brand {
+  margin: 0 0 18px;
+  font: 800 24px Manrope;
+  color: var(--navy);
+}
+.checkout-brand span {
+  color: var(--blue);
+}
+.checkout-brand small {
+  margin-left: 6px;
+  font: 600 12px Manrope;
+  color: var(--muted);
+}
+.checkout-card h1 {
+  margin: 0 0 12px;
+  font: 700 20px Manrope;
+}
+.checkout-detail {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+.checkout-detail div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.checkout-detail dt {
+  color: var(--muted);
+}
+.checkout-detail dd {
+  margin: 0;
+  text-align: right;
+}
+.checkout-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 18px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.checkout-amount span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.checkout-amount b {
+  font: 700 26px Manrope;
+}
+.checkout-methods {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  font-size: 14px;
+}
+.checkout-methods legend {
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.checkout-methods label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.checkout-methods label:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--pale);
+}
+.checkout-actions {
+  display: grid;
+  gap: 10px;
+}
+.checkout-actions > * {
+  height: 42px;
+}
+.checkout-result {
+  margin: 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: #eef1f4;
+  font-size: 14px;
+}
+.checkout-result.is-ok {
+  background: #e7f6dc;
+  color: #2f6a0d;
+}
+.checkout-result.is-bad {
+  background: #fdecee;
+  color: #b4232d;
+}
+.payments-table td,
+.payments-table th {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.payments-table tr.is-cancelled td:not(:last-child) {
+  color: var(--muted);
+}
+.collections-toolbar > .secondary svg + * {
+  margin-left: 0;
+}

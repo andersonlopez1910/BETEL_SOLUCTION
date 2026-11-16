@@ -139,7 +139,10 @@ export const customerReportQuerySchema = z
   })
   .refine(periodInOrder, periodMessage);
 
-/** Medios de pago de un recibo de caja (mismo orden que el enum CollectionMethod de schema.prisma). */
+/**
+ * Medios de pago que se registran a mano en un recibo de caja. El enum CollectionMethod de
+ * schema.prisma tiene además ONLINE, que solo usan los pagos en línea aprobados por la pasarela.
+ */
 export const collectionMethods = ["CASH", "BANK_TRANSFER", "CARD", "CHECK", "OTHER"] as const;
 /** Documentos que aparecen en Recaudos y que se pueden enviar por correo. */
 export const collectionDocumentTypes = ["Invoice", "CashReceipt"] as const;
@@ -196,6 +199,38 @@ export const collectionDocumentQuerySchema = z.object({
   id: z.string().uuid(),
 });
 
+// ─── Gestión de cobro cartera Betel (pagos en línea) ─────────────────────────
+
+export const onlinePaymentStatuses = ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const;
+export const disbursementStatuses = ["PENDING", "DISBURSED"] as const;
+/** Medios con los que el cliente paga en la pasarela. */
+export const onlinePaymentMethods = ["CARD", "PSE", "NEQUI"] as const;
+
+/** Filtros de la pestaña Gestión de cobro (y de su exportación). */
+export const onlinePaymentQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de creación del link
+    search: optionalText, // Nombre o identificación del cliente
+    status: z.enum(onlinePaymentStatuses).optional(),
+    disbursement: z.enum(disbursementStatuses).optional(),
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(periodInOrder, periodMessage);
+
+/** Generar un link de pago para una factura a crédito con saldo. Sin `amount` se cobra todo el saldo. */
+export const createPaymentLinkSchema = z.object({
+  invoiceId: z.string().uuid(),
+  amount: amount.optional(),
+});
+
+/** Resultado que informa la pasarela de PRUEBAS (en producción llega por el webhook del proveedor). */
+export const sandboxPaymentResultSchema = z.object({
+  result: z.enum(["APPROVED", "REJECTED"]),
+  method: z.enum(onlinePaymentMethods),
+});
+
+export type OnlinePaymentQuery = z.infer<typeof onlinePaymentQuerySchema>;
 export type SalesReportQuery = z.infer<typeof salesReportQuerySchema>;
 export type CustomerReportQuery = z.infer<typeof customerReportQuerySchema>;
 export type CollectionReportQuery = z.infer<typeof collectionReportQuerySchema>;

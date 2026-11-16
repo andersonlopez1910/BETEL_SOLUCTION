@@ -7,6 +7,7 @@ import { PrismaClient } from "@prisma/client";
 const migrations = [
   ["20261016000000_enable_tenant_rls", false],
   ["20261116000000_add_cash_receipts_and_document_emails", true],
+  ["20261116100000_add_online_payments", true],
 ];
 const statements = [];
 for (const [name, onlyRls] of migrations) {

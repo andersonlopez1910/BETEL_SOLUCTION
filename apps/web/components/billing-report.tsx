@@ -3,7 +3,7 @@
  *
  * La pestaña activa va en la URL (?tab=ventas) para poder compartir el enlace y usar Atrás/Adelante.
  *
- * Datos reales: Ventas, Recaudos y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
+ * Datos reales: Ventas, Recaudos, Gestión de cobro y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
  * dependen de módulos que aún no existen en Betel (no hay tablas de pagos, cotizaciones, etc.)
  * y muestran ese estado en lugar de datos inventados. Ver docs/reporte-facturacion.md.
  */
@@ -14,17 +14,14 @@ import { useSearchParams } from "next/navigation";
 import { ActionMenu, type ActionMenuItem } from "./action-menu";
 import { CollectionsReport } from "./billing-report-collections";
 import { CustomersReport } from "./billing-report-customers";
+import { PaymentsReport } from "./billing-report-payments";
 import { SalesReport } from "./billing-report-sales";
 
 /** [slug de la URL, nombre de la pestaña, módulo de origen que falta (si aplica)]. Orden y nombres definitivos. */
 const reportTabs = [
   ["ventas", "Ventas", null],
   ["recaudos", "Recaudos", null],
-  [
-    "gestion-cobro",
-    "Gestión de cobro cartera Betel",
-    "Gestión de cobro de cartera (cuentas por cobrar y gestiones de cobro)",
-  ],
+  ["gestion-cobro", "Gestión de cobro cartera Betel", null],
   ["cotizaciones", "Cotizaciones", "Cotizaciones"],
   ["remisiones", "Remisiones", "Remisiones"],
   ["facturas-recurrentes", "Facturas recurrentes", "Facturas recurrentes"],
@@ -53,6 +50,7 @@ export function BillingReport() {
       </nav>
       {slug === "ventas" && <SalesReport />}
       {slug === "recaudos" && <CollectionsReport />}
+      {slug === "gestion-cobro" && <PaymentsReport />}
       {slug === "clientes" && <CustomersReport />}
       {missingModule && <UnavailableReport name={label} module={missingModule} />}
     </div>

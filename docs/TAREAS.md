@@ -62,6 +62,8 @@ en un _Issue_ con la plantilla "Tarea".
 | 25  | Clientes del reporte: mostrar recaudado y saldo por cliente con los recibos de caja                                                                  | facturación | 19         |             |
 | 26  | Asiento de recaudo al emitir una factura de contado (Débito Caja/Bancos, Crédito Clientes)                                                           | facturación | 19         |             |
 | 27  | Adjuntar el PDF de la factura o del recibo en el correo (hoy va el detalle en HTML)                                                                  | facturación | —          |             |
+| 28  | Adaptador de pasarela real (Wompi, Mercado Pago o PayU) con webhook firmado para Gestión de cobro                                                    | facturación | —          |             |
+| 29  | Reembolsos de pagos en línea y conciliación automática de desembolsos con el reporte de la pasarela                                                  | facturación | 28         |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):
 > falta el manejo de 422 en formularios y el login real (tarea 3).

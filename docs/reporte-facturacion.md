@@ -6,17 +6,17 @@ Seguimiento comercial**. La pestaña activa va en la URL (`?tab=ventas`, `?tab=c
 
 ## Estado por pestaña
 
-| Pestaña                        | Estado                 | Fuente de datos                                                               |
-| ------------------------------ | ---------------------- | ----------------------------------------------------------------------------- |
-| Ventas                         | ✅ Datos reales        | `Invoice`, `Party`, `AuditLog` (responsable), `User`                          |
-| Recaudos                       | ✅ Datos reales        | `Invoice` (contado), `CashReceipt`, `CashReceiptApplication`, `DocumentEmail` |
-| Gestión de cobro cartera Betel | ⛔ Sin fuente de datos | No existe el módulo de cartera ni registro de gestiones de cobro              |
-| Cotizaciones                   | ⛔ Sin fuente de datos | No existe el módulo                                                           |
-| Remisiones                     | ⛔ Sin fuente de datos | No existe el módulo                                                           |
-| Facturas recurrentes           | ⛔ Sin fuente de datos | No existe el módulo                                                           |
-| Envío masivo                   | ⛔ Sin fuente de datos | No existe el módulo. Los envíos individuales ya quedan en `DocumentEmail`     |
-| Clientes                       | ✅ Parcial             | `Party` + `Invoice`. Falta mostrar recaudado y saldo (tarea 25)               |
-| Seguimiento comercial          | ⛔ Sin fuente de datos | No existe el módulo comercial                                                 |
+| Pestaña                        | Estado                                | Fuente de datos                                                               |
+| ------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------- |
+| Ventas                         | ✅ Datos reales                       | `Invoice`, `Party`, `AuditLog` (responsable), `User`                          |
+| Recaudos                       | ✅ Datos reales                       | `Invoice` (contado), `CashReceipt`, `CashReceiptApplication`, `DocumentEmail` |
+| Gestión de cobro cartera Betel | ✅ Datos reales (pasarela de pruebas) | `OnlinePayment`, `CashReceipt`, `Invoice`                                     |
+| Cotizaciones                   | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
+| Remisiones                     | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
+| Facturas recurrentes           | ⛔ Sin fuente de datos                | No existe el módulo                                                           |
+| Envío masivo                   | ⛔ Sin fuente de datos                | No existe el módulo. Los envíos individuales ya quedan en `DocumentEmail`     |
+| Clientes                       | ✅ Parcial                            | `Party` + `Invoice`. Falta mostrar recaudado y saldo (tarea 25)               |
+| Seguimiento comercial          | ⛔ Sin fuente de datos                | No existe el módulo comercial                                                 |
 
 Las pestañas sin fuente muestran ese estado en lugar de cifras inventadas, y no tienen filtros ni
 botones. Cuando exista el módulo de origen se agrega su consulta en `apps/api/src/reports.ts` y su
@@ -78,27 +78,68 @@ otro) / Crédito 130505 Clientes. La anulación registra el asiento contrario.
 `docker compose --profile mail up -d` levanta **Mailpit**: recibe los correos sin entregarlos y los muestra
 en http://localhost:8025. El correo lleva el detalle del documento en HTML y texto (aún no adjunta PDF).
 
+## Gestión de cobro cartera Betel (pagos en línea)
+
+Pestaña `?tab=gestion-cobro`: cobro de facturas a crédito con **link de pago**. El cliente abre el link
+(página pública `/pago?token=…`, sin sesión), paga en la pasarela y, al aprobarse, el pago abona la
+factura y aparece en Recaudos como "Recibo de caja · Pago en línea".
+
+**Pasarela:** se conecta con un adaptador (`apps/api/src/payment-provider.ts`, mismo patrón que la DIAN).
+Hoy solo existe el de **pruebas** (`PAYMENT_PROVIDER=sandbox`, por defecto fuera de producción): la página
+de pago permite simular "aprobado" o "rechazado" y no se mueve dinero; un aviso lo indica en la pestaña y en
+la página. En producción sin adaptador real la API responde 503 al generar links. Conectar Wompi, Mercado
+Pago o PayU es la tarea 28.
+
+| Concepto            | Definición                                                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Link de pago (PL-n) | Cobro de una factura a **crédito** con saldo, por todo el saldo o una parte. Consecutivo por organización.                          |
+| Total pagado        | Valor del link cuando el pago fue **aprobado**.                                                                                     |
+| Comisión            | La calcula el adaptador. Pruebas: 2,99 % + $900, más IVA 19 % sobre la comisión. Un link que no cubre la comisión se rechaza.       |
+| Neto recibido       | Total pagado − comisión.                                                                                                            |
+| Aprobación          | Revalida el saldo con la factura bloqueada; si cambió, el pago queda **rechazado** y no se aplica. Crea el recibo de caja (ONLINE). |
+| Desembolso          | Al aprobarse queda "Por desembolsar"; "Registrar desembolso" lo marca "Desembolsado" cuando el dinero llega al banco.               |
+| Total documentos    | Σ valor de los links **no anulados** del período.                                                                                   |
+| Total neto recibido | Σ neto de los pagos aprobados del período.                                                                                          |
+| Por desembolsar     | Σ neto de los aprobados con desembolso pendiente.                                                                                   |
+| Pagos rechazados    | Cantidad de pagos rechazados del período.                                                                                           |
+
+Los indicadores usan el período (fecha de creación del link) y el buscador; su botón **Filtrar** aplica el
+estado correspondiente a la tabla. Un recibo de pago en línea no se anula desde Recaudos (sería un reembolso
+de la pasarela).
+
+**Contabilidad:** al aprobarse, Débito 138095 Pasarela por desembolsar (neto) + Débito 530515 Comisiones
+(comisión) / Crédito 130505 Clientes (total). Al desembolsar, Débito 111005 Bancos / Crédito 138095 (neto).
+
 ## API
 
 Rutas en `apps/api/src/reports.ts` y `apps/api/src/collections.ts` (Recaudos). Los datos de entrada se
 validan con los esquemas de `@betel/contracts` (422 si son inválidos).
 
-| Ruta                                         | Uso                                                        |
-| -------------------------------------------- | ---------------------------------------------------------- |
-| `GET /v1/reports/billing/users`              | Usuarios de la organización (filtro "Usuario responsable") |
-| `GET /v1/reports/billing/sales`              | Filas paginadas + indicadores + series por día y por mes   |
-| `GET /v1/reports/billing/sales/export`       | Todas las filas filtradas (máx. 5.000) + indicadores       |
-| `GET /v1/reports/billing/customers`          | Consolidado por cliente, paginado                          |
-| `GET /v1/reports/billing/customers/export`   | Todos los clientes filtrados (máx. 5.000)                  |
-| `GET /v1/reports/billing/customers/:id`      | Historial de facturas y evolución mensual de un cliente    |
-| `GET /v1/reports/billing/collections`        | Recaudos: filas paginadas + indicadores                    |
-| `GET /v1/reports/billing/collections/export` | Todas las filas de Recaudos filtradas (máx. 5.000)         |
-| `GET /v1/collections/document`               | Ver documento (factura o recibo) con historial de correos  |
-| `GET /v1/collections/pending-customers`      | Clientes con facturas a crédito por cobrar                 |
-| `GET /v1/collections/pending-invoices`       | Facturas a crédito con saldo de un cliente                 |
-| `POST /v1/cash-receipts`                     | Crear recibo de caja                                       |
-| `POST /v1/cash-receipts/:id/void`            | Anular recibo de caja (con motivo)                         |
-| `POST /v1/documents/email`                   | Enviar factura o recibo por correo                         |
+| Ruta                                             | Uso                                                        |
+| ------------------------------------------------ | ---------------------------------------------------------- |
+| `GET /v1/reports/billing/users`                  | Usuarios de la organización (filtro "Usuario responsable") |
+| `GET /v1/reports/billing/sales`                  | Filas paginadas + indicadores + series por día y por mes   |
+| `GET /v1/reports/billing/sales/export`           | Todas las filas filtradas (máx. 5.000) + indicadores       |
+| `GET /v1/reports/billing/customers`              | Consolidado por cliente, paginado                          |
+| `GET /v1/reports/billing/customers/export`       | Todos los clientes filtrados (máx. 5.000)                  |
+| `GET /v1/reports/billing/customers/:id`          | Historial de facturas y evolución mensual de un cliente    |
+| `GET /v1/reports/billing/collections`            | Recaudos: filas paginadas + indicadores                    |
+| `GET /v1/reports/billing/collections/export`     | Todas las filas de Recaudos filtradas (máx. 5.000)         |
+| `GET /v1/collections/document`                   | Ver documento (factura o recibo) con historial de correos  |
+| `GET /v1/collections/pending-customers`          | Clientes con facturas a crédito por cobrar                 |
+| `GET /v1/collections/pending-invoices`           | Facturas a crédito con saldo de un cliente                 |
+| `POST /v1/cash-receipts`                         | Crear recibo de caja                                       |
+| `POST /v1/cash-receipts/:id/void`                | Anular recibo de caja (con motivo)                         |
+| `POST /v1/documents/email`                       | Enviar factura o recibo por correo                         |
+| `GET /v1/reports/billing/online-payments`        | Gestión de cobro: filas paginadas + indicadores            |
+| `GET /v1/reports/billing/online-payments/export` | Todas las filas filtradas (máx. 5.000)                     |
+| `GET /v1/online-payments/payable-invoices`       | Facturas a crédito con saldo para generar link             |
+| `POST /v1/online-payments`                       | Generar link de pago                                       |
+| `POST /v1/online-payments/:id/email`             | Enviar el link por correo                                  |
+| `POST /v1/online-payments/:id/cancel`            | Anular un link pendiente                                   |
+| `POST /v1/online-payments/:id/disburse`          | Registrar el desembolso de la pasarela                     |
+| `GET /v1/public/payments/:token`                 | **Pública:** datos del link para la página de pago         |
+| `POST /v1/public/payments/:token/sandbox`        | **Pública, solo pruebas:** simular el resultado del pago   |
 
 Filtros de Ventas: `from`, `to` (AAAA-MM-DD), `customer` (nombre o identificación), `number` (prefijo o
 número), `status`, `userId`, `page`, `pageSize` (máx. 100). Filtros de Clientes: `from`, `to`, `search`,
@@ -116,7 +157,9 @@ número), `status`, `userId`, `page`, `pageSize` (máx. 100). Filtros de Cliente
 
 Cada exportación queda en `AuditLog` (`entity = "BillingReport"`, `action = "EXPORT"`, con los filtros
 y la cantidad de filas). Crear y anular recibos y enviar correos también quedan en `AuditLog`
-(`CashReceipt` CREATE/VOID, `EMAIL_SENT`/`EMAIL_FAILED`). Los datos se leen con `withOrganizationScope`, así que RLS impide ver
+(`CashReceipt` CREATE/VOID, `EMAIL_SENT`/`EMAIL_FAILED`). Los links de pago siguen a "Enviar por correo":
+los generan, envían y anulan OWNER, ADMIN, ACCOUNTANT y SALES; el desembolso solo OWNER, ADMIN y ACCOUNTANT.
+Cada paso queda en `AuditLog` (`OnlinePayment`). Los datos se leen con `withOrganizationScope`, así que RLS impide ver
 información de otra organización.
 
 ### Rendimiento
@@ -159,6 +202,13 @@ totales de facturas vigentes.
   cuadrado, filtros, paginación, correo recibido en Mailpit y a otro destinatario, filtro de correo, ver
   documento, exportación, anulación con asiento inverso y saldo restituido, permisos VIEWER/SALES/anónimo y
   aislamiento entre organizaciones. Los datos de prueba se borran al terminar.
+- `apps/api/test/payments.test.ts` (unitarias): comisión de pruebas, neto con `Decimal`, link que no cubre
+  la comisión, token del link, validaciones.
+- Pagos en línea de punta a punta (37 comprobaciones): solo facturas a crédito con saldo, límites del valor,
+  página pública sin sesión, token alterado, envío del link a Mailpit, aprobación con comisión y neto, doble
+  pago bloqueado, recibo en Recaudos y cartera, asiento cuadrado, rechazo por saldo cambiado y por la entidad,
+  anulación, indicadores y filtros, desembolso con cuenta de pasarela en cero, exportación, permisos
+  VIEWER/SALES/anónimo y aislamiento entre organizaciones.
 
 ## Problemas encontrados en el sistema existente
 

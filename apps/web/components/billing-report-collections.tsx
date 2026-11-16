@@ -85,7 +85,7 @@ const isVoid = (row: CollectionRow) => row.status === "VOID";
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 /** Ícono de controles deslizantes para "Más filtros". */
-const FilterIcon = () => (
+export const FilterIcon = () => (
   <svg
     width="14"
     height="14"
