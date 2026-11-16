@@ -425,7 +425,13 @@ const cop = (value: string) =>
   );
 
 /** Correo del documento: HTML con el detalle y una versión en texto plano. */
-export function documentEmail(document: LoadedDocument, company: string) {
+/** Datos que necesita el correo de un documento (factura, recibo o cotización). */
+export type EmailDocument = Pick<
+  LoadedDocument,
+  "title" | "number" | "date" | "status" | "customer" | "method" | "reference" | "lines" | "totals"
+>;
+
+export function documentEmail(document: EmailDocument, company: string) {
   const subject = `${document.title} ${document.number} — ${company}`;
   const rows = document.lines
     .map(

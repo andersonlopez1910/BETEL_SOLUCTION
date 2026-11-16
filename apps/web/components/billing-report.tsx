@@ -3,8 +3,8 @@
  *
  * La pestaña activa va en la URL (?tab=ventas) para poder compartir el enlace y usar Atrás/Adelante.
  *
- * Datos reales: Ventas, Recaudos, Gestión de cobro y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
- * dependen de módulos que aún no existen en Betel (no hay tablas de pagos, cotizaciones, etc.)
+ * Datos reales: Ventas, Recaudos, Gestión de cobro, Cotizaciones y Clientes consultan la API (/v1/reports/billing/*). Las demás pestañas
+ * dependen de módulos que aún no existen en Betel (no hay tablas de remisiones, facturas recurrentes, etc.)
  * y muestran ese estado en lugar de datos inventados. Ver docs/reporte-facturacion.md.
  */
 "use client";
@@ -15,6 +15,7 @@ import { ActionMenu, type ActionMenuItem } from "./action-menu";
 import { CollectionsReport } from "./billing-report-collections";
 import { CustomersReport } from "./billing-report-customers";
 import { PaymentsReport } from "./billing-report-payments";
+import { QuotesReport } from "./billing-report-quotes";
 import { SalesReport } from "./billing-report-sales";
 
 /** [slug de la URL, nombre de la pestaña, módulo de origen que falta (si aplica)]. Orden y nombres definitivos. */
@@ -22,7 +23,7 @@ const reportTabs = [
   ["ventas", "Ventas", null],
   ["recaudos", "Recaudos", null],
   ["gestion-cobro", "Gestión de cobro cartera Betel", null],
-  ["cotizaciones", "Cotizaciones", "Cotizaciones"],
+  ["cotizaciones", "Cotizaciones", null],
   ["remisiones", "Remisiones", "Remisiones"],
   ["facturas-recurrentes", "Facturas recurrentes", "Facturas recurrentes"],
   ["envio-masivo", "Envío masivo", "Envío masivo de documentos (registro de correos enviados)"],
@@ -51,6 +52,7 @@ export function BillingReport() {
       {slug === "ventas" && <SalesReport />}
       {slug === "recaudos" && <CollectionsReport />}
       {slug === "gestion-cobro" && <PaymentsReport />}
+      {slug === "cotizaciones" && <QuotesReport />}
       {slug === "clientes" && <CustomersReport />}
       {missingModule && <UnavailableReport name={label} module={missingModule} />}
     </div>
@@ -91,7 +93,7 @@ const invoiceDocuments: ActionMenuItem[] = [
   pending("Nota débito"),
   { label: "Documento de ingreso", href: "/recaudos/nuevo", note: "Recibo de caja" },
 ];
-const otherDocuments: ActionMenuItem[] = [pending("Remisión"), pending("Cotización")];
+const otherDocuments: ActionMenuItem[] = [pending("Remisión"), { label: "Cotización", href: "/cotizaciones/nueva" }];
 
 /**
  * Botones de la cabecera del reporte: "Crear factura" abre la factura nueva y su flecha despliega los

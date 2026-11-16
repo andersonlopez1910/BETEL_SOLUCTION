@@ -86,6 +86,12 @@ enum DisbursementStatus {
   PENDING
   DISBURSED
 }
+/// Estado de una cotización. "Vencida" no se guarda: es OPEN con validUntil anterior a hoy.
+enum QuoteStatus {
+  OPEN
+  INVOICED
+  VOID
+}
 /// Estado de un recibo de caja. Anulado (VOID) no suma y devuelve el saldo a las facturas.
 enum CashReceiptStatus {
   ACTIVE
@@ -158,6 +164,7 @@ model Organization {
   cashReceipts       CashReceipt[]
   onlinePayments     OnlinePayment[]
   documentEmails     DocumentEmail[]
+  quotes             Quote[]
 }
 
 /// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
@@ -176,6 +183,7 @@ model User {
   auditLogs    AuditLog[]
   cashReceipts CashReceipt[] @relation("CashReceiptCreator")
   sentEmails   DocumentEmail[] @relation("DocumentEmailSender")
+  quotes       Quote[]         @relation("QuoteCreator")
 }
 
 /// Relación usuario ↔ organización con su rol. Única por (organizationId, userId).
@@ -217,6 +225,7 @@ model Party {
   supportDocuments     SupportDocument[] @relation("SupportSupplier")
   cashReceipts         CashReceipt[] @relation("CashReceiptCustomer")
   onlinePayments       OnlinePayment[] @relation("OnlinePaymentCustomer")
+  quotes               Quote[]         @relation("QuoteCustomer")
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
 }
@@ -247,6 +256,7 @@ model Product {
   active         Boolean      @default(true)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoiceLines   InvoiceLine[]
+  quoteLines     QuoteLine[]
   @@unique([organizationId, sku])
 }
 
@@ -278,6 +288,7 @@ model Invoice {
   electronicEvents  ElectronicEvent[]
   receiptApplications CashReceiptApplication[]
   onlinePayments    OnlinePayment[]
+  quote             Quote?
   @@unique([organizationId, prefix, number])
   @@index([organizationId, status, issueDate])
   /// Reporte de facturación por cliente (agrupa por customerId dentro de un período).
@@ -554,4 +565,50 @@ model OnlinePayment {
   @@unique([organizationId, number])
   @@index([organizationId, createdAt])
   @@index([organizationId, status])
+}
+
+/// Cotización (COT-n): propuesta de venta a un cliente. No es factura ni genera contabilidad; se puede
+/// convertir en una factura en borrador (invoiceId) o anular. Totales calculados igual que la factura.
+model Quote {
+  id             String      @id @default(uuid())
+  organizationId String
+  customerId     String
+  number         Int         /// Consecutivo por organización; se muestra como COT-<número>.
+  issueDate      DateTime    @db.Date /// Fecha de elaboración
+  validUntil     DateTime?   @db.Date
+  currency       String      @default("COP")
+  subtotal       Decimal     @db.Decimal(18, 2)
+  discountTotal  Decimal     @db.Decimal(18, 2)
+  taxTotal       Decimal     @db.Decimal(18, 2)
+  total          Decimal     @db.Decimal(18, 2)
+  notes          String?
+  status         QuoteStatus @default(OPEN)
+  voidReason     String?
+  invoiceId      String?     @unique /// Factura en borrador creada desde la cotización
+  createdById    String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Party        @relation("QuoteCustomer", fields: [customerId], references: [id])
+  createdBy      User?        @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  invoice        Invoice?     @relation(fields: [invoiceId], references: [id])
+  lines          QuoteLine[]
+  @@unique([organizationId, number])
+  @@index([organizationId, issueDate])
+  @@index([organizationId, createdById])
+}
+
+/// Línea de una cotización (mismos campos que InvoiceLine).
+model QuoteLine {
+  id           String   @id @default(uuid())
+  quoteId      String
+  productId    String?
+  description  String
+  quantity     Decimal  @db.Decimal(18, 4)
+  unitPrice    Decimal  @db.Decimal(18, 2)
+  discountRate Decimal  @default(0) @db.Decimal(5, 2)
+  taxRate      Decimal  @default(19) @db.Decimal(5, 2)
+  lineTotal    Decimal  @db.Decimal(18, 2)
+  quote        Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id])
 }

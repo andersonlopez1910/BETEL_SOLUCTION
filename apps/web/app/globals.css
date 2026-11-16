@@ -2486,3 +2486,130 @@ button {
 .collections-toolbar > .secondary svg + * {
   margin-left: 0;
 }
+
+/* ── Cotizaciones (components/billing-report-quotes.tsx, quote-form.tsx) ── */
+.quotes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 20px 20px 12px;
+}
+.quotes-user {
+  display: grid;
+  gap: 8px;
+  color: #4d6178;
+  font-size: 13px;
+}
+.quotes-user select {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+}
+.quotes-more {
+  position: relative;
+  height: 36px;
+}
+.quotes-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--red);
+  color: white;
+  font-size: 10px;
+}
+.quotes-download,
+.quotes-toolbar > .primary {
+  height: 36px;
+  padding: 0 16px;
+}
+.quotes-filters {
+  margin: 0 20px 12px;
+  width: auto;
+}
+.quotes-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 14px;
+}
+.quotes-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid #cbd8e4;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.quotes-chip button {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #c9d4df;
+  color: white;
+  font-size: 12px;
+  line-height: 1;
+}
+.quotes-row-menu {
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+.pay-badge.is-info {
+  background: var(--pale);
+  color: var(--blue-dark);
+}
+.quotes-pagination b {
+  font-weight: 700;
+}
+.quote-add {
+  height: 34px;
+  padding: 0 14px;
+}
+.quote-lines input,
+.quote-lines select {
+  width: 100%;
+  min-width: 70px;
+  height: 32px;
+  border: 1px solid #cbd8e4;
+  border-radius: 5px;
+  padding: 0 8px;
+  font: inherit;
+}
+.quote-lines td:nth-child(2) input {
+  min-width: 200px;
+}
+.quote-lines .num input {
+  text-align: right;
+}
+.receipt-customer .pay-invoice-search + select {
+  height: 36px;
+  border: 1px solid #cbd8e4;
+  border-radius: 5px;
+  padding: 0 8px;
+  font: inherit;
+  font-weight: 400;
+}
+.receipt-customer {
+  display: grid;
+  gap: 7px;
+}
+.document-total .pay-badge {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--blue-dark);
+}

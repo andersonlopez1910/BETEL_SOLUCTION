@@ -26,6 +26,7 @@
  *   Recaudos ......... POST /cash-receipts, POST /cash-receipts/:id/void, GET /collections/*,
  *                      POST /documents/email (ver src/collections.ts)
  *   Cobro en línea ... GET/POST /online-payments/*, GET/POST /public/payments/:token (ver src/payments.ts)
+ *   Cotizaciones ..... GET/POST /quotes, /quotes/:id/(email|void|invoice) (ver src/quotes.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -47,6 +48,7 @@ import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "
 import { getDianProvider } from "./dian.js";
 import { registerCollectionRoutes } from "./collections.js";
 import { registerPaymentRoutes } from "./payments.js";
+import { registerQuoteRoutes } from "./quotes.js";
 import { registerBillingReportRoutes } from "./reports.js";
 
 // ─── Configuración ────────────────────────────────────────────────────────────
@@ -645,6 +647,7 @@ app.post<{ Params: { id: string } }>(
 registerBillingReportRoutes(app, { auditIp });
 registerCollectionRoutes(app, { auditIp });
 registerPaymentRoutes(app, { auditIp });
+registerQuoteRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

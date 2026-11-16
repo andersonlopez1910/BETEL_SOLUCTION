@@ -230,6 +230,51 @@ export const sandboxPaymentResultSchema = z.object({
   method: z.enum(onlinePaymentMethods),
 });
 
+// ─── Cotizaciones ─────────────────────────────────────────────────────────────
+
+/** Estados visibles de una cotización. EXPIRED = abierta con validez vencida (se calcula, no se guarda). */
+export const quoteStatuses = ["OPEN", "EXPIRED", "INVOICED", "VOID"] as const;
+
+/** Cotización: mismas líneas que la factura. Se guarda abierta; no genera contabilidad. */
+export const createQuoteSchema = z
+  .object({
+    customerId: z.string().uuid(), // Party con isCustomer = true
+    issueDate: z.coerce.date(), // Fecha de elaboración
+    validUntil: z.coerce.date().optional(),
+    notes: z.string().trim().max(2000).optional(),
+    lines: z.array(invoiceLineSchema).min(1, "Agrega al menos un ítem."),
+  })
+  .refine(value => !value.validUntil || value.validUntil >= value.issueDate, {
+    message: "La validez no puede ser anterior a la fecha de elaboración.",
+    path: ["validUntil"],
+  });
+
+/** Filtros de la pestaña Cotizaciones (y de su descarga). */
+export const quoteQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de elaboración
+    userId: z.string().uuid().optional(), // Usuario que elaboró la cotización
+    customer: optionalText, // Nombre o identificación del cliente
+    status: z.enum(quoteStatuses).optional(),
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(periodInOrder, periodMessage);
+
+/** Convertir una cotización abierta en factura en borrador. */
+export const convertQuoteSchema = z
+  .object({
+    paymentMethod: z.enum(["CASH", "CREDIT"]),
+    issueDate: z.coerce.date(),
+    dueDate: z.coerce.date().optional(),
+  })
+  .refine(value => value.paymentMethod === "CASH" || !!value.dueDate, {
+    message: "Indica la fecha de vencimiento de la factura a crédito.",
+    path: ["dueDate"],
+  });
+
+export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
+export type QuoteQuery = z.infer<typeof quoteQuerySchema>;
 export type OnlinePaymentQuery = z.infer<typeof onlinePaymentQuerySchema>;
 export type SalesReportQuery = z.infer<typeof salesReportQuerySchema>;
 export type CustomerReportQuery = z.infer<typeof customerReportQuerySchema>;

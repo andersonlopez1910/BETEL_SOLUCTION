@@ -1,5 +1,5 @@
 /**
- * Diálogos de Recaudos: enviar un documento a un correo escrito a mano y anular un recibo de caja.
+ * Diálogos de Recaudos y Cotizaciones: enviar un documento a un correo escrito a mano y anular con motivo.
  * Usan <dialog> nativo (modal, foco atrapado y Escape para cerrar los da el navegador).
  */
 "use client";
@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPost } from "../lib/api";
 
-export type DocumentRef = { type: "Invoice" | "CashReceipt"; id: string; number: string; customerEmail: string | null };
+export type DocumentRef = { type: string; id: string; number: string; customerEmail: string | null };
 
 /** Envía un documento por correo. Sin `to` la API usa el correo del cliente. */
 export const sendDocumentEmail = (document: { type: string; id: string }, to?: string) =>
@@ -17,7 +17,7 @@ export const sendDocumentEmail = (document: { type: string; id: string }, to?: s
     ...(to && { to }),
   });
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     ref.current?.showModal();
@@ -35,10 +35,13 @@ export function SendEmailDialog({
   document,
   onClose,
   onSent,
+  send,
 }: {
   document: DocumentRef;
   onClose: () => void;
   onSent: (recipient: string) => void;
+  /** Envío propio (p. ej. cotizaciones); por defecto POST /v1/documents/email. */
+  send?: (to: string) => Promise<{ data: { recipient: string } }>;
 }) {
   const [to, setTo] = useState(document.customerEmail ?? "");
   const [state, setState] = useState<{ busy: boolean; error?: string }>({ busy: false });
@@ -46,7 +49,7 @@ export function SendEmailDialog({
     event.preventDefault();
     setState({ busy: true });
     try {
-      const result = await sendDocumentEmail(document, to.trim());
+      const result = send ? await send(to.trim()) : await sendDocumentEmail(document, to.trim());
       onSent(result.data.recipient);
     } catch (error) {
       setState({ busy: false, error: (error as Error).message });
@@ -77,13 +80,20 @@ export function SendEmailDialog({
   );
 }
 
-/** Anulación de un recibo de caja: pide el motivo (queda en el recibo y en la auditoría). */
-export function VoidReceiptDialog({
-  receipt,
+/** Anulación con motivo (queda en el documento y en la auditoría). */
+export function VoidDocumentDialog({
+  title,
+  description,
+  path,
+  confirmLabel,
   onClose,
   onVoided,
 }: {
-  receipt: { id: string; number: string };
+  title: string;
+  description: string;
+  /** Ruta POST de la API que anula, p. ej. /v1/quotes/:id/void. */
+  path: string;
+  confirmLabel: string;
   onClose: () => void;
   onVoided: () => void;
 }) {
@@ -93,19 +103,16 @@ export function VoidReceiptDialog({
     event.preventDefault();
     setState({ busy: true });
     try {
-      await apiPost(`/v1/cash-receipts/${receipt.id}/void`, { reason: reason.trim() });
+      await apiPost(path, { reason: reason.trim() });
       onVoided();
     } catch (error) {
       setState({ busy: false, error: (error as Error).message });
     }
   };
   return (
-    <Modal title={`Anular recibo ${receipt.number}`} onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <form onSubmit={submit}>
-        <p className="report-dialog-text">
-          El valor del recibo vuelve al saldo de las facturas abonadas y se registra el asiento contable inverso. Esta
-          acción no se puede deshacer.
-        </p>
+        <p className="report-dialog-text">{description}</p>
         <label className="field">
           Motivo de la anulación
           <input value={reason} onChange={event => setReason(event.target.value)} minLength={3} required autoFocus />
@@ -120,10 +127,32 @@ export function VoidReceiptDialog({
             Cancelar
           </button>
           <button type="submit" className="primary danger" disabled={state.busy}>
-            {state.busy ? "Anulando…" : "Anular recibo"}
+            {state.busy ? "Anulando…" : confirmLabel}
           </button>
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Anulación de un recibo de caja: el saldo vuelve a las facturas y se registra el asiento inverso. */
+export function VoidReceiptDialog({
+  receipt,
+  onClose,
+  onVoided,
+}: {
+  receipt: { id: string; number: string };
+  onClose: () => void;
+  onVoided: () => void;
+}) {
+  return (
+    <VoidDocumentDialog
+      title={`Anular recibo ${receipt.number}`}
+      description="El valor del recibo vuelve al saldo de las facturas abonadas y se registra el asiento contable inverso. Esta acción no se puede deshacer."
+      path={`/v1/cash-receipts/${receipt.id}/void`}
+      confirmLabel="Anular recibo"
+      onClose={onClose}
+      onVoided={onVoided}
+    />
   );
 }
