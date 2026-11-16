@@ -49,6 +49,8 @@ export function calculateDocumentTotals<T extends DocumentLine>(lines: T[]) {
  */
 export async function ensureDefaultAccounts(tx: Prisma.TransactionClient, organizationId: string) {
   const definitions = [
+    ["110505", "Caja general", "ASSET"], // Recibos de caja en efectivo
+    ["111005", "Bancos", "ASSET"], // Recibos de caja por transferencia, tarjeta, cheque u otro medio
     ["130505", "Clientes nacionales", "ASSET"], // Cuentas por cobrar de facturas a crédito/contado
     ["240805", "IVA generado", "LIABILITY"], // IVA cobrado en ventas
     ["240810", "IVA descontable", "ASSET"], // IVA pagado en compras (documento soporte)

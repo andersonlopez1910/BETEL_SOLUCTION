@@ -53,12 +53,15 @@ en un _Issue_ con la plantilla "Tarea".
 | 16  | Usar solo migraciones Prisma (`migrate dev`/`deploy`) en vez de `db push`; actualizar README                                                         | base-datos  | —          |             |
 | 17  | Pruebas de integración de endpoints (terceros, facturas)                                                                                             | api         | 13         |             |
 | 18  | Agregar ESLint y `format:check` al CI                                                                                                                | config      | —          |             |
-| 19  | Recaudos: tabla de pagos/abonos por factura → activa pestaña Recaudos, recaudado y saldo en Clientes                                                 | facturación | 8          |             |
+| 19  | ~~Recaudos: tabla de pagos/abonos~~ Hecho: recibos de caja (ver `docs/reporte-facturacion.md`)                                                       | facturación | 8          |             |
 | 20  | Notas crédito y débito como documentos que ajustan la factura; reflejarlas en el reporte                                                             | facturación | 8          |             |
 | 21  | Asignar prefijo y consecutivo al emitir la factura (hoy el reporte muestra "Sin numerar")                                                            | facturación | 8          |             |
 | 22  | `calculateDocumentTotals` con `Decimal` (descuadre de 1 centavo, ver `docs/reporte-facturacion.md`)                                                  | api         | —          |             |
 | 23  | Guardar `createdById` en `Invoice` para el filtro "Usuario responsable" a gran escala                                                                | base-datos  | —          |             |
 | 24  | Módulos de origen pendientes del reporte: Cotizaciones, Remisiones, Recurrentes, Envío masivo, Seguimiento comercial, Gestión de cobro cartera Betel | varios      | —          |             |
+| 25  | Clientes del reporte: mostrar recaudado y saldo por cliente con los recibos de caja                                                                  | facturación | 19         |             |
+| 26  | Asiento de recaudo al emitir una factura de contado (Débito Caja/Bancos, Crédito Clientes)                                                           | facturación | 19         |             |
+| 27  | Adjuntar el PDF de la factura o del recibo en el correo (hoy va el detalle en HTML)                                                                  | facturación | —          |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):
 > falta el manejo de 422 en formularios y el login real (tarea 3).

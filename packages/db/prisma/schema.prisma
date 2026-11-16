@@ -65,6 +65,24 @@ enum PaymentTerm {
   CASH
   CREDIT
 }
+/// Medio de pago de un recibo de caja: efectivo, transferencia/consignación, tarjeta, cheque u otro.
+enum CollectionMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHECK
+  OTHER
+}
+/// Estado de un recibo de caja. Anulado (VOID) no suma y devuelve el saldo a las facturas.
+enum CashReceiptStatus {
+  ACTIVE
+  VOID
+}
+/// Resultado del envío de un documento por correo.
+enum EmailDeliveryStatus {
+  SENT
+  FAILED
+}
 /// Categoría de notificación mostrada al usuario.
 enum NotificationKind {
   DIAN
@@ -124,6 +142,8 @@ model Organization {
   auditLogs          AuditLog[]
   legalDocuments     LegalDocument[]
   subscriptions      Subscription[]
+  cashReceipts       CashReceipt[]
+  documentEmails     DocumentEmail[]
 }
 
 /// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
@@ -140,6 +160,8 @@ model User {
   events       CalendarEvent[] @relation("EventOwner")
   notifications Notification[]
   auditLogs    AuditLog[]
+  cashReceipts CashReceipt[] @relation("CashReceiptCreator")
+  sentEmails   DocumentEmail[] @relation("DocumentEmailSender")
 }
 
 /// Relación usuario ↔ organización con su rol. Única por (organizationId, userId).
@@ -179,6 +201,7 @@ model Party {
   contacts             PartyContact[]
   invoices             Invoice[]    @relation("InvoiceCustomer")
   supportDocuments     SupportDocument[] @relation("SupportSupplier")
+  cashReceipts         CashReceipt[] @relation("CashReceiptCustomer")
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
 }
@@ -238,10 +261,66 @@ model Invoice {
   customer          Party                  @relation("InvoiceCustomer", fields: [customerId], references: [id])
   lines             InvoiceLine[]
   electronicEvents  ElectronicEvent[]
+  receiptApplications CashReceiptApplication[]
   @@unique([organizationId, prefix, number])
   @@index([organizationId, status, issueDate])
   /// Reporte de facturación por cliente (agrupa por customerId dentro de un período).
   @@index([organizationId, customerId, issueDate])
+}
+
+/// Recibo de caja (RC): dinero recibido de un cliente que abona a una o varias facturas a crédito.
+/// El total es la suma de sus aplicaciones. Se anula (VOID) en lugar de borrarse.
+model CashReceipt {
+  id             String            @id @default(uuid())
+  organizationId String
+  customerId     String
+  number         Int               /// Consecutivo por organización; se muestra como RC-<número>.
+  date           DateTime          @db.Date
+  method         CollectionMethod
+  reference      String?           /// Número de transferencia, voucher o cheque.
+  notes          String?
+  total          Decimal           @db.Decimal(18, 2)
+  status         CashReceiptStatus @default(ACTIVE)
+  voidReason     String?
+  voidedAt       DateTime?
+  createdById    String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Party             @relation("CashReceiptCustomer", fields: [customerId], references: [id])
+  createdBy      User?             @relation("CashReceiptCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  applications   CashReceiptApplication[]
+  @@unique([organizationId, number])
+  @@index([organizationId, date])
+  @@index([organizationId, customerId])
+}
+
+/// Valor de un recibo de caja aplicado a una factura. Saldo de la factura = total − aplicaciones activas.
+model CashReceiptApplication {
+  id        String      @id @default(uuid())
+  receiptId String
+  invoiceId String
+  amount    Decimal     @db.Decimal(18, 2)
+  receipt   CashReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  invoice   Invoice     @relation(fields: [invoiceId], references: [id])
+  @@unique([receiptId, invoiceId])
+  @@index([invoiceId])
+}
+
+/// Registro de cada envío de un documento por correo (alimenta la columna "Correo": Enviado / Sin enviar).
+model DocumentEmail {
+  id             String              @id @default(uuid())
+  organizationId String
+  documentType   String              /// "Invoice" o "CashReceipt"
+  documentId     String
+  recipient      String
+  status         EmailDeliveryStatus
+  error          String?
+  sentById       String?
+  createdAt      DateTime            @default(now())
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sentBy         User?               @relation("DocumentEmailSender", fields: [sentById], references: [id], onDelete: SetNull)
+  @@index([organizationId, documentType, documentId])
 }
 
 /// Línea (ítem) de una factura de venta.

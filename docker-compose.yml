@@ -17,5 +17,15 @@ services:
     volumes:
       - betel_postgres:/var/lib/postgresql/data
       - ./docker/postgres/init/01-application-role.sql:/docker-entrypoint-initdb.d/01-application-role.sql:ro
+  # Buzón de pruebas para el envío de correos (Recaudos → "Enviar por correo"). Recibe los correos sin
+  # entregarlos y los muestra en http://localhost:8025. Iniciar con: docker compose --profile mail up -d
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: betel-mailpit
+    profiles: ["mail"]
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 volumes:
   betel_postgres:

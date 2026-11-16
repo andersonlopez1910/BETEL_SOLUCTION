@@ -139,8 +139,67 @@ export const customerReportQuerySchema = z
   })
   .refine(periodInOrder, periodMessage);
 
+/** Medios de pago de un recibo de caja (mismo orden que el enum CollectionMethod de schema.prisma). */
+export const collectionMethods = ["CASH", "BANK_TRANSFER", "CARD", "CHECK", "OTHER"] as const;
+/** Documentos que aparecen en Recaudos y que se pueden enviar por correo. */
+export const collectionDocumentTypes = ["Invoice", "CashReceipt"] as const;
+
+/** Filtros de la pestaña Recaudos (y de su exportación). */
+export const collectionReportQuerySchema = z
+  .object({
+    ...reportPeriod,
+    search: optionalText, // Nombre o identificación del cliente (contiene)
+    documentType: z.enum(collectionDocumentTypes).optional(), // Solo facturas de contado o solo recibos
+    method: z.enum(collectionMethods).optional(), // Medio de pago (solo aplica a recibos de caja)
+    email: z.enum(["SENT", "UNSENT"]).optional(), // Estado del correo
+    ...pagination,
+  })
+  .refine(periodInOrder, periodMessage);
+
+/** Valor con máximo 2 decimales (centavos). */
+const amount = z.coerce
+  .number()
+  .positive("El valor debe ser mayor que cero.")
+  .refine(value => Math.round(value * 100) === value * 100, "Máximo dos decimales.");
+
+/**
+ * Recibo de caja: dinero recibido de un cliente que abona a una o varias de sus facturas a crédito.
+ * El total del recibo es la suma de los valores aplicados (lo calcula el servidor).
+ */
+export const createCashReceiptSchema = z
+  .object({
+    customerId: z.string().uuid(),
+    date: z.coerce.date(),
+    method: z.enum(collectionMethods),
+    reference: optionalText, // Número de transferencia, voucher o cheque
+    notes: z.string().trim().max(500).optional(),
+    applications: z.array(z.object({ invoiceId: z.string().uuid(), amount })).min(1, "Abone al menos una factura."),
+  })
+  .refine(value => new Set(value.applications.map(item => item.invoiceId)).size === value.applications.length, {
+    message: "Una factura aparece dos veces.",
+    path: ["applications"],
+  });
+
+/** Anulación de un recibo de caja: el motivo queda en el recibo y en la auditoría. */
+export const voidCashReceiptSchema = z.object({ reason: z.string().trim().min(3).max(300) });
+
+/** Envío de un documento por correo. Sin `to` se usa el correo del cliente. */
+export const sendDocumentEmailSchema = z.object({
+  documentType: z.enum(collectionDocumentTypes),
+  documentId: z.string().uuid(),
+  to: z.string().trim().email("Correo inválido.").optional(),
+});
+
+/** Documento a consultar (Ver documento): GET /v1/collections/document?type=CashReceipt&id=… */
+export const collectionDocumentQuerySchema = z.object({
+  type: z.enum(collectionDocumentTypes),
+  id: z.string().uuid(),
+});
+
 export type SalesReportQuery = z.infer<typeof salesReportQuerySchema>;
 export type CustomerReportQuery = z.infer<typeof customerReportQuerySchema>;
+export type CollectionReportQuery = z.infer<typeof collectionReportQuerySchema>;
+export type CreateCashReceiptInput = z.infer<typeof createCashReceiptSchema>;
 
 /** Evento del calendario (tareas, reuniones y vencimientos tributarios). */
 export const calendarEventSchema = z

@@ -9,6 +9,7 @@
  */
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { ReportColumn } from "../lib/report-export";
 import {
@@ -84,7 +85,8 @@ export function CustomersReport() {
   const [draft, setDraft] = useState<Filters>(emptyFilters);
   const [applied, setApplied] = useState<Filters>(draft);
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<string | null>(null);
+  // ?cliente=<id> abre directamente el detalle (enlace desde Recaudos).
+  const [selected, setSelected] = useState<string | null>(useSearchParams().get("cliente"));
   const report = useReport<CustomersResponse>("/v1/reports/billing/customers", { ...applied, page });
   const data = report.data;
 

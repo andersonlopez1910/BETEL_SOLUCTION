@@ -3,6 +3,7 @@
  *
  * Uso:
  *   const report = await apiGet<SalesReport>("/v1/reports/billing/sales", { from: "2026-11-01" });
+ *   await apiPost("/v1/cash-receipts/" + id + "/void", { reason: "Consignación devuelta" });
  * Los parámetros vacíos o undefined no se envían. Si la API responde con error, lanza ApiError
  * con el mensaje `error` del cuerpo (los textos ya vienen en español desde la API).
  *
@@ -54,13 +55,21 @@ function requestDevSession() {
   return sessionRequest;
 }
 
-/** GET autenticado a la API. Devuelve el cuerpo JSON tal cual. */
-export async function apiGet<T>(path: string, params: QueryParams = {}): Promise<T> {
+/** Petición autenticada a la API. Devuelve el cuerpo JSON tal cual. */
+async function apiRequest<T>(method: "GET" | "POST", path: string, params: QueryParams, body?: unknown): Promise<T> {
   const url = new URL(path, API_URL);
   for (const [key, value] of Object.entries(params))
     if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
 
-  const send = (token: string) => fetch(url, { headers: { authorization: `Bearer ${token}` } });
+  const send = (token: string) =>
+    fetch(url, {
+      method,
+      headers: {
+        authorization: `Bearer ${token}`,
+        ...(body !== undefined && { "content-type": "application/json" }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
   let response: Response;
   try {
     response = await send(readToken() ?? (await requestDevSession()));
@@ -70,7 +79,13 @@ export async function apiGet<T>(path: string, params: QueryParams = {}): Promise
     throw new ApiError(`No se pudo conectar con la API (${API_URL}). Verifique que esté en ejecución.`, 0);
   }
 
-  const body = (await response.json().catch(() => ({}))) as { error?: string };
-  if (!response.ok) throw new ApiError(body.error ?? `Error ${response.status} de la API.`, response.status);
-  return body as T;
+  const result = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) throw new ApiError(result.error ?? `Error ${response.status} de la API.`, response.status);
+  return result as T;
 }
+
+/** GET autenticado a la API. */
+export const apiGet = <T>(path: string, params: QueryParams = {}) => apiRequest<T>("GET", path, params);
+
+/** POST autenticado con cuerpo JSON (crear recibos, anular, enviar correos). */
+export const apiPost = <T>(path: string, body: unknown = {}) => apiRequest<T>("POST", path, {}, body);

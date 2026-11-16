@@ -38,10 +38,20 @@ type Me = { user: { role: string }; organization: { legalName: string } };
 /** Roles que pueden exportar (espejo de REPORT_EXPORT_ROLES en la API, que es quien lo hace cumplir). */
 const exportRoles = ["OWNER", "ADMIN", "ACCOUNTANT"];
 
-/** Usuario actual: nombre de la empresa (encabezado de exportaciones) y si puede exportar. */
+/** Espejo de RECEIPT_ROLES y EMAIL_ROLES (apps/api/src/collections.ts); la API los hace cumplir. */
+const receiptRoles = ["OWNER", "ADMIN", "ACCOUNTANT"];
+const emailRoles = ["OWNER", "ADMIN", "ACCOUNTANT", "SALES"];
+
+/** Usuario actual: nombre de la empresa (encabezado de exportaciones) y qué acciones puede hacer. */
 export function useSession() {
   const { data } = useReport<Me>("/v1/me");
-  return { company: data?.organization.legalName ?? "", canExport: !!data && exportRoles.includes(data.user.role) };
+  const role = data?.user.role ?? "";
+  return {
+    company: data?.organization.legalName ?? "",
+    canExport: exportRoles.includes(role),
+    canReceive: receiptRoles.includes(role),
+    canEmail: emailRoles.includes(role),
+  };
 }
 
 /** Período por defecto: del día 1 del mes actual a hoy (hora de Colombia), en formato AAAA-MM-DD. */

@@ -23,6 +23,7 @@ Validar navegación, legibilidad, adaptación móvil y consistencia visual de la
 | HT-07 | Abra **Configuración** y cambie cada categoría.                                                                               | Las opciones cambian de contenido y el estado seleccionado se entiende.                                                                          |
 | HT-08 | Abra **Cuenta** y sus pestañas, luego **Mi perfil** desde el avatar.                                                          | Se visualizan pagos, plan, documentos legales y perfil sin pérdida de contenido.                                                                 |
 | HT-10 | Abra **Reporte de facturación**, recorra las nueve pestañas; en Ventas y Clientes filtre, pagine y exporte a PDF, XLSX y CSV. | Las pestañas se desplazan en móvil; las cifras coinciden con las facturas; los archivos traen encabezado, filtros y totales. Requiere API local. |
+| HT-11 | En **Recaudos** cree un recibo de caja a una factura a crédito, envíelo por correo, véalo y anúlelo.                          | El total y la cartera cambian; el correo llega a Mailpit (http://localhost:8025); el anulado queda tachado y no suma. Requiere API y Mailpit.    |
 | HT-09 | Repita HT-01 a HT-08 en móvil.                                                                                                | El menú se compacta, no hay desplazamiento horizontal innecesario y todos los controles se pueden tocar.                                         |
 
 ## Registro de resultados
