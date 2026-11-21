@@ -1,6 +1,7 @@
 /**
- * Módulo "Productos y servicios" (/productos): submenús Gestión de productos / servicios (funcional), Documentos de
- * productos / servicios y Costeo mensual (pendientes: lo indican en lugar de mostrar datos inventados).
+ * Módulo "Productos y servicios" (/productos): submenús Gestión de productos / servicios y Documentos de productos /
+ * servicios (product-documents.tsx), funcionales, y Costeo mensual (pendiente: lo indica en lugar de mostrar datos
+ * inventados).
  *
  * Gestión (GET /v1/reports/products): búsqueda, filtros (tipo, estado, stock), descarga en Excel, "Ver reportes"
  * (más vendidos), "Crear / Importar" (crear producto o servicio, importar de Excel o CSV), selección para activar o
@@ -13,6 +14,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { apiDelete, apiPost, apiPut } from "../lib/api";
+import { downloadText, readSpreadsheet } from "../lib/spreadsheet";
 import type { ReportColumn } from "../lib/report-export";
 import { ActionMenu } from "./action-menu";
 import {
@@ -25,17 +27,14 @@ import {
   useSession,
 } from "./billing-report-common";
 import { FilterIcon } from "./billing-report-collections";
+import { ProductDocuments } from "./product-documents";
 import { SearchIllustration } from "./billing-report-quotes";
 import { Modal } from "./collection-dialogs";
 
 /** [slug, nombre del submenú, pendiente de desarrollo]. Orden y nombres de la referencia. */
 const productTabs = [
   ["gestion", "Gestión de productos / servicios", null],
-  [
-    "documentos",
-    "Documentos de productos / servicios",
-    "los documentos (facturas, compras, remisiones…) en los que aparece cada producto o servicio",
-  ],
+  ["documentos", "Documentos de productos / servicios", null],
   ["costeo", "Costeo mensual", "el costo promedio mensual de los productos y el costo de lo vendido"],
 ] as const;
 
@@ -58,6 +57,7 @@ export function ProductsModule() {
         ))}
       </nav>
       {slug === "gestion" && <ProductManagement />}
+      {slug === "documentos" && <ProductDocuments />}
       {pending && (
         <section className="panel report-unavailable">
           <h2>{label}: en desarrollo</h2>
@@ -853,11 +853,11 @@ function ProductDetail({ row, onClose }: { row: ProductRow; onClose: () => void 
         {row.stock && (
           <>
             <div>
-              <dt>Entradas (compras)</dt>
+              <dt>Entradas (compras, saldo inicial y ajustes)</dt>
               <dd>{quantity(row.stock.inflow)}</dd>
             </div>
             <div>
-              <dt>Salidas (facturas de venta)</dt>
+              <dt>Salidas (facturas de venta y ajustes)</dt>
               <dd>{quantity(row.stock.outflow)}</dd>
             </div>
             <div>
@@ -877,8 +877,9 @@ function ProductDetail({ row, onClose }: { row: ProductRow; onClose: () => void 
       </dl>
       {row.stock && (
         <p className="report-dialog-text">
-          El stock se calcula con las compras registradas en Compras y gastos y las facturas de venta emitidas. Un valor
-          negativo indica que se ha vendido más de lo registrado como comprado.
+          El stock se calcula con las compras registradas en Compras y gastos, el saldo inicial y los ajustes de
+          inventario (Documentos de productos / servicios) y las facturas de venta emitidas. Un valor negativo indica
+          que se ha vendido más de lo registrado como entrada.
         </p>
       )}
       <div className="report-dialog-actions">
@@ -890,65 +891,6 @@ function ProductDetail({ row, onClose }: { row: ProductRow; onClose: () => void 
   );
 }
 
-/** Lee la primera hoja de un .xlsx o un .csv (separado por coma o punto y coma) como filas con encabezados. */
-async function readSpreadsheet(file: File): Promise<Record<string, unknown>[]> {
-  if (/\.xlsx$/i.test(file.name)) {
-    const { default: ExcelJS } = await import("exceljs");
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(await file.arrayBuffer());
-    const sheet = workbook.worksheets[0];
-    if (!sheet) return [];
-    const headers: string[] = [];
-    sheet.getRow(1).eachCell((cell, column) => (headers[column] = cell.text.trim()));
-    const rows: Record<string, unknown>[] = [];
-    sheet.eachRow((row, index) => {
-      if (index === 1) return;
-      const item: Record<string, unknown> = {};
-      row.eachCell((cell, column) => {
-        if (headers[column]) item[headers[column]!] = cell.text;
-      });
-      if (Object.values(item).some(value => String(value).trim())) rows.push(item);
-    });
-    return rows;
-  }
-  const text = (await file.text()).replace(/^﻿/, "");
-  const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
-  const separator = (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ";" : ",";
-  // CSV con comillas: "a;b" y "" dentro de comillas.
-  const records: string[][] = [];
-  let field = "";
-  let record: string[] = [];
-  let quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]!;
-    if (quoted) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"';
-        i++;
-      } else if (char === '"') quoted = false;
-      else field += char;
-    } else if (char === '"') quoted = true;
-    else if (char === separator) {
-      record.push(field);
-      field = "";
-    } else if (char === "\n" || char === "\r") {
-      if (char === "\r" && text[i + 1] === "\n") i++;
-      record.push(field);
-      records.push(record);
-      record = [];
-      field = "";
-    } else field += char;
-  }
-  if (field || record.length) {
-    record.push(field);
-    records.push(record);
-  }
-  const [header = [], ...data] = records;
-  return data
-    .filter(values => values.some(value => value.trim()))
-    .map(values => Object.fromEntries(header.map((name, index) => [name.trim(), values[index] ?? ""])));
-}
-
 const TEMPLATE =
   "Nombre;Código;Tipo;Unidad;Precio;IVA;Descripción\nTubo PVC 1/2;;Producto;unidad;5500;19;Presión\nInstalación;;Servicio;servicio;80000;0;\n";
 
@@ -957,14 +899,7 @@ function ImportProductsDialog({ onClose, onImported }: { onClose: () => void; on
   const [state, setState] = useState<{ busy: boolean; error?: string; errors?: { row: number; message: string }[] }>({
     busy: false,
   });
-  const template = () => {
-    const url = URL.createObjectURL(new Blob(["﻿" + TEMPLATE], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "plantilla-productos.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+  const template = () => downloadText("plantilla-productos.csv", TEMPLATE);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!file) return;

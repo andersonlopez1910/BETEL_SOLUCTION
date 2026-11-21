@@ -279,6 +279,7 @@ model Organization {
   receivedInvoices      ReceivedInvoice[]
   supplierPayments      SupplierPayment[]
   purchaseImports       PurchaseImport[]
+  inventoryDocuments    InventoryDocument[]
   receivedInvoiceEvents ReceivedInvoiceEvent[]
 }
 
@@ -307,6 +308,7 @@ model User {
   receivedInvoices           ReceivedInvoice[]      @relation("ReceivedInvoiceCreator")
   supplierPayments           SupplierPayment[]      @relation("SupplierPaymentCreator")
   purchaseImports            PurchaseImport[]       @relation("PurchaseImportCreator")
+  inventoryDocuments         InventoryDocument[]    @relation("InventoryDocumentCreator")
   receivedInvoiceEvents      ReceivedInvoiceEvent[] @relation("ReceivedInvoiceEventCreator")
 }
 
@@ -325,7 +327,7 @@ model Membership {
 
 /// Tercero: cliente, proveedor y/o pagador (isCustomer / isSupplier / isPayer).
 model Party {
-  id                   String             @id @default(uuid())
+  id                   String              @id @default(uuid())
   organizationId       String
   kind                 PartyKind
   identificationType   String
@@ -339,26 +341,27 @@ model Party {
   municipalityCode     String?
   postalCode           String?
   taxResponsibilities  String[]
-  isCustomer           Boolean            @default(false)
-  isSupplier           Boolean            @default(false)
-  isPayer              Boolean            @default(false)
+  isCustomer           Boolean             @default(false)
+  isSupplier           Boolean             @default(false)
+  isPayer              Boolean             @default(false)
   /// Cliente activo. Un cliente inactivo no aparece al crear documentos nuevos; su historial se conserva.
-  active               Boolean            @default(true)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  active               Boolean             @default(true)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   contacts             PartyContact[]
-  invoices             Invoice[]          @relation("InvoiceCustomer")
-  supportDocuments     SupportDocument[]  @relation("SupportSupplier")
-  cashReceipts         CashReceipt[]      @relation("CashReceiptCustomer")
-  onlinePayments       OnlinePayment[]    @relation("OnlinePaymentCustomer")
-  quotes               Quote[]            @relation("QuoteCustomer")
-  deliveries           Delivery[]         @relation("DeliveryCustomer")
-  recurringInvoices    RecurringInvoice[] @relation("RecurringInvoiceCustomer")
-  commercialTasks      CommercialTask[]   @relation("CommercialTaskParty")
-  purchaseDocuments    PurchaseDocument[] @relation("PurchaseSupplier")
-  receivedInvoices     ReceivedInvoice[]  @relation("ReceivedInvoiceSupplier")
-  supplierPayments     SupplierPayment[]  @relation("SupplierPaymentSupplier")
+  invoices             Invoice[]           @relation("InvoiceCustomer")
+  supportDocuments     SupportDocument[]   @relation("SupportSupplier")
+  cashReceipts         CashReceipt[]       @relation("CashReceiptCustomer")
+  onlinePayments       OnlinePayment[]     @relation("OnlinePaymentCustomer")
+  quotes               Quote[]             @relation("QuoteCustomer")
+  deliveries           Delivery[]          @relation("DeliveryCustomer")
+  recurringInvoices    RecurringInvoice[]  @relation("RecurringInvoiceCustomer")
+  commercialTasks      CommercialTask[]    @relation("CommercialTaskParty")
+  purchaseDocuments    PurchaseDocument[]  @relation("PurchaseSupplier")
+  receivedInvoices     ReceivedInvoice[]   @relation("ReceivedInvoiceSupplier")
+  supplierPayments     SupplierPayment[]   @relation("SupplierPaymentSupplier")
+  inventoryDocuments   InventoryDocument[] @relation("InventoryDocumentParty")
 
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
@@ -394,6 +397,7 @@ model Product {
   deliveryLines  DeliveryLine[]
   recurringLines RecurringInvoiceLine[]
   purchaseLines  PurchaseLine[]
+  inventoryLines InventoryLine[]
 
   @@unique([organizationId, sku])
 }
@@ -1101,4 +1105,54 @@ model PurchaseImport {
 
   @@unique([organizationId, cufe])
   @@index([organizationId, issueDate])
+}
+
+enum InventoryDocumentType {
+  INITIAL /// Saldo inicial (SI-n): solo entradas
+  ADJUSTMENT /// Ajuste de inventario (AJ-n): entradas (sobrantes) y salidas (faltantes, mermas)
+}
+
+enum InventoryDirection {
+  IN
+  OUT
+}
+
+/// Documento de inventario de "Productos y servicios › Documentos de productos / servicios". Mueve el stock y se
+/// contabiliza: saldo inicial 143505/370505; ajuste entrada 143505/429595; ajuste salida 519595/143505.
+model InventoryDocument {
+  id             String                @id @default(uuid())
+  organizationId String
+  type           InventoryDocumentType
+  number         Int /// Consecutivo por organización y tipo: SI-n o AJ-n
+  date           DateTime              @db.Date /// Fecha de elaboración
+  partyId        String? /// Tercero responsable (opcional)
+  notes          String?
+  total          Decimal               @db.Decimal(18, 2) /// Valor neto: entradas − salidas
+  status         PurchaseStatus        @default(ACTIVE)
+  voidReason     String?
+  createdById    String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  party          Party?                @relation("InventoryDocumentParty", fields: [partyId], references: [id], onDelete: SetNull)
+  createdBy      User?                 @relation("InventoryDocumentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lines          InventoryLine[]
+
+  @@unique([organizationId, type, number])
+  @@index([organizationId, date])
+}
+
+/// Renglón de un documento de inventario: producto, entrada o salida, cantidad y costo unitario.
+model InventoryLine {
+  id         String             @id @default(uuid())
+  documentId String
+  productId  String
+  direction  InventoryDirection
+  quantity   Decimal            @db.Decimal(18, 4)
+  unitCost   Decimal            @db.Decimal(18, 2)
+  total      Decimal            @db.Decimal(18, 2)
+  document   InventoryDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  product    Product            @relation(fields: [productId], references: [id])
+
+  @@index([productId])
 }

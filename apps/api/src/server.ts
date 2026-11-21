@@ -38,6 +38,7 @@
  *   Proveedores .... GET /reports/purchases/suppliers, /suppliers/:id/statement, POST /supplier-payments (ver src/payables.ts)
  *   Soportes ....... GET /reports/purchases/imports, POST /purchases/imports (+ legalize) (ver src/purchase-imports.ts)
  *   Productos ...... GET/POST/PUT/DELETE /products, GET /reports/products (ver src/products.ts)
+ *   Inventario ..... GET /reports/inventory-documents, POST /inventory-documents (+ import, void) (ver src/inventory.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -59,6 +60,7 @@ import { registerReceivedInvoiceRoutes } from "./received-invoices.js";
 import { registerPayableRoutes } from "./payables.js";
 import { registerPurchaseImportRoutes } from "./purchase-imports.js";
 import { registerProductRoutes } from "./products.js";
+import { registerInventoryRoutes } from "./inventory.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
@@ -169,12 +171,25 @@ app.get("/v1/me", { preHandler: requireActor }, async request => {
 
 /**
  * GET /v1/parties — Lista los terceros de la organización ordenados por nombre.
- * PENDIENTE: paginación y búsqueda (hoy devuelve máximo 50).
+ * Query opcional ?search= (nombre o identificación). PENDIENTE: paginación (hoy devuelve máximo 50).
  */
-app.get("/v1/parties", { preHandler: requireActor }, async request => {
+app.get<{ Querystring: { search?: string } }>("/v1/parties", { preHandler: requireActor }, async request => {
   const actor = request.actor!;
+  // ?search= busca por nombre o identificación (contiene); sin búsqueda, los primeros 50 por nombre.
+  const search = request.query.search?.trim().slice(0, 120);
   const data = await withOrganizationScope(actor.organizationId, tx =>
-    tx.party.findMany({ orderBy: { legalName: "asc" }, take: 50 })
+    tx.party.findMany({
+      where: search
+        ? {
+            OR: [
+              { legalName: { contains: search, mode: "insensitive" } },
+              { identificationNumber: { contains: search } },
+            ],
+          }
+        : undefined,
+      orderBy: { legalName: "asc" },
+      take: 50,
+    })
   );
   return { data };
 });
@@ -664,6 +679,7 @@ registerReceivedInvoiceRoutes(app, { auditIp });
 registerPayableRoutes(app, { auditIp });
 registerPurchaseImportRoutes(app, { auditIp });
 registerProductRoutes(app, { auditIp });
+registerInventoryRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

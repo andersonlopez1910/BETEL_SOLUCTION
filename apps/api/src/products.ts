@@ -2,7 +2,7 @@
  * Productos y servicios › Gestión de productos / servicios.
  *
  * Rutas:
- *   GET    /v1/products ........................ catálogo activo (máx. 100) para los editores de ítems
+ *   GET    /v1/products ........................ catálogo activo (máx. 100; ?search=, ?kind=) para los formularios
  *   POST   /v1/products ........................ crear producto o servicio (código vacío = siguiente C-n)
  *   PUT    /v1/products/:id .................... editar
  *   POST   /v1/products/:id/active ............. activar o inactivar
@@ -15,10 +15,12 @@
  *
  * DEFINICIONES (también en docs/productos-y-servicios.md):
  *   - Stock (solo productos) = entradas − salidas, calculado de los documentos:
- *       entradas: cantidades de las COMPRAS vigentes (CG-n tipo compra) con el producto;
- *       salidas: cantidades de las facturas de venta emitidas, aceptadas o vencidas con el producto.
+ *       entradas: cantidades de las COMPRAS vigentes (CG-n tipo compra) con el producto y las entradas de
+ *         saldo inicial y ajustes de inventario vigentes (inventory.ts);
+ *       salidas: cantidades de las facturas de venta emitidas, aceptadas o vencidas con el producto y las salidas
+ *         de los ajustes de inventario vigentes.
  *     Puede ser negativo si se vendió más de lo que se ha registrado como comprado (igual que la referencia).
- *     Betel aún no registra saldo inicial ni ajustes de inventario; las remisiones no descuentan hasta facturarse.
+ *     Las remisiones no descuentan hasta facturarse.
  *   - Los servicios no manejan stock.
  *   - Un producto inactivo no se ofrece al crear documentos nuevos; su historial se conserva.
  */
@@ -149,7 +151,7 @@ export function productFromRow(row: Record<string, unknown>) {
 /** Entradas, salidas y stock por producto (ver DEFINICIONES). */
 export async function stockByProduct(tx: Tx, productIds?: string[]) {
   const product = productIds ? { in: productIds } : { not: null };
-  const [purchases, sales] = await Promise.all([
+  const [purchases, sales, adjustments] = await Promise.all([
     tx.purchaseLine.groupBy({
       by: ["productId"],
       where: { productId: product, purchaseDocument: { status: "ACTIVE", type: "PURCHASE" } },
@@ -158,6 +160,12 @@ export async function stockByProduct(tx: Tx, productIds?: string[]) {
     tx.invoiceLine.groupBy({
       by: ["productId"],
       where: { productId: product, invoice: { status: { in: [...BILLED_STATUSES] } } },
+      _sum: { quantity: true },
+    }),
+    // Saldo inicial y ajustes de inventario vigentes (inventory.ts): entradas y salidas.
+    tx.inventoryLine.groupBy({
+      by: ["productId", "direction"],
+      where: { productId: productIds ? { in: productIds } : undefined, document: { status: "ACTIVE" } },
       _sum: { quantity: true },
     }),
   ]);
@@ -172,6 +180,13 @@ export async function stockByProduct(tx: Tx, productIds?: string[]) {
     const current = entry(row.productId!);
     const outflow = current.outflow.plus(row._sum.quantity ?? ZERO);
     result.set(row.productId!, { ...current, outflow, stock: current.inflow.minus(outflow) });
+  }
+  for (const row of adjustments) {
+    const current = entry(row.productId);
+    const quantity = row._sum.quantity ?? ZERO;
+    const inflow = row.direction === "IN" ? current.inflow.plus(quantity) : current.inflow;
+    const outflow = row.direction === "OUT" ? current.outflow.plus(quantity) : current.outflow;
+    result.set(row.productId, { inflow, outflow, stock: inflow.minus(outflow) });
   }
   return result;
 }
@@ -277,11 +292,34 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
   const conflict = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 
   /** GET /v1/products — catálogo activo de la organización (máx. 100), para los editores de ítems. */
-  app.get("/v1/products", { preHandler: requireActor }, async request => ({
-    data: await withOrganizationScope(request.actor!.organizationId, tx =>
-      tx.product.findMany({ where: { active: true }, orderBy: { name: "asc" }, take: 100 })
-    ),
-  }));
+  app.get<{ Querystring: { search?: string; kind?: string } }>(
+    "/v1/products",
+    { preHandler: requireActor },
+    async request => {
+      // ?search= (nombre o código) y ?kind=PRODUCT|SERVICE para los buscadores de los formularios.
+      const search = request.query.search?.trim().slice(0, 120);
+      const kind =
+        request.query.kind === "PRODUCT" || request.query.kind === "SERVICE" ? request.query.kind : undefined;
+      return {
+        data: await withOrganizationScope(request.actor!.organizationId, tx =>
+          tx.product.findMany({
+            where: {
+              active: true,
+              ...(kind && { kind }),
+              ...(search && {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" } },
+                  { sku: { contains: search, mode: "insensitive" } },
+                ],
+              }),
+            },
+            orderBy: { name: "asc" },
+            take: 100,
+          })
+        ),
+      };
+    }
+  );
 
   /** POST /v1/products — Body: productSchema. */
   app.post("/v1/products", canEdit, async (request, reply) => {

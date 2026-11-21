@@ -615,6 +615,61 @@ export const topProductsQuerySchema = z.object({ ...reportPeriod }).refine(perio
 
 export type ProductQuery = z.infer<typeof productQuerySchema>;
 
+// ─── Documentos de productos / servicios (inventario) ─────────────────────────
+
+export const inventoryDocumentTypes = ["INITIAL", "ADJUSTMENT"] as const;
+
+const inventoryLineSchema = z.object({
+  productId: z.string().uuid(),
+  direction: z.enum(["IN", "OUT"]),
+  quantity: z.coerce.number().positive("La cantidad debe ser mayor que cero."),
+  unitCost: z.coerce
+    .number()
+    .nonnegative("El costo no puede ser negativo.")
+    .refine(value => Math.round(value * 100) === value * 100, "El costo admite máximo dos decimales."),
+});
+
+/** Saldo inicial (solo entradas) o ajuste de inventario. Un producto aparece una sola vez por documento. */
+export const createInventoryDocumentSchema = z
+  .object({
+    type: z.enum(inventoryDocumentTypes),
+    date: z.coerce.date(),
+    partyId: z.string().uuid().optional(),
+    notes: z.string().trim().max(1000).optional(),
+    lines: z.array(inventoryLineSchema).min(1, "Agrega al menos un producto.").max(2000),
+  })
+  .refine(value => new Set(value.lines.map(line => line.productId)).size === value.lines.length, {
+    message: "Un producto aparece dos veces en el documento.",
+    path: ["lines"],
+  })
+  .refine(value => value.type !== "INITIAL" || value.lines.every(line => line.direction === "IN"), {
+    message: "El saldo inicial solo tiene entradas.",
+    path: ["lines"],
+  });
+
+/** Importar un documento de inventario desde Excel o CSV (filas con Código, Cantidad, Costo y Movimiento). */
+export const importInventoryDocumentSchema = z.object({
+  type: z.enum(inventoryDocumentTypes),
+  date: z.coerce.date(),
+  notes: z.string().trim().max(1000).optional(),
+  rows: z.array(z.record(z.string(), z.unknown())).min(1, "El archivo no trae filas.").max(2000, "Máximo 2.000 filas."),
+});
+
+/** Filtros de "Documentos de productos / servicios" (y de su descarga). */
+export const inventoryDocumentQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de elaboración
+    search: optionalText, // Tercero (nombre o identificación) o comprobante
+    type: z.enum(inventoryDocumentTypes).optional(),
+    status: z.enum(["ACTIVE", "VOID"]).optional(),
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(periodInOrder, periodMessage);
+
+export type CreateInventoryDocumentInput = z.infer<typeof createInventoryDocumentSchema>;
+export type InventoryDocumentQuery = z.infer<typeof inventoryDocumentQuerySchema>;
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;

@@ -72,7 +72,7 @@ en un _Issue_ con la plantilla "Tarea".
 | 35  | Anticipos a proveedores ("Saldo a favor"), vista imprimible y envío por correo del comprobante de egreso                            | compras     | —          |             |
 | 36  | Soporte por legalizar: notas crédito/débito, INC y otros impuestos, retenciones, .zip y validación de firma y respuesta DIAN        | compras     | —          |             |
 | 37  | Mensajes de error de la API en español en todas las rutas (validaciones de Fastify) y prueba automática del formato de error        | api         | —          |             |
-| 38  | Productos: Documentos de productos / servicios, saldo inicial y ajustes de inventario, devoluciones por nota crédito                | productos   | —          |             |
+| 38  | Productos: devolución de stock por notas crédito y descuento por remisiones                                                         | productos   | —          |             |
 | 39  | Productos: Costeo mensual (costo promedio y costo de lo vendido) y bodegas                                                          | productos   | 38         |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):

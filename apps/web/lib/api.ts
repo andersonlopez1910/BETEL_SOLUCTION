@@ -18,7 +18,9 @@ const TOKEN_KEY = "betel.accessToken";
 export class ApiError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
+    /** Cuerpo completo de la respuesta de error (p. ej. errores por fila de una importación). */
+    readonly details?: Record<string, unknown>
   ) {
     super(message);
   }
@@ -85,7 +87,12 @@ async function apiRequest<T>(
   }
 
   const result = (await response.json().catch(() => ({}))) as { error?: string };
-  if (!response.ok) throw new ApiError(result.error ?? `Error ${response.status} de la API.`, response.status);
+  if (!response.ok)
+    throw new ApiError(
+      result.error ?? `Error ${response.status} de la API.`,
+      response.status,
+      result as Record<string, unknown>
+    );
   return result as T;
 }
 

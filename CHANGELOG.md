@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Documentos de productos / servicios** (inventario): saldo inicial (SI-n) y ajustes de inventario (AJ-n) con
+  entradas y salidas a costo unitario, tercero opcional, asiento contable (370505, 429595, 519595 contra 143505) y
+  anulación con asiento inverso. Lista con búsqueda por tercero o comprobante, más filtros (últimos 30 días por
+  defecto), descarga e importación desde Excel o CSV (todo o nada, con errores por fila). El stock de Gestión de
+  productos ahora incluye estos documentos. Búsqueda en `GET /v1/products` y `GET /v1/parties`.
 - **Productos y servicios** (nuevo menú lateral) con los submenús Gestión de productos / servicios (funcional),
   Documentos de productos / servicios y Costeo mensual. Gestión: tipo, nombre, código (C-n automático), unidad,
   precios con detalle con IVA, impuestos, **stock** calculado de compras y facturas emitidas (punto rojo si es
