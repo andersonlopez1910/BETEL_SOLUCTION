@@ -70,7 +70,8 @@ en un _Issue_ con la plantilla "Tarea".
 | 33  | Anticipos y saldos a favor de clientes (columna "Saldo a favor" de la cartera)                                                      | facturación | 19         |             |
 | 34  | Conectar los eventos de facturas recibidas (030, 031, 032, 033) a un proveedor tecnológico DIAN real y consultar el CUFE en la DIAN | compras     | —          |             |
 | 35  | Anticipos a proveedores ("Saldo a favor"), vista imprimible y envío por correo del comprobante de egreso                            | compras     | —          |             |
-| 36  | Soporte por legalizar: documentos soporte pendientes de legalizar ante la DIAN                                                      | compras     | —          |             |
+| 36  | Soporte por legalizar: notas crédito/débito, INC y otros impuestos, retenciones, .zip y validación de firma y respuesta DIAN        | compras     | —          |             |
+| 37  | Mensajes de error de la API en español en todas las rutas (validaciones de Fastify) y prueba automática del formato de error        | api         | —          |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):
 > falta el manejo de 422 en formularios y el login real (tarea 3).

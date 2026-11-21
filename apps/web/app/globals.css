@@ -3871,3 +3871,106 @@ button.mass-button:disabled {
   color: var(--muted);
   font-size: 11px;
 }
+
+/* ── Compras y gastos › Soporte por legalizar (components/purchase-imports.tsx) ── */
+.imports-title {
+  margin: 0 0 14px;
+  font-size: 20px;
+}
+.imports-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.imports-toggle {
+  padding: 0;
+  font-size: 13px;
+}
+.imports-criteria {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px 24px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fafc;
+}
+.imports-dates {
+  display: grid;
+  gap: 6px;
+}
+.imports-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.imports-buttons {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+.imports-results {
+  padding: 0 0 8px;
+}
+.imports-results-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+}
+.imports-results-head .collections-notice {
+  margin: 0;
+}
+.imports-excel {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 36px;
+  padding: 0;
+}
+.imports-table {
+  min-width: 860px;
+}
+.imports-table td small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.imports-empty {
+  margin: 0;
+  padding: 56px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+.imports-warnings {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid #f5d48a;
+  border-radius: 8px;
+  background: #fff8e6;
+  font-size: 13px;
+  list-style: none;
+}
+.imports-warnings .is-blocking {
+  color: #b42318;
+  font-weight: 600;
+}
+.imports-types {
+  margin-bottom: 0;
+}
+@media (max-width: 720px) {
+  .imports-criteria {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Cualquier botón principal o secundario deshabilitado se ve deshabilitado (p. ej. en los diálogos). */
+:is(button.primary, button.secondary):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}

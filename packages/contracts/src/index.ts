@@ -547,6 +547,38 @@ export const createSupplierPaymentSchema = z
 export type PayablesQuery = z.infer<typeof payablesQuerySchema>;
 export type CreateSupplierPaymentInput = z.infer<typeof createSupplierPaymentSchema>;
 
+// ─── Soporte por legalizar (facturas de proveedores importadas desde XML) ─────
+
+export const purchaseImportStatuses = ["PENDING", "LEGALIZED", "REJECTED"] as const;
+
+/** "Importar nuevo documento": XML de la factura electrónica (UBL 2.1 o AttachedDocument). */
+export const importPurchaseSchema = z.object({
+  fileName: z.string().trim().min(1).max(200),
+  xml: z.string().min(50, "El archivo está vacío.").max(2_000_000, "El XML supera 2 MB."),
+  // Si es a crédito, registrar también la factura en "Registro de eventos" para enviar sus eventos DIAN.
+  registerEvents: z.boolean().default(true),
+});
+
+/** Legalizar: convertir el soporte en compra o gasto (CG-n). */
+export const legalizeImportSchema = z.object({
+  type: z.enum(["PURCHASE", "EXPENSE"]),
+  dueDate: z.coerce.date().optional(), // Solo si es a crédito y el XML no trae vencimiento
+  notes: z.string().trim().max(2000).optional(),
+});
+
+/** Filtros de "Soporte por legalizar" (y de su descarga). */
+export const purchaseImportQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de elaboración de la factura
+    search: optionalText, // Número, proveedor, NIT o CUFE
+    status: z.enum(purchaseImportStatuses).optional(),
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  })
+  .refine(periodInOrder, periodMessage);
+
+export type PurchaseImportQuery = z.infer<typeof purchaseImportQuerySchema>;
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;

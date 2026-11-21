@@ -36,6 +36,7 @@
  *   Compras y gastos . GET /reports/purchases/documents, GET/POST /purchases (ver src/purchases.ts)
  *   Eventos DIAN ... GET /reports/purchases/events, GET/POST /purchases/received-invoices (ver src/received-invoices.ts)
  *   Proveedores .... GET /reports/purchases/suppliers, /suppliers/:id/statement, POST /supplier-payments (ver src/payables.ts)
+ *   Soportes ....... GET /reports/purchases/imports, POST /purchases/imports (+ legalize) (ver src/purchase-imports.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -61,6 +62,7 @@ import { registerPortfolioRoutes } from "./portfolio.js";
 import { registerPurchaseRoutes } from "./purchases.js";
 import { registerReceivedInvoiceRoutes } from "./received-invoices.js";
 import { registerPayableRoutes } from "./payables.js";
+import { registerPurchaseImportRoutes } from "./purchase-imports.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
@@ -82,6 +84,26 @@ const app = Fastify({ logger: true });
 await app.register(cors, { origin: process.env.WEB_ORIGIN ?? "http://localhost:3000" });
 // Tokens de corta duración (15 min) para reducir el impacto si uno se filtra.
 await app.register(jwt, { secret: jwtSecret, sign: { expiresIn: "15m" } });
+
+/**
+ * Errores lanzados con código HTTP (httpError dentro de las transacciones) y errores de Fastify (cuerpo muy grande,
+ * JSON inválido…): responden { error: "<mensaje>" } como el resto de la API, que es lo que muestra la web. Sin esto,
+ * Fastify pondría en `error` el nombre del código ("Conflict") y el mensaje en español quedaría oculto.
+ * Los errores 5xx no exponen detalles internos.
+ */
+const fastifyMessages: Record<string, string> = {
+  FST_ERR_CTP_BODY_TOO_LARGE: "El archivo o los datos enviados son demasiado grandes.",
+  FST_ERR_CTP_INVALID_JSON_BODY: "Los datos enviados no son un JSON válido.",
+  FST_ERR_CTP_EMPTY_JSON_BODY: "Los datos enviados están vacíos.",
+};
+app.setErrorHandler((error: Error & { statusCode?: number; code?: string }, request, reply) => {
+  const status = error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;
+  if (status >= 500) {
+    request.log.error(error);
+    return reply.code(status).send({ error: "Error interno de la API. Intenta de nuevo." });
+  }
+  return reply.code(status).send({ error: fastifyMessages[error.code ?? ""] ?? error.message });
+});
 
 /**
  * La IP del usuario se guarda en AuditLog como hash (SHA-256 con el secreto como "sal"),
@@ -686,6 +708,7 @@ registerCommercialRoutes(app, { auditIp });
 registerPurchaseRoutes(app, { auditIp });
 registerReceivedInvoiceRoutes(app, { auditIp });
 registerPayableRoutes(app, { auditIp });
+registerPurchaseImportRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

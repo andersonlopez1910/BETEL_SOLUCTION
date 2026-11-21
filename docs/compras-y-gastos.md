@@ -10,7 +10,7 @@ que la empresa compra o paga a sus proveedores y lo contabiliza al guardar.
 | Documentos de compras y gastos | `/compras?tab=documentos`            | Funcional: lista, filtros, descarga, registrar, ver, anular y contabilizar.                         |
 | Registro de eventos            | `/compras?tab=eventos`               | Funcional: registrar facturas por CUFE y enviar los eventos 030, 032, 033 y 031.                    |
 | Proveedores                    | `/compras?tab=proveedores`           | Funcional: cuentas por pagar por proveedor, antigüedad, cuentas por pagar y comprobantes de egreso. |
-| Soporte por legalizar          | `/compras?tab=soporte-por-legalizar` | Pendiente (tarea 36). Muestra el aviso "en desarrollo".                                             |
+| Soporte por legalizar          | `/compras?tab=soporte-por-legalizar` | Funcional: importar el XML de la factura del proveedor y legalizarla como compra o gasto.           |
 
 ## Documentos de compras y gastos
 
@@ -118,6 +118,34 @@ Pago a un proveedor que abona a una o varias compras o gastos a crédito ("Pagar
 - Una compra o gasto con pagos vigentes no se puede anular: primero se anulan sus comprobantes de egreso.
 - El **tablero principal** suma los comprobantes de egreso activos del mes a las salidas de caja.
 
+## Soporte de compras o gastos por legalizar
+
+Facturas electrónicas que los proveedores envían (XML) y que todavía no están registradas como compra o gasto.
+
+1. **Importar nuevo documento:** se sube el XML de la factura (UBL 2.1, raíz `Invoice`) o el contenedor que llega
+   por correo (`AttachedDocument`, con la factura en CDATA). Betel lee CUFE, número, fechas, forma de pago,
+   proveedor, comprador, ítems (cantidad, precio, descuento, IVA) y totales.
+2. **Revisar:** el detalle muestra los datos, los ítems, el proveedor que se usará y las advertencias.
+3. **Legalizar** como compra o gasto: se crea el CG-n con su asiento (mismo proceso que "Nueva compra"); el
+   soporte queda "Legalizado" con su "Nombre Comprobante" (Compra o Gasto) y "Número de comprobante".
+4. O **Rechazar** con motivo (se puede volver a "Por legalizar").
+
+| Regla                     | Detalle                                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Destinatario              | La factura debe ir dirigida al NIT de la organización (con o sin dígito de verificación)                                                 |
+| Duplicados                | Un CUFE se importa una sola vez por organización (409)                                                                                   |
+| Proveedor                 | Se busca por identificación; si no existe se crea como proveedor con los datos del XML; si está inactivo hay que activarlo               |
+| Crédito                   | Usa el vencimiento del XML; si no lo trae, se pide al legalizar                                                                          |
+| Registro de eventos       | Si es a crédito y se marca al importar, la factura también queda en "Registro de eventos"                                                |
+| No se puede legalizar si… | Trae impuestos distintos al IVA (INC, bolsas…), cargos o descuentos globales, otra moneda, o los ítems no suman el total (tolerancia $1) |
+| Solo advierte             | Retenciones informadas (no se contabilizan) y crédito sin vencimiento                                                                    |
+
+- **Criterios de búsqueda** (se pueden ocultar): documento soporte (número, proveedor, NIT, CUFE o archivo), estado
+  y fecha de elaboración de la factura (últimos 30 días por defecto, como la referencia). Se aplican con "Buscar".
+- **Descarga** en Excel con los filtros aplicados.
+- **Seguridad del XML:** lector propio que rechaza `DOCTYPE` y entidades (evita XXE y la expansión de entidades),
+  máximo 2 MB; el XML original se guarda para trazabilidad.
+
 ## Permisos
 
 | Acción                                                                   | Roles                          |
@@ -127,6 +155,7 @@ Pago a un proveedor que abona a una o varias compras o gastos a crédito ("Pagar
 | Registrar, anular, contabilizar, buscar proveedores                      | OWNER, ADMIN, ACCOUNTANT       |
 | Registrar facturas recibidas y sus eventos                               | OWNER, ADMIN, ACCOUNTANT       |
 | Registrar y anular pagos a proveedores, activar o desactivar proveedores | OWNER, ADMIN, ACCOUNTANT       |
+| Importar, legalizar, rechazar y restaurar soportes                       | OWNER, ADMIN, ACCOUNTANT       |
 
 Todo se valida en la API; la interfaz solo desactiva los botones. Cada cambio deja registro en `AuditLog`.
 
@@ -149,12 +178,19 @@ Todo se valida en la API; la interfaz solo desactiva los botones. Cada cambio de
 | `GET /v1/supplier-payments/pending-documents?supplierId=` | Compras y gastos con saldo de un proveedor                                                      |
 | `POST /v1/supplier-payments`                              | Registrar comprobante de egreso (422 si supera el saldo)                                        |
 | `POST /v1/supplier-payments/:id/void`                     | Anular comprobante de egreso con motivo y asiento inverso                                       |
+| `GET /v1/reports/purchases/imports`                       | Soporte por legalizar (search, status, from, to, page, pageSize)                                |
+| `GET /v1/reports/purchases/imports/export`                | Descarga en Excel                                                                               |
+| `GET /v1/purchases/imports/:id`                           | Detalle con ítems, advertencias y proveedor                                                     |
+| `POST /v1/purchases/imports`                              | Importar XML (422 si no es factura, otro NIT o DOCTYPE; 409 CUFE repetido)                      |
+| `POST /v1/purchases/imports/:id/legalize`                 | Legalizar como compra o gasto (crea el proveedor si no existe)                                  |
+| `POST /v1/purchases/imports/:id/reject`                   | Rechazar con motivo                                                                             |
+| `POST /v1/purchases/imports/:id/restore`                  | Volver a "Por legalizar"                                                                        |
 | `GET /v1/reports/purchases/events`                        | Registro de eventos (status, cufe, from, to, supplier, number, sort, direction, page, pageSize) |
 | `GET /v1/purchases/received-invoices/:id`                 | Detalle con historial de eventos                                                                |
 | `POST /v1/purchases/received-invoices`                    | Registrar nueva factura (409 si el CUFE ya existe)                                              |
 | `POST /v1/purchases/received-invoices/:id/events`         | Registrar evento 030, 032, 033 o 031 (409 si no corresponde)                                    |
 
-Tablas `PurchaseDocument` y `PurchaseLine` con RLS (migración `20261120000000_add_purchase_documents`). Tablas `ReceivedInvoice` y `ReceivedInvoiceEvent` con RLS (migración `20261121000000_add_received_invoice_events`). Tablas `SupplierPayment` y `SupplierPaymentApplication` con RLS (migración `20261122000000_add_supplier_payments`).
+Tablas `PurchaseDocument` y `PurchaseLine` con RLS (migración `20261120000000_add_purchase_documents`). Tablas `ReceivedInvoice` y `ReceivedInvoiceEvent` con RLS (migración `20261121000000_add_received_invoice_events`). Tablas `SupplierPayment` y `SupplierPaymentApplication` con RLS (migración `20261122000000_add_supplier_payments`). Tabla `PurchaseImport` con RLS (migración `20261123000000_add_purchase_imports`).
 
 ## Limitaciones
 
@@ -169,9 +205,15 @@ Tablas `PurchaseDocument` y `PurchaseLine` con RLS (migración `20261120000000_a
   transmite los eventos mientras use el proveedor DIAN de pruebas; tampoco recibe el XML ni la representación gráfica.
   Los festivos se calculan por ley; un festivo nuevo decretado por fuera de la Ley 51 no se tendría en cuenta.
 
+- **Soporte por legalizar:** solo facturas de venta (no notas crédito/débito); solo IVA (INC, bolsas y otros
+  impuestos, cargos y descuentos globales y moneda extranjera impiden legalizar); no se contabilizan las
+  retenciones que informa el XML; no se valida la firma digital ni la respuesta de validación de la DIAN; no se leen
+  archivos .zip (hay que extraer el .xml).
+
 ## Pruebas
 
 - Unitarias: `apps/api/test/purchases.test.ts` (numeración, asientos, fuentes de la lista, validaciones).
 - Unitarias: `apps/api/test/received-invoices.test.ts` (festivos, días hábiles, orden de eventos, validaciones).
 - Unitarias: `apps/api/test/payables.test.ts` (antigüedad, validación de saldos, validaciones).
-- Casos de aceptación HT-19, HT-20 y HT-21 en `docs/human-test.md`.
+- Unitarias: `apps/api/test/purchase-imports.test.ts` (lectura UBL y AttachedDocument, advertencias, XML peligroso, destinatario).
+- Casos de aceptación HT-19 a HT-22 en `docs/human-test.md`.

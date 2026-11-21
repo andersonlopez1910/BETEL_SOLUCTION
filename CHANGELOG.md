@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Soporte por legalizar** en Compras y gastos: importar el XML de la factura electrónica del proveedor (UBL 2.1 o
+  AttachedDocument), revisar ítems, totales, proveedor y advertencias, y legalizarla como compra o gasto (crea el
+  proveedor si no existe y el CG-n con su asiento) o rechazarla. Criterios de búsqueda (últimos 30 días por defecto),
+  descarga en Excel y registro opcional en Registro de eventos. Lector XML propio que rechaza DOCTYPE/entidades.
+  Tabla `PurchaseImport` con RLS. Con esto los cuatro submenús de Compras y gastos son funcionales.
+
 - **Proveedores** en Compras y gastos (cuentas por pagar): saldo vencido, por vencer, a favor y total por proveedor,
   búsqueda, más filtros con etiquetas (saldo y estado), columnas, descarga, "Ver reportes" con la antigüedad de
   cuentas por pagar (1–30, 31–60, 61–90, más de 90 días), "Crear Proveedor" y activar/desactivar. **Cuentas por
@@ -82,6 +88,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 - Comentarios de documentación en API, contratos, cliente de base de datos, esquema Prisma y frontend.
 - Tablero de tareas inicial (`docs/TAREAS.md`) y plantillas de Issues.
 - Estándar de comentarios en `CONTRIBUTING.md`.
+
+### Corregido
+
+- Los errores de negocio de la API (p. ej. factura del proveedor repetida, evento fuera de orden, pago mayor al
+  saldo) llegaban a la web como "Conflict" o "Unprocessable Entity": ahora se muestra el mensaje en español.
+- Gestión de cobro cartera Betel: los pagos en línea hechos después de las 7 p. m. (hora de Colombia) no aparecían en
+  el período del día; el filtro ahora usa días de Colombia.
+- Los botones principales y secundarios deshabilitados ahora se ven deshabilitados en toda la aplicación.
 
 ### Cambiado
 

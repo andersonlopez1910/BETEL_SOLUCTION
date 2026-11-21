@@ -20,7 +20,13 @@
  */
 import type { FastifyInstance } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
-import { createPurchaseSchema, purchaseQuerySchema, voidCashReceiptSchema, type PurchaseQuery } from "@betel/contracts";
+import {
+  createPurchaseSchema,
+  purchaseQuerySchema,
+  voidCashReceiptSchema,
+  type CreatePurchaseInput,
+  type PurchaseQuery,
+} from "@betel/contracts";
 import { allowRoles } from "./auth.js";
 import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "./accounting.js";
 import { RECEIPT_ROLES } from "./collections.js";
@@ -74,6 +80,88 @@ export function sources(query: Pick<PurchaseQuery, "type" | "supplierInvoice">) 
 
 const dateOnly = (value: Date) => value.toISOString().slice(0, 10);
 const httpError = (statusCode: number, message: string) => Object.assign(new Error(message), { statusCode });
+
+/**
+ * Crea una compra o gasto (CG-n) con su asiento contable. La usan POST /v1/purchases y la legalización de
+ * soportes importados (purchase-imports.ts). Lanza 404 si el proveedor no existe o está inactivo y 409 si la
+ * factura del proveedor ya está registrada.
+ */
+export async function createPurchaseDocument(
+  tx: Tx,
+  actor: { organizationId: string; sub: string },
+  body: CreatePurchaseInput
+) {
+  const supplier = await tx.party.findFirst({
+    where: { id: body.supplierId, isSupplier: true, active: true },
+    select: { id: true, legalName: true },
+  });
+  if (!supplier) throw httpError(404, "Proveedor no encontrado o inactivo en esta organización.");
+  const duplicate = await tx.purchaseDocument.findFirst({
+    where: { supplierId: supplier.id, supplierInvoiceNumber: body.supplierInvoiceNumber },
+    select: { number: true },
+  });
+  if (duplicate)
+    throw httpError(
+      409,
+      `La factura ${body.supplierInvoiceNumber} de este proveedor ya está registrada (${purchaseNumber(duplicate.number)}).`
+    );
+  const totals = calculateDocumentTotals(body.lines);
+  const organization = await tx.organization.findUniqueOrThrow({
+    where: { id: actor.organizationId },
+    select: { currency: true },
+  });
+  const last = await tx.purchaseDocument.aggregate({ _max: { number: true } });
+  const created = await tx.purchaseDocument.create({
+    data: {
+      organizationId: actor.organizationId,
+      supplierId: supplier.id,
+      number: (last._max.number ?? 0) + 1,
+      type: body.type,
+      supplierInvoiceNumber: body.supplierInvoiceNumber,
+      issueDate: body.issueDate,
+      dueDate: body.paymentMethod === "CREDIT" ? body.dueDate : null,
+      paymentTerm: body.paymentMethod,
+      currency: organization.currency,
+      subtotal: totals.subtotal,
+      discountTotal: totals.discountTotal,
+      taxTotal: totals.taxTotal,
+      total: totals.total,
+      notes: body.notes || undefined,
+      createdById: actor.sub,
+      lines: {
+        create: totals.lines.map(line => ({
+          productId: line.productId,
+          description: line.description,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          discountRate: line.discountRate ?? 0,
+          taxRate: line.taxRate,
+          lineTotal: line.total,
+        })),
+      },
+    },
+  });
+  const accounts = await ensureDefaultAccounts(tx, actor.organizationId);
+  const lines = purchaseJournalLines(
+    { type: body.type, paymentTerm: body.paymentMethod, total: totals.total, taxTotal: totals.taxTotal },
+    accounts
+  );
+  assertBalanced(lines);
+  await tx.journalEntry.create({
+    data: {
+      organizationId: actor.organizationId,
+      reference: purchaseNumber(created.number),
+      date: body.issueDate,
+      description: `${purchaseTypeLabels[body.type]} ${body.supplierInvoiceNumber} de ${supplier.legalName}`,
+      status: "POSTED",
+      postedAt: new Date(),
+      sourceType: "PurchaseDocument",
+      sourceId: created.id,
+      lines: { create: lines },
+    },
+  });
+  return created;
+}
 
 // ─── Consultas ────────────────────────────────────────────────────────────────
 
@@ -372,75 +460,7 @@ export function registerPurchaseRoutes(app: FastifyInstance, options: { auditIp:
     const body = parsed.data;
     try {
       const document = await withOrganizationScope(actor.organizationId, async tx => {
-        const supplier = await tx.party.findFirst({
-          where: { id: body.supplierId, isSupplier: true, active: true },
-          select: { id: true, legalName: true },
-        });
-        if (!supplier) throw httpError(404, "Proveedor no encontrado o inactivo en esta organización.");
-        const duplicate = await tx.purchaseDocument.findFirst({
-          where: { supplierId: supplier.id, supplierInvoiceNumber: body.supplierInvoiceNumber },
-          select: { number: true },
-        });
-        if (duplicate)
-          throw httpError(
-            409,
-            `La factura ${body.supplierInvoiceNumber} de este proveedor ya está registrada (${purchaseNumber(duplicate.number)}).`
-          );
-        const totals = calculateDocumentTotals(body.lines);
-        const organization = await tx.organization.findUniqueOrThrow({
-          where: { id: actor.organizationId },
-          select: { currency: true },
-        });
-        const last = await tx.purchaseDocument.aggregate({ _max: { number: true } });
-        const created = await tx.purchaseDocument.create({
-          data: {
-            organizationId: actor.organizationId,
-            supplierId: supplier.id,
-            number: (last._max.number ?? 0) + 1,
-            type: body.type,
-            supplierInvoiceNumber: body.supplierInvoiceNumber,
-            issueDate: body.issueDate,
-            dueDate: body.paymentMethod === "CREDIT" ? body.dueDate : null,
-            paymentTerm: body.paymentMethod,
-            currency: organization.currency,
-            subtotal: totals.subtotal,
-            discountTotal: totals.discountTotal,
-            taxTotal: totals.taxTotal,
-            total: totals.total,
-            notes: body.notes || undefined,
-            createdById: actor.sub,
-            lines: {
-              create: totals.lines.map(line => ({
-                productId: line.productId,
-                description: line.description,
-                quantity: line.quantity,
-                unitPrice: line.unitPrice,
-                discountRate: line.discountRate ?? 0,
-                taxRate: line.taxRate,
-                lineTotal: line.total,
-              })),
-            },
-          },
-        });
-        const accounts = await ensureDefaultAccounts(tx, actor.organizationId);
-        const lines = purchaseJournalLines(
-          { type: body.type, paymentTerm: body.paymentMethod, total: totals.total, taxTotal: totals.taxTotal },
-          accounts
-        );
-        assertBalanced(lines);
-        await tx.journalEntry.create({
-          data: {
-            organizationId: actor.organizationId,
-            reference: purchaseNumber(created.number),
-            date: body.issueDate,
-            description: `${purchaseTypeLabels[body.type]} ${body.supplierInvoiceNumber} de ${supplier.legalName}`,
-            status: "POSTED",
-            postedAt: new Date(),
-            sourceType: "PurchaseDocument",
-            sourceId: created.id,
-            lines: { create: lines },
-          },
-        });
+        const created = await createPurchaseDocument(tx, actor, body);
         await audit(tx, request, created.id, "CREATE", {
           number: created.number,
           type: body.type,

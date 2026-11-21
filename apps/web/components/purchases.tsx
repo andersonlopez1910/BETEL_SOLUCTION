@@ -1,9 +1,9 @@
 /**
  * Módulo "Compras y gastos" (/compras): barra de submenús y su contenido.
  *
- * Submenús, en orden: Documentos de compras y gastos, Registro de eventos (purchase-events.tsx) y Proveedores
- * (purchase-suppliers.tsx), funcionales; y Soporte por legalizar, que aún no tiene su desarrollo y lo indica en lugar de mostrar
- * datos inventados. La pestaña activa va en la URL (?tab=documentos).
+ * Submenús, en orden: Documentos de compras y gastos (este archivo), Registro de eventos (purchase-events.tsx),
+ * Proveedores (purchase-suppliers.tsx) y Soporte por legalizar (purchase-imports.tsx). La pestaña activa va en la
+ * URL (?tab=documentos).
  *
  * Documentos: GET /v1/reports/purchases/documents (compras y gastos con factura del proveedor + documentos
  * soporte). Definiciones en apps/api/src/purchases.ts y docs/compras-y-gastos.md.
@@ -27,16 +27,17 @@ import {
 } from "./billing-report-common";
 import { FilterIcon } from "./billing-report-collections";
 import { PurchaseEvents } from "./purchase-events";
+import { PurchaseImports } from "./purchase-imports";
 import { PurchaseSuppliers } from "./purchase-suppliers";
 import { periodPresets, presetRange, SearchIllustration, type Preset } from "./billing-report-quotes";
 import { VoidDocumentDialog } from "./collection-dialogs";
 
-/** [slug, nombre del submenú, pendiente de desarrollo]. Orden y nombres de la referencia. */
+/** [slug, nombre del submenú]. Orden y nombres de la referencia. */
 const purchaseTabs = [
-  ["documentos", "Documentos de compras y gastos", null],
-  ["eventos", "Registro de eventos", null],
-  ["proveedores", "Proveedores", null],
-  ["soporte-por-legalizar", "Soporte por legalizar", "los documentos soporte pendientes de legalizar ante la DIAN"],
+  ["documentos", "Documentos de compras y gastos"],
+  ["eventos", "Registro de eventos"],
+  ["proveedores", "Proveedores"],
+  ["soporte-por-legalizar", "Soporte por legalizar"],
 ] as const;
 
 export const purchaseTypeLabels: Record<string, string> = {
@@ -69,7 +70,7 @@ export const purchaseHref = (kind: string, id: string) => `/compras/documento?ki
 
 export function PurchasesModule() {
   const requested = useSearchParams().get("tab");
-  const [slug, label, pending] = purchaseTabs.find(([tab]) => tab === requested) ?? purchaseTabs[0];
+  const [slug] = purchaseTabs.find(([tab]) => tab === requested) ?? purchaseTabs[0];
   return (
     <div className="page-content">
       <nav className="report-tabs" aria-label="Compras y gastos">
@@ -88,15 +89,7 @@ export function PurchasesModule() {
       {slug === "documentos" && <PurchaseDocuments />}
       {slug === "eventos" && <PurchaseEvents />}
       {slug === "proveedores" && <PurchaseSuppliers />}
-      {pending && (
-        <section className="panel report-unavailable">
-          <h2>{label}: en desarrollo</h2>
-          <p>
-            Este submenú mostrará {pending}. Todavía no está desarrollado en Betel; para no mostrar información ficticia
-            no se presentan cifras ni botones.
-          </p>
-        </section>
-      )}
+      {slug === "soporte-por-legalizar" && <PurchaseImports />}
     </div>
   );
 }

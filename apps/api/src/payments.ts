@@ -74,12 +74,19 @@ export function settlement(
   return { fee, net };
 }
 
+/** Colombia está en UTC−5 todo el año. */
+const BOGOTA_OFFSET_MS = 5 * 60 * 60 * 1000;
+
 function where(query: OnlinePaymentQuery, withStatusFilters: boolean): Prisma.OnlinePaymentWhereInput {
   const period = resolvePeriod(query);
   const contains = (value: string) => ({ contains: value, mode: "insensitive" as const });
   return {
-    // createdAt es fecha y hora: el período incluye todo el día final.
-    createdAt: { gte: period.from, lt: new Date(period.to.getTime() + 86_400_000) },
+    // createdAt es fecha y hora (UTC): los días del período son días de Colombia (UTC−5, sin horario de verano),
+    // así que van de las 05:00 UTC a las 05:00 UTC del día siguiente. Incluye todo el día final.
+    createdAt: {
+      gte: new Date(period.from.getTime() + BOGOTA_OFFSET_MS),
+      lt: new Date(period.to.getTime() + 86_400_000 + BOGOTA_OFFSET_MS),
+    },
     ...(query.search && {
       customer: {
         OR: [

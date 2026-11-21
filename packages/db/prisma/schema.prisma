@@ -278,6 +278,7 @@ model Organization {
   purchaseDocuments     PurchaseDocument[]
   receivedInvoices      ReceivedInvoice[]
   supplierPayments      SupplierPayment[]
+  purchaseImports       PurchaseImport[]
   receivedInvoiceEvents ReceivedInvoiceEvent[]
 }
 
@@ -305,6 +306,7 @@ model User {
   purchaseDocuments          PurchaseDocument[]     @relation("PurchaseCreator")
   receivedInvoices           ReceivedInvoice[]      @relation("ReceivedInvoiceCreator")
   supplierPayments           SupplierPayment[]      @relation("SupplierPaymentCreator")
+  purchaseImports            PurchaseImport[]       @relation("PurchaseImportCreator")
   receivedInvoiceEvents      ReceivedInvoiceEvent[] @relation("ReceivedInvoiceEventCreator")
 }
 
@@ -938,6 +940,7 @@ model PurchaseDocument {
   createdBy             User?                        @relation("PurchaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
   lines                 PurchaseLine[]
   paymentApplications   SupplierPaymentApplication[]
+  purchaseImport        PurchaseImport?              @relation("PurchaseImportDocument")
 
   @@unique([organizationId, number])
   @@unique([organizationId, supplierId, supplierInvoiceNumber])
@@ -1057,4 +1060,45 @@ model SupplierPaymentApplication {
 
   @@unique([paymentId, purchaseDocumentId])
   @@index([purchaseDocumentId])
+}
+
+enum PurchaseImportStatus {
+  PENDING /// Por legalizar
+  LEGALIZED /// Convertido en compra o gasto (CG-n)
+  REJECTED /// Descartado con motivo
+}
+
+/// Soporte de compra o gasto por legalizar: factura electrónica de un proveedor importada desde su XML (UBL 2.1).
+/// Al legalizarla se crea el PurchaseDocument (compra o gasto) con su asiento. Ver apps/api/src/purchase-imports.ts.
+model PurchaseImport {
+  id                 String               @id @default(uuid())
+  organizationId     String
+  cufe               String
+  fileName           String
+  supplierNit        String
+  supplierIdType     String /// NIT, CC, CE… (código DIAN 31, 13, 22…)
+  supplierName       String
+  number             String /// Prefijo y número de la factura del proveedor
+  issueDate          DateTime             @db.Date
+  dueDate            DateTime?            @db.Date
+  paymentTerm        PaymentTerm
+  currency           String
+  subtotal           Decimal              @db.Decimal(18, 2)
+  taxTotal           Decimal              @db.Decimal(18, 2)
+  total              Decimal              @db.Decimal(18, 2)
+  lines              Json /// Ítems leídos del XML (descripción, cantidad, precio, descuento, IVA)
+  warnings           Json /// Advertencias de la lectura; `blocking` impide legalizar
+  xml                String /// XML original, para trazabilidad
+  status             PurchaseImportStatus @default(PENDING)
+  rejectReason       String?
+  purchaseDocumentId String?              @unique
+  createdById        String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseDocument   PurchaseDocument?    @relation("PurchaseImportDocument", fields: [purchaseDocumentId], references: [id], onDelete: SetNull)
+  createdBy          User?                @relation("PurchaseImportCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, cufe])
+  @@index([organizationId, issueDate])
 }
