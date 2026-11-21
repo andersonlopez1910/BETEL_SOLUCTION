@@ -3838,3 +3838,36 @@ button.mass-button:disabled {
     flex-basis: 36px;
   }
 }
+
+/* ── Compras y gastos › Proveedores (purchase-suppliers.tsx, supplier-statement.tsx) ── */
+.report-link.danger {
+  color: #b42318;
+}
+.aging-table {
+  max-height: 60vh;
+}
+.aging-table tfoot th {
+  border-top: 2px solid var(--line);
+  color: var(--ink, #061724);
+}
+@media print {
+  .no-print {
+    display: none;
+  }
+}
+/* Segunda línea (tipo, referencia, "Anulado", "Vencida") debajo del dato en estados de cuenta y formularios de pago. */
+.document-sheet .report-table td small,
+.receipt-form .report-table td small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.report-dialog:has(.aging-table) {
+  width: min(980px, calc(100vw - 32px));
+}
+.aging-table td small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}

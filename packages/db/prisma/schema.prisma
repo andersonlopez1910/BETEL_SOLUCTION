@@ -277,6 +277,7 @@ model Organization {
   commercialTasks       CommercialTask[]
   purchaseDocuments     PurchaseDocument[]
   receivedInvoices      ReceivedInvoice[]
+  supplierPayments      SupplierPayment[]
   receivedInvoiceEvents ReceivedInvoiceEvent[]
 }
 
@@ -303,6 +304,7 @@ model User {
   commercialTasksResponsible CommercialTask[]       @relation("CommercialTaskResponsible")
   purchaseDocuments          PurchaseDocument[]     @relation("PurchaseCreator")
   receivedInvoices           ReceivedInvoice[]      @relation("ReceivedInvoiceCreator")
+  supplierPayments           SupplierPayment[]      @relation("SupplierPaymentCreator")
   receivedInvoiceEvents      ReceivedInvoiceEvent[] @relation("ReceivedInvoiceEventCreator")
 }
 
@@ -354,6 +356,7 @@ model Party {
   commercialTasks      CommercialTask[]   @relation("CommercialTaskParty")
   purchaseDocuments    PurchaseDocument[] @relation("PurchaseSupplier")
   receivedInvoices     ReceivedInvoice[]  @relation("ReceivedInvoiceSupplier")
+  supplierPayments     SupplierPayment[]  @relation("SupplierPaymentSupplier")
 
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
@@ -910,30 +913,31 @@ model CommercialTask {
 /// Documento de compra o gasto (CG-n) que registra la factura recibida de un proveedor. Se contabiliza al
 /// crearse: Débito inventario (compra) o gasto + IVA descontable / Crédito proveedores (crédito) o caja (contado).
 model PurchaseDocument {
-  id                    String         @id @default(uuid())
+  id                    String                       @id @default(uuid())
   organizationId        String
   supplierId            String
   number                Int /// Consecutivo por organización; se muestra como CG-<número>.
   type                  PurchaseType
   supplierInvoiceNumber String /// Número de la factura del proveedor
-  issueDate             DateTime       @db.Date /// Fecha de elaboración
-  dueDate               DateTime?      @db.Date
-  paymentTerm           PaymentTerm    @default(CASH)
-  currency              String         @default("COP")
-  subtotal              Decimal        @db.Decimal(18, 2)
-  discountTotal         Decimal        @db.Decimal(18, 2)
-  taxTotal              Decimal        @db.Decimal(18, 2)
-  total                 Decimal        @db.Decimal(18, 2)
+  issueDate             DateTime                     @db.Date /// Fecha de elaboración
+  dueDate               DateTime?                    @db.Date
+  paymentTerm           PaymentTerm                  @default(CASH)
+  currency              String                       @default("COP")
+  subtotal              Decimal                      @db.Decimal(18, 2)
+  discountTotal         Decimal                      @db.Decimal(18, 2)
+  taxTotal              Decimal                      @db.Decimal(18, 2)
+  total                 Decimal                      @db.Decimal(18, 2)
   notes                 String?
-  status                PurchaseStatus @default(ACTIVE)
+  status                PurchaseStatus               @default(ACTIVE)
   voidReason            String?
   createdById           String?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  organization          Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  supplier              Party          @relation("PurchaseSupplier", fields: [supplierId], references: [id])
-  createdBy             User?          @relation("PurchaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier              Party                        @relation("PurchaseSupplier", fields: [supplierId], references: [id])
+  createdBy             User?                        @relation("PurchaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
   lines                 PurchaseLine[]
+  paymentApplications   SupplierPaymentApplication[]
 
   @@unique([organizationId, number])
   @@unique([organizationId, supplierId, supplierInvoiceNumber])
@@ -1012,4 +1016,45 @@ model ReceivedInvoiceEvent {
   createdBy         User?                    @relation("ReceivedInvoiceEventCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@unique([receivedInvoiceId, type])
+}
+
+/// Comprobante de egreso (CE-n): pago a un proveedor que abona a compras o gastos a crédito.
+/// Asiento: Débito 220505 Proveedores / Crédito 110505 Caja (efectivo) o 111005 Bancos (otros medios).
+model SupplierPayment {
+  id             String                       @id @default(uuid())
+  organizationId String
+  supplierId     String
+  number         Int /// Consecutivo por organización; se muestra como CE-<número>.
+  date           DateTime                     @db.Date
+  method         CollectionMethod
+  reference      String? /// Número de transferencia o cheque.
+  notes          String?
+  total          Decimal                      @db.Decimal(18, 2)
+  status         CashReceiptStatus            @default(ACTIVE)
+  voidReason     String?
+  voidedAt       DateTime?
+  createdById    String?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier       Party                        @relation("SupplierPaymentSupplier", fields: [supplierId], references: [id])
+  createdBy      User?                        @relation("SupplierPaymentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  applications   SupplierPaymentApplication[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, date])
+  @@index([organizationId, supplierId])
+}
+
+/// Valor de un comprobante de egreso aplicado a una compra o gasto a crédito.
+model SupplierPaymentApplication {
+  id                 String           @id @default(uuid())
+  paymentId          String
+  purchaseDocumentId String
+  amount             Decimal          @db.Decimal(18, 2)
+  payment            SupplierPayment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  purchaseDocument   PurchaseDocument @relation(fields: [purchaseDocumentId], references: [id])
+
+  @@unique([paymentId, purchaseDocumentId])
+  @@index([purchaseDocumentId])
 }

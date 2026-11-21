@@ -69,7 +69,7 @@ en un _Issue_ con la plantilla "Tarea".
 | 32  | Generación de facturas recurrentes en una cola o job independiente cuando haya varias instancias de la API                          | api         | —          |             |
 | 33  | Anticipos y saldos a favor de clientes (columna "Saldo a favor" de la cartera)                                                      | facturación | 19         |             |
 | 34  | Conectar los eventos de facturas recibidas (030, 031, 032, 033) a un proveedor tecnológico DIAN real y consultar el CUFE en la DIAN | compras     | —          |             |
-| 35  | Proveedores: cuentas por pagar por proveedor, pagos (comprobantes de egreso) y estado de cuenta                                     | compras     | —          |             |
+| 35  | Anticipos a proveedores ("Saldo a favor"), vista imprimible y envío por correo del comprobante de egreso                            | compras     | —          |             |
 | 36  | Soporte por legalizar: documentos soporte pendientes de legalizar ante la DIAN                                                      | compras     | —          |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):

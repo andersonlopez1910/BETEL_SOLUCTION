@@ -516,6 +516,37 @@ export type RegisterReceivedInvoiceInput = z.infer<typeof registerReceivedInvoic
 export type ReceivedInvoiceEventInput = z.infer<typeof receivedInvoiceEventSchema>;
 export type ReceivedInvoiceQuery = z.infer<typeof receivedInvoiceQuerySchema>;
 
+// ─── Proveedores (cuentas por pagar) y comprobantes de egreso ─────────────────
+
+/** Pestaña "Proveedores": mismos filtros que la cartera de clientes, sobre cuentas por pagar. */
+export const payablesQuerySchema = z.object({
+  search: optionalText, // Nombre, nombre comercial o identificación
+  balance: z.enum(portfolioBalanceFilters).default("ALL"), // Saldo de proveedor
+  status: z.enum(["ACTIVE", "INACTIVE", "ALL"]).default("ACTIVE"), // Estado de proveedor
+  page: pagination.page,
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+/** Comprobante de egreso: pago a un proveedor que abona a una o varias compras o gastos a crédito. */
+export const createSupplierPaymentSchema = z
+  .object({
+    supplierId: z.string().uuid(),
+    date: z.coerce.date(),
+    method: z.enum(collectionMethods),
+    reference: optionalText, // Número de transferencia o cheque
+    notes: z.string().trim().max(500).optional(),
+    applications: z
+      .array(z.object({ purchaseDocumentId: z.string().uuid(), amount }))
+      .min(1, "Abona al menos un documento."),
+  })
+  .refine(
+    value => new Set(value.applications.map(item => item.purchaseDocumentId)).size === value.applications.length,
+    { message: "Un documento aparece dos veces.", path: ["applications"] }
+  );
+
+export type PayablesQuery = z.infer<typeof payablesQuerySchema>;
+export type CreateSupplierPaymentInput = z.infer<typeof createSupplierPaymentSchema>;
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;

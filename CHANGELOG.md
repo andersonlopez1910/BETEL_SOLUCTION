@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Proveedores** en Compras y gastos (cuentas por pagar): saldo vencido, por vencer, a favor y total por proveedor,
+  búsqueda, más filtros con etiquetas (saldo y estado), columnas, descarga, "Ver reportes" con la antigüedad de
+  cuentas por pagar (1–30, 31–60, 61–90, más de 90 días), "Crear Proveedor" y activar/desactivar. **Cuentas por
+  pagar** de cada proveedor (`/compras/proveedor`) y **comprobante de egreso** CE-n (`/compras/pago/nuevo`) que abona
+  a compras y gastos a crédito, con asiento Proveedores/Caja o Bancos y anulación con asiento inverso. Una compra
+  con pagos vigentes no se anula. El tablero suma los pagos a las salidas de caja. Tablas `SupplierPayment` y
+  `SupplierPaymentApplication` con RLS.
 - **Registro de eventos** en Compras y gastos: registrar facturas electrónicas de proveedores por su CUFE y enviar a la
   DIAN, en orden, la recepción de la factura (030), la recepción de la mercancía o servicio (032) y la aceptación (033)
   o el reclamo con motivo (031) dentro de 3 días hábiles (sin festivos de Colombia); aceptación tácita al vencer el

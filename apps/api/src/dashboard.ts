@@ -13,7 +13,7 @@
  *   - Variación: contra el mes anterior completo (el margen en puntos porcentuales).
  *   - Flujo de caja del mes: Entradas = recaudos (facturas de contado vigentes + recibos de caja activos,
  *     misma definición de la pestaña Recaudos); Salidas = documentos soporte contabilizados + compras y gastos
- *     de contado activos (los de crédito salen cuando se paguen; Betel aún no registra esos pagos);
+ *     de contado activos + comprobantes de egreso activos (pagos de compras y gastos a crédito);
  *     Flujo neto = entradas − salidas.
  *   - Evolución: utilidad de los últimos 10 meses, 8 trimestres o 5 años (incluye el actual).
  *   - Todas las sumas con Decimal.
@@ -122,8 +122,14 @@ async function cashFlow(tx: Tx, range: Range) {
     where: { paymentTerm: "CASH", status: "ACTIVE", issueDate: inRange(range) },
     _sum: { total: true },
   });
+  const supplierPayments = await tx.supplierPayment.aggregate({
+    where: { status: "ACTIVE", date: inRange(range) },
+    _sum: { total: true },
+  });
   const inflows = (cashInvoices._sum.total ?? ZERO).plus(receipts._sum.total ?? ZERO);
-  const outflows = (supportDocuments._sum.total ?? ZERO).plus(cashPurchases._sum.total ?? ZERO);
+  const outflows = (supportDocuments._sum.total ?? ZERO)
+    .plus(cashPurchases._sum.total ?? ZERO)
+    .plus(supplierPayments._sum.total ?? ZERO);
   return { inflows: inflows.toFixed(2), outflows: outflows.toFixed(2), net: inflows.minus(outflows).toFixed(2) };
 }
 

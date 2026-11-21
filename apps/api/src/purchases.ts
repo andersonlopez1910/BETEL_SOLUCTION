@@ -472,6 +472,12 @@ export function registerPurchaseRoutes(app: FastifyInstance, options: { auditIp:
         include: { supplier: { select: { legalName: true } } },
       });
       if (!document) return null;
+      // Con pagos vigentes (comprobantes de egreso) el saldo quedaría negativo: primero se anulan los pagos.
+      const paid = await tx.supplierPaymentApplication.count({
+        where: { purchaseDocumentId: document.id, payment: { status: "ACTIVE" } },
+      });
+      if (paid)
+        throw httpError(409, "Este documento tiene pagos registrados. Anula primero los comprobantes de egreso.");
       const accounts = await ensureDefaultAccounts(tx, actor.organizationId);
       const reversed = purchaseJournalLines(
         {
