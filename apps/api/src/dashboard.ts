@@ -7,13 +7,14 @@
  * DEFINICIONES (también en docs/reporte-facturacion.md):
  *   - Ingresos: Σ (subtotal − descuentos) de las facturas vigentes (emitidas, aceptadas o vencidas), es decir
  *     el ingreso por ventas sin IVA, por fecha de emisión.
- *   - Gastos: Σ (total − IVA) de los documentos soporte contabilizados (ISSUED) por fecha. Betel aún no
- *     registra otros gastos (nómina, servicios, etc.), así que solo incluye compras con documento soporte.
+ *   - Gastos: Σ (total − IVA) de los documentos soporte contabilizados (ISSUED) y de los gastos activos de
+ *     Compras y gastos, por fecha. Las compras de mercancía van al inventario y no son gasto del período.
  *   - Utilidad = ingresos − gastos. Margen = utilidad ÷ ingresos × 100 (1 decimal); null sin ingresos.
  *   - Variación: contra el mes anterior completo (el margen en puntos porcentuales).
  *   - Flujo de caja del mes: Entradas = recaudos (facturas de contado vigentes + recibos de caja activos,
- *     misma definición de la pestaña Recaudos); Salidas = total de los documentos soporte contabilizados
- *     (Betel aún no registra pagos a proveedores por separado); Flujo neto = entradas − salidas.
+ *     misma definición de la pestaña Recaudos); Salidas = documentos soporte contabilizados + compras y gastos
+ *     de contado activos (los de crédito salen cuando se paguen; Betel aún no registra esos pagos);
+ *     Flujo neto = entradas − salidas.
  *   - Evolución: utilidad de los últimos 10 meses, 8 trimestres o 5 años (incluye el actual).
  *   - Todas las sumas con Decimal.
  */
@@ -92,8 +93,15 @@ async function results(tx: Tx, range: Range) {
     where: { status: "ISSUED", issueDate: inRange(range) },
     _sum: { total: true, taxTotal: true },
   });
+  const purchaseExpenses = await tx.purchaseDocument.aggregate({
+    where: { type: "EXPENSE", status: "ACTIVE", issueDate: inRange(range) },
+    _sum: { total: true, taxTotal: true },
+  });
   const income = (invoices._sum.subtotal ?? ZERO).minus(invoices._sum.discountTotal ?? ZERO);
-  const expense = (expenses._sum.total ?? ZERO).minus(expenses._sum.taxTotal ?? ZERO);
+  const expense = (expenses._sum.total ?? ZERO)
+    .minus(expenses._sum.taxTotal ?? ZERO)
+    .plus(purchaseExpenses._sum.total ?? ZERO)
+    .minus(purchaseExpenses._sum.taxTotal ?? ZERO);
   return { income, expense, profit: income.minus(expense) };
 }
 
@@ -110,8 +118,12 @@ async function cashFlow(tx: Tx, range: Range) {
     where: { status: "ISSUED", issueDate: inRange(range) },
     _sum: { total: true },
   });
+  const cashPurchases = await tx.purchaseDocument.aggregate({
+    where: { paymentTerm: "CASH", status: "ACTIVE", issueDate: inRange(range) },
+    _sum: { total: true },
+  });
   const inflows = (cashInvoices._sum.total ?? ZERO).plus(receipts._sum.total ?? ZERO);
-  const outflows = supportDocuments._sum.total ?? ZERO;
+  const outflows = (supportDocuments._sum.total ?? ZERO).plus(cashPurchases._sum.total ?? ZERO);
   return { inflows: inflows.toFixed(2), outflows: outflows.toFixed(2), net: inflows.minus(outflows).toFixed(2) };
 }
 
@@ -129,12 +141,17 @@ async function series(tx: Tx, today: Date, granularity: Granularity) {
     where: { status: "ISSUED", issueDate: inRange(range) },
     _sum: { total: true, taxTotal: true },
   });
+  const purchaseDays = await tx.purchaseDocument.groupBy({
+    by: ["issueDate"],
+    where: { type: "EXPENSE", status: "ACTIVE", issueDate: inRange(range) },
+    _sum: { total: true, taxTotal: true },
+  });
   const totals = new Map(periods.map(period => [period.key, { income: ZERO, expense: ZERO }]));
   for (const day of invoiceDays) {
     const bucket = totals.get(bucketKey(day.issueDate, granularity));
     if (bucket) bucket.income = bucket.income.plus(day._sum.subtotal ?? ZERO).minus(day._sum.discountTotal ?? ZERO);
   }
-  for (const day of expenseDays) {
+  for (const day of [...expenseDays, ...purchaseDays]) {
     const bucket = totals.get(bucketKey(day.issueDate, granularity));
     if (bucket) bucket.expense = bucket.expense.plus(day._sum.total ?? ZERO).minus(day._sum.taxTotal ?? ZERO);
   }

@@ -163,6 +163,16 @@ enum CompanySize {
   MEDIUM
   LARGE
 }
+/// Compras y gastos: compra (mercancía o activos) o gasto (servicios, arriendos…) con factura del proveedor.
+enum PurchaseType {
+  PURCHASE
+  EXPENSE
+}
+/// Estado de un documento de compra o gasto. Anulado (VOID) no suma y se reversa su asiento.
+enum PurchaseStatus {
+  ACTIVE
+  VOID
+}
 /// Estado de un recibo de caja. Anulado (VOID) no suma y devuelve el saldo a las facturas.
 enum CashReceiptStatus {
   ACTIVE
@@ -239,6 +249,7 @@ model Organization {
   deliveries         Delivery[]
   recurringInvoices  RecurringInvoice[]
   commercialTasks    CommercialTask[]
+  purchaseDocuments  PurchaseDocument[]
 }
 
 /// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
@@ -262,6 +273,7 @@ model User {
   recurringInvoices RecurringInvoice[] @relation("RecurringInvoiceCreator")
   commercialTasksCreated     CommercialTask[] @relation("CommercialTaskCreator")
   commercialTasksResponsible CommercialTask[] @relation("CommercialTaskResponsible")
+  purchaseDocuments          PurchaseDocument[] @relation("PurchaseCreator")
 }
 
 /// Relación usuario ↔ organización con su rol. Única por (organizationId, userId).
@@ -309,6 +321,7 @@ model Party {
   deliveries           Delivery[]      @relation("DeliveryCustomer")
   recurringInvoices    RecurringInvoice[] @relation("RecurringInvoiceCustomer")
   commercialTasks      CommercialTask[] @relation("CommercialTaskParty")
+  purchaseDocuments    PurchaseDocument[] @relation("PurchaseSupplier")
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
 }
@@ -342,6 +355,7 @@ model Product {
   quoteLines     QuoteLine[]
   deliveryLines  DeliveryLine[]
   recurringLines RecurringInvoiceLine[]
+  purchaseLines  PurchaseLine[]
   @@unique([organizationId, sku])
 }
 
@@ -840,4 +854,51 @@ model CommercialTask {
   @@unique([organizationId, number])
   @@index([organizationId, createdAt])
   @@index([organizationId, status, responsibleId])
+}
+
+/// Documento de compra o gasto (CG-n) que registra la factura recibida de un proveedor. Se contabiliza al
+/// crearse: Débito inventario (compra) o gasto + IVA descontable / Crédito proveedores (crédito) o caja (contado).
+model PurchaseDocument {
+  id                    String         @id @default(uuid())
+  organizationId        String
+  supplierId            String
+  number                Int            /// Consecutivo por organización; se muestra como CG-<número>.
+  type                  PurchaseType
+  supplierInvoiceNumber String         /// Número de la factura del proveedor
+  issueDate             DateTime       @db.Date /// Fecha de elaboración
+  dueDate               DateTime?      @db.Date
+  paymentTerm           PaymentTerm    @default(CASH)
+  currency              String         @default("COP")
+  subtotal              Decimal        @db.Decimal(18, 2)
+  discountTotal         Decimal        @db.Decimal(18, 2)
+  taxTotal              Decimal        @db.Decimal(18, 2)
+  total                 Decimal        @db.Decimal(18, 2)
+  notes                 String?
+  status                PurchaseStatus @default(ACTIVE)
+  voidReason            String?
+  createdById           String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  organization          Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier              Party          @relation("PurchaseSupplier", fields: [supplierId], references: [id])
+  createdBy             User?          @relation("PurchaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lines                 PurchaseLine[]
+  @@unique([organizationId, number])
+  @@unique([organizationId, supplierId, supplierInvoiceNumber])
+  @@index([organizationId, issueDate])
+}
+
+/// Línea de un documento de compra o gasto (mismos campos que InvoiceLine).
+model PurchaseLine {
+  id                 String           @id @default(uuid())
+  purchaseDocumentId String
+  productId          String?
+  description        String
+  quantity           Decimal          @db.Decimal(18, 4)
+  unitPrice          Decimal          @db.Decimal(18, 2)
+  discountRate       Decimal          @default(0) @db.Decimal(5, 2)
+  taxRate            Decimal          @default(19) @db.Decimal(5, 2)
+  lineTotal          Decimal          @db.Decimal(18, 2)
+  purchaseDocument   PurchaseDocument @relation(fields: [purchaseDocumentId], references: [id], onDelete: Cascade)
+  product            Product?         @relation(fields: [productId], references: [id])
 }

@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Compras y gastos** (menú lateral, reemplaza "Documento soporte") con los submenús Documentos de compras y
+  gastos, Registro de eventos, Proveedores y Soporte por legalizar. El primero es funcional: lista de compras, gastos
+  y documentos soporte con tipo de transacción, más filtros (últimos 15 días por defecto, proveedor, factura del
+  proveedor) con etiquetas, descarga PDF/XLSX/CSV, botón dividido "Nueva Compra / Gasto / Doc Soporte", ver, anular y
+  contabilizar. Compras y gastos se contabilizan al guardar (inventario o gasto, IVA, caja o proveedores). El tablero
+  suma los gastos. Tablas `PurchaseDocument` y `PurchaseLine` con RLS. Ver `docs/compras-y-gastos.md`.
 - **Seguimiento comercial** en el Reporte de facturación: tareas comerciales con contacto, compromiso, fecha,
   responsable y oportunidad (etapa, avance, probabilidad, valor esperado, origen, tipo de empresa); criterios de
   búsqueda completos, reporte al pulsar "Buscar", copiar, imprimir, exportar, editar, completar y reabrir.

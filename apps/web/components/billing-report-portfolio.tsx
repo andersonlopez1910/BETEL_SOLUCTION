@@ -534,15 +534,20 @@ const identificationTypes: Record<string, string> = {
   PPT: "Permiso por protección temporal",
 };
 
-/** Crear cliente (POST /v1/parties): datos básicos. El formulario completo de terceros está en /terceros/nuevo. */
+/**
+ * Crear cliente o proveedor (POST /v1/parties): datos básicos. El formulario completo de terceros está en
+ * /terceros/nuevo. `supplier`: también proveedor; `supplierOnly`: solo proveedor (Compras y gastos).
+ */
 export function CreateCustomerDialog({
   supplier,
+  supplierOnly = false,
   onClose,
   onCreated,
 }: {
   supplier: boolean;
+  supplierOnly?: boolean;
   onClose: () => void;
-  onCreated: (name: string) => void;
+  onCreated: (name: string, id: string) => void;
 }) {
   const [form, setForm] = useState({
     kind: "COMPANY",
@@ -562,7 +567,7 @@ export function CreateCustomerDialog({
     event.preventDefault();
     setState({ busy: true });
     try {
-      await apiPost("/v1/parties", {
+      const created = await apiPost<{ data: { id: string } }>("/v1/parties", {
         kind: form.kind,
         identificationType: form.identificationType,
         identificationNumber: form.identificationNumber.trim(),
@@ -572,17 +577,17 @@ export function CreateCustomerDialog({
         ...(form.email.trim() && { email: form.email.trim() }),
         ...(form.phone.trim() && { phone: form.phone.trim() }),
         ...(form.address.trim() && { address: form.address.trim() }),
-        isCustomer: true,
-        isSupplier: supplier,
+        isCustomer: !supplierOnly,
+        isSupplier: supplier || supplierOnly,
       });
-      onCreated(form.legalName.trim());
+      onCreated(form.legalName.trim(), created.data.id);
     } catch (error) {
       setState({ busy: false, error: (error as Error).message });
     }
   };
 
   return (
-    <Modal title={supplier ? "Crear cliente y proveedor" : "Crear cliente"} onClose={onClose}>
+    <Modal title={supplierOnly ? "Crear proveedor" : supplier ? "Crear cliente y proveedor" : "Crear cliente"} onClose={onClose}>
       <form onSubmit={submit} className="customer-form">
         <label className="field">
           Tipo de persona
@@ -652,7 +657,7 @@ export function CreateCustomerDialog({
             Cancelar
           </button>
           <button type="submit" className="primary" disabled={state.busy}>
-            {state.busy ? "Guardando…" : "Crear cliente"}
+            {state.busy ? "Guardando…" : supplierOnly ? "Crear proveedor" : "Crear cliente"}
           </button>
         </div>
       </form>

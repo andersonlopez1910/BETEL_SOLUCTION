@@ -401,6 +401,43 @@ export const portfolioQuerySchema = z.object({
 
 export const toggleCustomerSchema = z.object({ active: z.boolean() });
 
+// ─── Compras y gastos ─────────────────────────────────────────────────────────
+
+/** Tipos de la lista "Documentos de compras y gastos". SUPPORT = documento soporte (no obligados a facturar). */
+export const purchaseDocumentTypes = ["PURCHASE", "EXPENSE", "SUPPORT"] as const;
+
+/** Compra o gasto con factura del proveedor. Totales los calcula el servidor. */
+export const createPurchaseSchema = z
+  .object({
+    type: z.enum(["PURCHASE", "EXPENSE"]),
+    supplierId: z.string().uuid(), // Party con isSupplier = true
+    supplierInvoiceNumber: z.string().trim().min(1).max(40), // Número de la factura del proveedor
+    issueDate: z.coerce.date(),
+    paymentMethod: z.enum(["CASH", "CREDIT"]),
+    dueDate: z.coerce.date().optional(),
+    notes: z.string().trim().max(2000).optional(),
+    lines: z.array(invoiceLineSchema).min(1, "Agrega al menos un ítem."),
+  })
+  .refine(value => value.paymentMethod === "CASH" || !!value.dueDate, {
+    message: "Indica la fecha de vencimiento de la compra a crédito.",
+    path: ["dueDate"],
+  });
+
+/** Filtros de "Documentos de compras y gastos" (y de su descarga). */
+export const purchaseQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de elaboración
+    type: z.enum(purchaseDocumentTypes).optional(), // Tipo de transacción
+    supplier: optionalText, // Nombre o identificación del proveedor
+    supplierInvoice: optionalText, // Número de factura del proveedor (contiene)
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(periodInOrder, periodMessage);
+
+export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;
+export type PurchaseQuery = z.infer<typeof purchaseQuerySchema>;
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;

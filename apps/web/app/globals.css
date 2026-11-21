@@ -3452,3 +3452,61 @@ button.mass-button:disabled {
   flex: none;
   filter: drop-shadow(0 0 10px #3b82f655);
 }
+
+/* ── Compras y gastos (components/purchases.tsx, purchase-form.tsx) ── */
+.purchases-title {
+  margin: 0;
+  padding: 18px 20px 0;
+  font-size: 17px;
+}
+.quotes-toolbar .split-button > * {
+  height: 36px;
+}
+.quotes-toolbar .split-button > .primary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 16px;
+}
+.quotes-toolbar .split-toggle {
+  border-radius: 0 8px 8px 0;
+  border-left-color: rgba(6, 23, 36, 0.18);
+  padding: 0 10px;
+}
+.purchase-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.purchase-types label {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #cfdde8;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.purchase-types label.is-selected {
+  border-color: var(--teal, #22d3c5);
+  box-shadow: 0 0 0 3px #22d3c533;
+}
+.purchase-types input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.purchase-types label:focus-within {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.purchase-types small,
+.purchase-issue small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.purchase-issue span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

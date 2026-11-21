@@ -52,7 +52,8 @@ export async function ensureDefaultAccounts(tx: Prisma.TransactionClient, organi
     ["110505", "Caja general", "ASSET"], // Recibos de caja en efectivo
     ["111005", "Bancos", "ASSET"], // Recibos de caja por transferencia, tarjeta, cheque u otro medio
     ["130505", "Clientes nacionales", "ASSET"], // Cuentas por cobrar de facturas a crédito/contado
-    ["138095", "Pasarela de pagos por desembolsar", "ASSET"], // Pagos en línea aprobados aún no desembolsados
+    ["138095", "Pasarela de pagos por desembolsar", "ASSET"],
+    ["143505", "Inventario de mercancías", "ASSET"], // Compras de mercancía (Compras y gastos) // Pagos en línea aprobados aún no desembolsados
     ["530515", "Comisiones bancarias y de pasarela", "EXPENSE"], // Comisión de la pasarela de pagos
     ["240805", "IVA generado", "LIABILITY"], // IVA cobrado en ventas
     ["240810", "IVA descontable", "ASSET"], // IVA pagado en compras (documento soporte)

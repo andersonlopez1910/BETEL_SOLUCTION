@@ -38,7 +38,7 @@ const mainNav: { icon: IconName; label: string; href: string; match: string[] }[
       "/envio-masivo",
     ],
   },
-  { icon: "document", label: "Documento soporte", href: "/documentos-soporte/nuevo", match: ["/documentos-soporte"] },
+  { icon: "bag", label: "Compras y gastos", href: "/compras", match: ["/compras", "/documentos-soporte"] },
   { icon: "users", label: "Terceros", href: "/terceros/nuevo", match: ["/terceros"] },
   { icon: "calendar", label: "Calendario", href: "/calendario", match: ["/calendario"] },
   { icon: "account", label: "Cuenta", href: "/cuenta", match: ["/cuenta"] },
