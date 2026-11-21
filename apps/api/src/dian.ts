@@ -20,6 +20,13 @@ export type DianSubmission = {
 /** Contrato que debe cumplir cualquier proveedor DIAN (sandbox o real). */
 export interface DianProvider {
   submitSalesInvoice(input: { invoiceId: string; organizationId: string }): Promise<DianSubmission>;
+  /** Evento de una factura electrónica recibida (030, 031, 032 o 033; Res. DIAN 000085 de 2022). */
+  submitDocumentEvent(input: {
+    eventId: string;
+    organizationId: string;
+    cufe: string;
+    code: string;
+  }): Promise<DianSubmission>;
 }
 
 /**
@@ -36,6 +43,25 @@ class SandboxDianProvider implements DianProvider {
         invoiceId: input.invoiceId,
         queuedAt: new Date().toISOString(),
         message: "Pendiente de proveedor tecnológico y credenciales de habilitación.",
+      },
+    };
+  }
+
+  async submitDocumentEvent(input: {
+    eventId: string;
+    organizationId: string;
+    cufe: string;
+    code: string;
+  }): Promise<DianSubmission> {
+    return {
+      accepted: false,
+      status: "QUEUED",
+      providerResponse: {
+        mode: "sandbox",
+        eventId: input.eventId,
+        code: input.code,
+        queuedAt: new Date().toISOString(),
+        message: "Evento registrado en pruebas: no se transmite a la DIAN sin proveedor tecnológico.",
       },
     };
   }

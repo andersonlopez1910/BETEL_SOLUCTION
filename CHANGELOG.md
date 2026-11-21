@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Registro de eventos** en Compras y gastos: registrar facturas electrónicas de proveedores por su CUFE y enviar a la
+  DIAN, en orden, la recepción de la factura (030), la recepción de la mercancía o servicio (032) y la aceptación (033)
+  o el reclamo con motivo (031) dentro de 3 días hábiles (sin festivos de Colombia); aceptación tácita al vencer el
+  plazo. Pestañas Eventos en proceso y finalizados, búsqueda por CUFE, filtros, orden por columna, paginación,
+  detalle con historial y "Aprende más". Tablas `ReceivedInvoice` y `ReceivedInvoiceEvent` con RLS; los eventos pasan
+  por el puerto DIAN (en pruebas quedan en cola).
 - **Compras y gastos** (menú lateral, reemplaza "Documento soporte") con los submenús Documentos de compras y
   gastos, Registro de eventos, Proveedores y Soporte por legalizar. El primero es funcional: lista de compras, gastos
   y documentos soporte con tipo de transacción, más filtros (últimos 15 días por defecto, proveedor, factura del

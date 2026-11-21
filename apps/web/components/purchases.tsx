@@ -1,8 +1,8 @@
 /**
  * Módulo "Compras y gastos" (/compras): barra de submenús y su contenido.
  *
- * Submenús, en orden: Documentos de compras y gastos (funcional), Registro de eventos, Proveedores y
- * Soporte por legalizar. Los tres últimos aún no tienen su desarrollo y lo indican en lugar de mostrar
+ * Submenús, en orden: Documentos de compras y gastos y Registro de eventos (funcionales; el segundo en
+ * purchase-events.tsx), Proveedores y Soporte por legalizar. Los dos últimos aún no tienen su desarrollo y lo indican en lugar de mostrar
  * datos inventados. La pestaña activa va en la URL (?tab=documentos).
  *
  * Documentos: GET /v1/reports/purchases/documents (compras y gastos con factura del proveedor + documentos
@@ -26,17 +26,14 @@ import {
   useSession,
 } from "./billing-report-common";
 import { FilterIcon } from "./billing-report-collections";
+import { PurchaseEvents } from "./purchase-events";
 import { periodPresets, presetRange, SearchIllustration, type Preset } from "./billing-report-quotes";
 import { VoidDocumentDialog } from "./collection-dialogs";
 
 /** [slug, nombre del submenú, pendiente de desarrollo]. Orden y nombres de la referencia. */
 const purchaseTabs = [
   ["documentos", "Documentos de compras y gastos", null],
-  [
-    "eventos",
-    "Registro de eventos",
-    "el registro de eventos de las facturas electrónicas recibidas (acuse de recibo, recibo del bien, aceptación o reclamo ante la DIAN)",
-  ],
+  ["eventos", "Registro de eventos", null],
   ["proveedores", "Proveedores", "la cartera por proveedor (cuentas por pagar) y su estado de cuenta"],
   ["soporte-por-legalizar", "Soporte por legalizar", "los documentos soporte pendientes de legalizar ante la DIAN"],
 ] as const;
@@ -88,6 +85,7 @@ export function PurchasesModule() {
         ))}
       </nav>
       {slug === "documentos" && <PurchaseDocuments />}
+      {slug === "eventos" && <PurchaseEvents />}
       {pending && (
         <section className="panel report-unavailable">
           <h2>{label}: en desarrollo</h2>

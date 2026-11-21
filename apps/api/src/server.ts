@@ -34,6 +34,7 @@
  *   Clientes ......... GET /reports/billing/portfolio, GET/POST /customers/:id/(statement|active) (ver src/portfolio.ts)
  *   Comercial ........ GET/POST /commercial-tasks, /commercial-tasks/:id/(complete|reopen) (ver src/commercial.ts)
  *   Compras y gastos . GET /reports/purchases/documents, GET/POST /purchases (ver src/purchases.ts)
+ *   Eventos DIAN ... GET /reports/purchases/events, GET/POST /purchases/received-invoices (ver src/received-invoices.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -57,6 +58,7 @@ import { registerCollectionRoutes } from "./collections.js";
 import { registerPaymentRoutes } from "./payments.js";
 import { registerPortfolioRoutes } from "./portfolio.js";
 import { registerPurchaseRoutes } from "./purchases.js";
+import { registerReceivedInvoiceRoutes } from "./received-invoices.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
@@ -680,6 +682,7 @@ registerDashboardRoutes(app);
 registerPortfolioRoutes(app, { auditIp });
 registerCommercialRoutes(app, { auditIp });
 registerPurchaseRoutes(app, { auditIp });
+registerReceivedInvoiceRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

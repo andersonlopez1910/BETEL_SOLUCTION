@@ -438,6 +438,84 @@ export const purchaseQuerySchema = z
 export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;
 export type PurchaseQuery = z.infer<typeof purchaseQuerySchema>;
 
+// ─── Registro de eventos de facturas electrónicas recibidas ───────────────────
+
+/** Eventos que registra el comprador (Res. DIAN 000085 de 2022): 030, 032, 033 y 031. */
+export const receivedInvoiceEventTypes = ["RECEIPT", "GOODS_RECEIPT", "ACCEPTANCE", "CLAIM"] as const;
+/** Motivos de reclamo del anexo técnico DIAN. */
+export const claimReasons = {
+  "01": "Documento con inconsistencias",
+  "02": "Mercancía no entregada totalmente",
+  "03": "Mercancía no entregada parcialmente",
+  "04": "Servicio no prestado",
+} as const;
+
+/** "Registrar nueva factura": datos de la factura del proveedor identificada por su CUFE. */
+export const registerReceivedInvoiceSchema = z.object({
+  cufe: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[0-9a-f]{96}$/, "El CUFE tiene 96 caracteres hexadecimales (0-9, a-f)."),
+  supplierNit: z
+    .string()
+    .trim()
+    .regex(/^\d{5,15}$/, "Escribe el NIT del proveedor sin dígito de verificación, solo números."),
+  supplierName: z.string().trim().min(2, "Escribe el nombre del proveedor.").max(200),
+  number: z.string().trim().min(1, "Escribe el número de la factura.").max(40),
+  issueDate: z.coerce.date(),
+  total: z.union([z.literal(""), z.coerce.number().positive()]).optional(),
+});
+
+/** Registrar un evento sobre una factura recibida. */
+export const receivedInvoiceEventSchema = z
+  .object({
+    type: z.enum(receivedInvoiceEventTypes),
+    // Persona que recibe: la DIAN la exige en el acuse (030) y en el recibo del bien (032).
+    receiverName: z.string().trim().max(120).optional(),
+    receiverDocument: z.string().trim().max(20).optional(),
+    receiverRole: z.string().trim().max(80).optional(),
+    claimReason: z.enum(Object.keys(claimReasons) as [keyof typeof claimReasons]).optional(),
+    notes: z.string().trim().max(500).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.type === "RECEIPT" || value.type === "GOODS_RECEIPT") {
+      if (!value.receiverName || value.receiverName.length < 3)
+        context.addIssue({ code: "custom", path: ["receiverName"], message: "Escribe el nombre de quien recibe." });
+      if (!value.receiverDocument || !/^\d{5,15}$/.test(value.receiverDocument))
+        context.addIssue({
+          code: "custom",
+          path: ["receiverDocument"],
+          message: "Escribe el documento de quien recibe (solo números).",
+        });
+      if (!value.receiverRole)
+        context.addIssue({ code: "custom", path: ["receiverRole"], message: "Escribe el cargo de quien recibe." });
+    }
+    if (value.type === "CLAIM" && !value.claimReason)
+      context.addIssue({ code: "custom", path: ["claimReason"], message: "Elige el motivo del reclamo." });
+  });
+
+/** Pestañas "Eventos en proceso" y "Eventos finalizados" (lista paginada). */
+export const receivedInvoiceQuerySchema = z
+  .object({
+    ...reportPeriod, // Fecha de registro
+    status: z.enum(["processing", "finalized"]).default("processing"),
+    cufe: optionalText,
+    supplier: optionalText, // Nombre o NIT
+    number: optionalText, // Comprobante (contiene)
+    sort: z
+      .enum(["createdAt", "cufe", "supplierNit", "number", "supplierName", "receiptAt", "goodsReceiptAt", "outcomeAt"])
+      .default("createdAt"),
+    direction: z.enum(["asc", "desc"]).default("desc"),
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  })
+  .refine(periodInOrder, periodMessage);
+
+export type RegisterReceivedInvoiceInput = z.infer<typeof registerReceivedInvoiceSchema>;
+export type ReceivedInvoiceEventInput = z.infer<typeof receivedInvoiceEventSchema>;
+export type ReceivedInvoiceQuery = z.infer<typeof receivedInvoiceQuerySchema>;
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;
