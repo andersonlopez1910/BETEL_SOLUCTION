@@ -39,6 +39,7 @@ const mainNav: { icon: IconName; label: string; href: string; match: string[] }[
     ],
   },
   { icon: "bag", label: "Compras y gastos", href: "/compras", match: ["/compras", "/documentos-soporte"] },
+  { icon: "box", label: "Productos y servicios", href: "/productos", match: ["/productos"] },
   { icon: "users", label: "Terceros", href: "/terceros/nuevo", match: ["/terceros"] },
   { icon: "calendar", label: "Calendario", href: "/calendario", match: ["/calendario"] },
   { icon: "account", label: "Cuenta", href: "/cuenta", match: ["/cuenta"] },

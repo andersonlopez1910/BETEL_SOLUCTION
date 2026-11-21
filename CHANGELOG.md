@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Productos y servicios** (nuevo menú lateral) con los submenús Gestión de productos / servicios (funcional),
+  Documentos de productos / servicios y Costeo mensual. Gestión: tipo, nombre, código (C-n automático), unidad,
+  precios con detalle con IVA, impuestos, **stock** calculado de compras y facturas emitidas (punto rojo si es
+  negativo, naranja si es cero), estado; búsqueda, filtros con etiquetas, descarga en Excel, más vendidos, crear,
+  editar, duplicar, importar desde Excel o CSV con plantilla, activar o inactivar varios y eliminar si ningún
+  documento lo usa. Ver `docs/productos-y-servicios.md`.
 - **Soporte por legalizar** en Compras y gastos: importar el XML de la factura electrónica del proveedor (UBL 2.1 o
   AttachedDocument), revisar ítems, totales, proveedor y advertencias, y legalizarla como compra o gasto (crea el
   proveedor si no existe y el CG-n con su asiento) o rechazarla. Criterios de búsqueda (últimos 30 días por defecto),

@@ -63,9 +63,14 @@ export type PartyInput = z.infer<typeof partySchema>;
 
 /** Producto o servicio del catálogo de la organización. */
 export const productSchema = z.object({
-  sku: z.string().max(80).optional(), // Código interno
-  name: z.string().min(2).max(200),
-  description: z.string().max(1000).optional(),
+  sku: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .transform(value => value || undefined), // Código interno; vacío = se asigna el siguiente C-n
+  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres.").max(200),
+  description: z.string().trim().max(1000).optional(),
   kind: z.enum(["PRODUCT", "SERVICE"]).default("PRODUCT"),
   unit: z.string().min(1).max(10).default("UND"), // Unidad de medida
   unitPrice: z.coerce.number().nonnegative(),
@@ -578,6 +583,37 @@ export const purchaseImportQuerySchema = z
   .refine(periodInOrder, periodMessage);
 
 export type PurchaseImportQuery = z.infer<typeof purchaseImportQuerySchema>;
+
+// ─── Productos y servicios (Gestión de productos / servicios) ─────────────────
+
+/** Filtros de la lista de productos y servicios (y de su descarga). */
+export const productQuerySchema = z.object({
+  search: optionalText, // Nombre, código o descripción
+  kind: z.enum(["PRODUCT", "SERVICE"]).optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "ALL"]).default("ALL"),
+  stock: z.enum(["NEGATIVE", "ZERO", "POSITIVE"]).optional(), // Solo productos (los servicios no manejan stock)
+  page: pagination.page,
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+});
+
+/** Activar o inactivar varios productos o servicios seleccionados. */
+export const bulkProductActiveSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1, "Selecciona al menos uno.").max(500),
+  active: z.boolean(),
+});
+
+/** Importar desde Excel o CSV: cada fila con los campos de productSchema (máx. 2.000 filas). */
+export const importProductsSchema = z.object({
+  rows: z
+    .array(z.record(z.string(), z.unknown()))
+    .min(1, "El archivo no trae filas.")
+    .max(2000, "Máximo 2.000 filas por archivo."),
+});
+
+/** Ver reportes › Productos más vendidos (período de las facturas). */
+export const topProductsQuerySchema = z.object({ ...reportPeriod }).refine(periodInOrder, periodMessage);
+
+export type ProductQuery = z.infer<typeof productQuerySchema>;
 
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 

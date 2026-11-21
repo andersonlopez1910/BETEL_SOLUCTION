@@ -3974,3 +3974,123 @@ button.mass-button:disabled {
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* ── Productos y servicios (components/products.tsx) ── */
+.products-search {
+  width: min(360px, 100%);
+}
+.products-create {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+}
+.products-table {
+  min-width: 1080px;
+}
+.products-check {
+  width: 36px;
+}
+.products-check input {
+  width: 16px;
+  height: 16px;
+}
+.products-name {
+  max-width: 260px;
+}
+.products-name .collections-doc {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.products-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.products-more {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.products-stock {
+  position: relative;
+  padding-right: 10px;
+}
+.products-stock::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal);
+}
+.products-stock.is-negative::after {
+  background: #d92d20;
+}
+.products-stock.is-zero::after {
+  background: #f79009;
+}
+.products-stock.is-negative {
+  color: #b42318;
+}
+.products-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.products-status > span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+}
+.products-status.is-active {
+  color: var(--teal-dark);
+}
+.products-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 20px 12px;
+  padding: 10px 14px;
+  border: 1px solid #bfe9e4;
+  border-radius: 8px;
+  background: #ecfbf9;
+  font-size: 13px;
+}
+.products-bulk .secondary {
+  height: 32px;
+}
+.products-detail {
+  grid-template-columns: 1fr 1fr;
+}
+.products-import-errors {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+.products-top-period {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.products-top-period .field {
+  flex: 1;
+}

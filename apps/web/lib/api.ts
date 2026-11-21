@@ -56,7 +56,12 @@ function requestDevSession() {
 }
 
 /** Petición autenticada a la API. Devuelve el cuerpo JSON tal cual. */
-async function apiRequest<T>(method: "GET" | "POST", path: string, params: QueryParams, body?: unknown): Promise<T> {
+async function apiRequest<T>(
+  method: "GET" | "POST" | "PUT" | "DELETE",
+  path: string,
+  params: QueryParams = {},
+  body?: unknown
+): Promise<T> {
   const url = new URL(path, API_URL);
   for (const [key, value] of Object.entries(params))
     if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
@@ -89,3 +94,9 @@ export const apiGet = <T>(path: string, params: QueryParams = {}) => apiRequest<
 
 /** POST autenticado con cuerpo JSON (crear recibos, anular, enviar correos). */
 export const apiPost = <T>(path: string, body: unknown = {}) => apiRequest<T>("POST", path, {}, body);
+
+/** PUT autenticado con cuerpo JSON (editar un registro completo, p. ej. un producto). */
+export const apiPut = <T>(path: string, body: unknown) => apiRequest<T>("PUT", path, {}, body);
+
+/** DELETE autenticado (eliminar un registro sin historial, p. ej. un producto que ningún documento usa). */
+export const apiDelete = <T>(path: string) => apiRequest<T>("DELETE", path);

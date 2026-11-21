@@ -37,6 +37,7 @@
  *   Eventos DIAN ... GET /reports/purchases/events, GET/POST /purchases/received-invoices (ver src/received-invoices.ts)
  *   Proveedores .... GET /reports/purchases/suppliers, /suppliers/:id/statement, POST /supplier-payments (ver src/payables.ts)
  *   Soportes ....... GET /reports/purchases/imports, POST /purchases/imports (+ legalize) (ver src/purchase-imports.ts)
+ *   Productos ...... GET/POST/PUT/DELETE /products, GET /reports/products (ver src/products.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -46,13 +47,7 @@ import jwt from "@fastify/jwt";
 import Fastify from "fastify";
 import { prisma, withOrganizationScope } from "@betel/db";
 import type { Prisma } from "@betel/db";
-import {
-  calendarEventSchema,
-  createInvoiceSchema,
-  createSupportDocumentSchema,
-  partySchema,
-  productSchema,
-} from "@betel/contracts";
+import { calendarEventSchema, createInvoiceSchema, createSupportDocumentSchema, partySchema } from "@betel/contracts";
 import { allowRoles, requireActor, type BetelJwt } from "./auth.js";
 import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "./accounting.js";
 import { getDianProvider } from "./dian.js";
@@ -63,6 +58,7 @@ import { registerPurchaseRoutes } from "./purchases.js";
 import { registerReceivedInvoiceRoutes } from "./received-invoices.js";
 import { registerPayableRoutes } from "./payables.js";
 import { registerPurchaseImportRoutes } from "./purchase-imports.js";
+import { registerProductRoutes } from "./products.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
@@ -221,49 +217,7 @@ app.post("/v1/parties", { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT",
   return reply.code(201).send({ data: party });
 });
 
-// ─── Productos y servicios ────────────────────────────────────────────────────
-
-/** GET /v1/products — Catálogo activo de la organización (máx. 100). */
-app.get("/v1/products", { preHandler: requireActor }, async request => {
-  const actor = request.actor!;
-  return {
-    data: await withOrganizationScope(actor.organizationId, tx =>
-      tx.product.findMany({ where: { active: true }, orderBy: { name: "asc" }, take: 100 })
-    ),
-  };
-});
-
-/**
- * POST /v1/products — Crea un producto o servicio. Body: productSchema.
- * Roles: OWNER, ADMIN, ACCOUNTANT, SALES.
- * PENDIENTE: editar y desactivar (active = false) productos.
- */
-app.post(
-  "/v1/products",
-  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "SALES") },
-  async (request, reply) => {
-    const parsed = productSchema.safeParse(request.body);
-    if (!parsed.success)
-      return reply.code(422).send({ error: "Producto o servicio inválido", details: parsed.error.flatten() });
-    const actor = request.actor!;
-    const product = await withOrganizationScope(actor.organizationId, async tx => {
-      const created = await tx.product.create({ data: { ...parsed.data, organizationId: actor.organizationId } });
-      await tx.auditLog.create({
-        data: {
-          organizationId: actor.organizationId,
-          userId: actor.sub,
-          entity: "Product",
-          entityId: created.id,
-          action: "CREATE",
-          after: parsed.data,
-          ipHash: auditIp(request.ip),
-        },
-      });
-      return created;
-    });
-    return reply.code(201).send({ data: product });
-  }
-);
+// ─── Productos y servicios: ver src/products.ts (registerProductRoutes) ────────
 
 // ─── Calendario ───────────────────────────────────────────────────────────────
 
@@ -709,6 +663,7 @@ registerPurchaseRoutes(app, { auditIp });
 registerReceivedInvoiceRoutes(app, { auditIp });
 registerPayableRoutes(app, { auditIp });
 registerPurchaseImportRoutes(app, { auditIp });
+registerProductRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
