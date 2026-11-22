@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Menú Reportes** (`/reportes`): centro con enlace a todos los reportes de Betel agrupados por área y dos estados
+  financieros nuevos: **estado de resultados** (utilidad bruta, operacional, antes de impuestos y neta, comparado con
+  el período anterior) y **estado de situación financiera** (activo = pasivo + patrimonio, con el resultado de los
+  años sin cerrar). Descarga en PDF, Excel y CSV; solo OWNER, ADMIN y ACCOUNTANT.
 - **Contabilidad › Más procesos** con los 6 grupos de la referencia: **cierre de año** (asiento CIERRE-AAAA contra
   utilidad o pérdida del ejercicio, vista previa, anulación y aviso de cierre desactualizado), **comprobantes
   favoritos** (guardar cualquier comprobante y usarlo como plantilla), **borrado masivo** (anulación de comprobantes

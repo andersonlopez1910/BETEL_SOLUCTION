@@ -78,6 +78,7 @@ en un _Issue_ con la plantilla "Tarea".
 | 41  | Nómina: retención en la fuente calculada, vacaciones, incapacidades, licencias, liquidación de contrato, pago de prima y cesantías, PILA y notas de ajuste de nómina electrónica                                               | nómina       | —          |             |
 | 42  | Contabilidad: cierre de períodos, balance general y estado de resultados, libro mayor y auxiliar por tercero, información exógena                                                                                              | contabilidad | —          |             |
 | 43  | Contabilidad › Más procesos: activos fijos y depreciación, saldos iniciales de cuentas por cobrar y por pagar, bloqueo de documentos por período, tercero por renglón (exógena, cierre por tercero, certificados de retención) | contabilidad | 42         |             |
+| 44  | Reportes: estado de cambios en el patrimonio, flujo de efectivo, notas, clasificación corriente / no corriente y comparativo anual                                                                                             | reportes     | 43         |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):
 > falta el manejo de 422 en formularios y el login real (tarea 3).

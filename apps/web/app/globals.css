@@ -4661,3 +4661,81 @@ button.mass-button:disabled {
   font-weight: 700;
   border-top: 2px solid var(--line);
 }
+
+/* ── Reportes (components/financial-reports.tsx) ── */
+.reports-intro {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+.reports-hub {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  align-items: start;
+  gap: 14px;
+}
+.reports-group {
+  padding: 0;
+}
+.reports-group h2 {
+  margin: 0;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+  font-size: 18px;
+}
+.reports-group ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 22px 20px;
+  list-style: none;
+}
+.reports-group li {
+  display: grid;
+  gap: 2px;
+}
+.reports-group a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+.reports-group a:hover {
+  text-decoration: underline;
+}
+.reports-group a small {
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #e6f6f4;
+  color: var(--teal-dark);
+  font-size: 10px;
+}
+.reports-group li span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.statement-table .statement-header td {
+  padding-top: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+.statement-table .statement-account td:first-child {
+  padding-left: 28px;
+}
+.statement-table .statement-subtotal td {
+  font-weight: 700;
+  background: var(--surface-2, #f6f8fa);
+}
+.statement-table .statement-result td {
+  font-weight: 800;
+  border-top: 2px solid var(--line);
+  font-size: 15px;
+}
+.report-footnote {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}

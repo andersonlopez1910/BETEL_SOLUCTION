@@ -21,7 +21,10 @@ import { BrandMark, Icon, type IconName } from "./brand";
 /** Desplegables de la barra superior. Solo uno puede estar abierto a la vez. */
 type TopMenu = "notifications" | "settings" | "profile";
 
-/** Menú lateral. `match`: prefijos de ruta que resaltan el ítem (incluye las pantallas que dependen de él). */
+/**
+ * Menú lateral. `match`: prefijos de ruta que resaltan el ítem (incluye las pantallas que dependen de él); un
+ * prefijo terminado en "$" debe coincidir exacto (p. ej. "/reportes$" es solo el centro de reportes).
+ */
 const mainNav: { icon: IconName; label: string; href: string; match: string[] }[] = [
   { icon: "home", label: "Resumen", href: "/resumen", match: ["/resumen"] },
   {
@@ -29,7 +32,7 @@ const mainNav: { icon: IconName; label: string; href: string; match: string[] }[
     label: "Reporte de facturación",
     href: "/reportes/facturacion",
     match: [
-      "/reportes",
+      "/reportes/facturacion",
       "/facturacion",
       "/recaudos",
       "/cotizaciones",
@@ -43,6 +46,12 @@ const mainNav: { icon: IconName; label: string; href: string; match: string[] }[
   { icon: "wallet", label: "Cajas y bancos", href: "/bancos", match: ["/bancos"] },
   { icon: "idcard", label: "Nómina", href: "/nomina", match: ["/nomina"] },
   { icon: "scale", label: "Contabilidad", href: "/contabilidad", match: ["/contabilidad"] },
+  {
+    icon: "pie",
+    label: "Reportes",
+    href: "/reportes",
+    match: ["/reportes$", "/reportes/estado-de-resultados", "/reportes/situacion-financiera"],
+  },
   { icon: "users", label: "Terceros", href: "/terceros/nuevo", match: ["/terceros"] },
   { icon: "calendar", label: "Calendario", href: "/calendario", match: ["/calendario"] },
   { icon: "account", label: "Cuenta", href: "/cuenta", match: ["/cuenta"] },
@@ -126,7 +135,9 @@ export function AppShell({
         </Link>
         <nav aria-label="Menú principal">
           {mainNav.map(item => {
-            const active = item.match.some(prefix => pathname.startsWith(prefix));
+            const active = item.match.some(prefix =>
+              prefix.endsWith("$") ? pathname.replace(/\/$/, "") === prefix.slice(0, -1) : pathname.startsWith(prefix)
+            );
             return (
               <Link
                 className={active ? "nav-link active" : "nav-link"}
