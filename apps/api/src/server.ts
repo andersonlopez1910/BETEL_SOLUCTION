@@ -39,6 +39,7 @@
  *   Soportes ....... GET /reports/purchases/imports, POST /purchases/imports (+ legalize) (ver src/purchase-imports.ts)
  *   Productos ...... GET/POST/PUT/DELETE /products, GET /reports/products (ver src/products.ts)
  *   Inventario ..... GET /reports/inventory-documents, POST /inventory-documents (+ import, void) (ver src/inventory.ts)
+ *   Costeo ......... GET /costing, POST /costing/:year/:month/calculate (ver src/costing.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -61,6 +62,7 @@ import { registerPayableRoutes } from "./payables.js";
 import { registerPurchaseImportRoutes } from "./purchase-imports.js";
 import { registerProductRoutes } from "./products.js";
 import { registerInventoryRoutes } from "./inventory.js";
+import { registerCostingRoutes } from "./costing.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
@@ -680,6 +682,7 @@ registerPayableRoutes(app, { auditIp });
 registerPurchaseImportRoutes(app, { auditIp });
 registerProductRoutes(app, { auditIp });
 registerInventoryRoutes(app, { auditIp });
+registerCostingRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

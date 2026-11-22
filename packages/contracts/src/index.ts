@@ -670,6 +670,17 @@ export const inventoryDocumentQuerySchema = z
 export type CreateInventoryDocumentInput = z.infer<typeof createInventoryDocumentSchema>;
 export type InventoryDocumentQuery = z.infer<typeof inventoryDocumentQuerySchema>;
 
+// ─── Costeo mensual ───────────────────────────────────────────────────────────
+
+/** Año consultado en Costeo mensual (por defecto, el actual). */
+export const costingYearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100).optional() });
+
+/** Mes a calcular o consultar: /v1/costing/:year/:month. */
+export const costingMonthParamsSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  month: z.coerce.number().int().min(1).max(12),
+});
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;

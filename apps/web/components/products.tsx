@@ -1,7 +1,6 @@
 /**
- * Módulo "Productos y servicios" (/productos): submenús Gestión de productos / servicios y Documentos de productos /
- * servicios (product-documents.tsx), funcionales, y Costeo mensual (pendiente: lo indica en lugar de mostrar datos
- * inventados).
+ * Módulo "Productos y servicios" (/productos): submenús Gestión de productos / servicios (este archivo), Documentos
+ * de productos / servicios (product-documents.tsx) y Costeo mensual (costing.tsx).
  *
  * Gestión (GET /v1/reports/products): búsqueda, filtros (tipo, estado, stock), descarga en Excel, "Ver reportes"
  * (más vendidos), "Crear / Importar" (crear producto o servicio, importar de Excel o CSV), selección para activar o
@@ -27,20 +26,21 @@ import {
   useSession,
 } from "./billing-report-common";
 import { FilterIcon } from "./billing-report-collections";
+import { MonthlyCosting } from "./costing";
 import { ProductDocuments } from "./product-documents";
 import { SearchIllustration } from "./billing-report-quotes";
 import { Modal } from "./collection-dialogs";
 
-/** [slug, nombre del submenú, pendiente de desarrollo]. Orden y nombres de la referencia. */
+/** [slug, nombre del submenú]. Orden y nombres de la referencia. */
 const productTabs = [
-  ["gestion", "Gestión de productos / servicios", null],
-  ["documentos", "Documentos de productos / servicios", null],
-  ["costeo", "Costeo mensual", "el costo promedio mensual de los productos y el costo de lo vendido"],
+  ["gestion", "Gestión de productos / servicios"],
+  ["documentos", "Documentos de productos / servicios"],
+  ["costeo", "Costeo mensual"],
 ] as const;
 
 export function ProductsModule() {
   const requested = useSearchParams().get("tab");
-  const [slug, label, pending] = productTabs.find(([tab]) => tab === requested) ?? productTabs[0];
+  const [slug] = productTabs.find(([tab]) => tab === requested) ?? productTabs[0];
   return (
     <div className="page-content">
       <nav className="report-tabs" aria-label="Productos y servicios">
@@ -58,15 +58,7 @@ export function ProductsModule() {
       </nav>
       {slug === "gestion" && <ProductManagement />}
       {slug === "documentos" && <ProductDocuments />}
-      {pending && (
-        <section className="panel report-unavailable">
-          <h2>{label}: en desarrollo</h2>
-          <p>
-            Este submenú mostrará {pending}. Todavía no está desarrollado en Betel; para no mostrar información ficticia
-            no se presentan cifras ni botones.
-          </p>
-        </section>
-      )}
+      {slug === "costeo" && <MonthlyCosting />}
     </div>
   );
 }

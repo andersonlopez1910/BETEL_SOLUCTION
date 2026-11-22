@@ -4139,3 +4139,53 @@ button.mass-button:disabled {
 .inventory-lines select {
   text-align: left;
 }
+
+/* ── Costeo mensual (components/costing.tsx) ── */
+.costing-info {
+  margin-bottom: 18px;
+}
+.costing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.costing-year {
+  width: min(320px, 100%);
+}
+.costing-table td small,
+.costing-lines td small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.costing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.costing-actions > * {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+.costing-actions > .secondary,
+.costing-actions > .primary {
+  min-width: 150px;
+  justify-content: center;
+}
+.costing-detail .document-head {
+  align-items: flex-start;
+}
+.costing-search {
+  margin: 16px 0 10px;
+}
+.costing-lines {
+  min-width: 980px;
+}
+.costing-actions > a {
+  text-decoration: none;
+}

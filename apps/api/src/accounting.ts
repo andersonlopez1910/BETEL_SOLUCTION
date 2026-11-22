@@ -62,6 +62,7 @@ export async function ensureDefaultAccounts(tx: Prisma.TransactionClient, organi
     ["519595", "Gastos operacionales", "EXPENSE"],
     ["370505", "Utilidades acumuladas", "EQUITY"], // Contrapartida del saldo inicial de inventario
     ["429595", "Otros ingresos diversos", "INCOME"], // Sobrantes de inventario (ajustes de entrada)
+    ["613505", "Costo de ventas de mercancías", "EXPENSE"], // Costeo mensual: costo de lo vendido
   ] as const;
   const accounts = await Promise.all(
     definitions.map(([code, name, accountType]) =>

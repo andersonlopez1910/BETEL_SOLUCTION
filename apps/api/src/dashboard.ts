@@ -8,7 +8,8 @@
  *   - Ingresos: Σ (subtotal − descuentos) de las facturas vigentes (emitidas, aceptadas o vencidas), es decir
  *     el ingreso por ventas sin IVA, por fecha de emisión.
  *   - Gastos: Σ (total − IVA) de los documentos soporte contabilizados (ISSUED) y de los gastos activos de
- *     Compras y gastos, por fecha. Las compras de mercancía van al inventario y no son gasto del período.
+ *     Compras y gastos, por fecha, más el costo de ventas de los meses costeados (Costeo mensual). Las compras de
+ *     mercancía van al inventario y solo pasan a gasto como costo de lo vendido.
  *   - Utilidad = ingresos − gastos. Margen = utilidad ÷ ingresos × 100 (1 decimal); null sin ingresos.
  *   - Variación: contra el mes anterior completo (el margen en puntos porcentuales).
  *   - Flujo de caja del mes: Entradas = recaudos (facturas de contado vigentes + recibos de caja activos,
@@ -84,6 +85,22 @@ export function margin(income: Prisma.Decimal, profit: Prisma.Decimal) {
 
 const inRange = ({ from, to }: Range) => ({ gte: from, lte: to });
 
+/** Costo de ventas de los meses costeados que caen en el rango (cada mes cuenta por su primer día). */
+async function costOfSalesIn(tx: Tx, range: Range) {
+  const runs = await tx.costingRun.findMany({
+    where: {
+      year: { gte: range.from.getUTCFullYear(), lte: range.to.getUTCFullYear() },
+    },
+    select: { year: true, month: true, costOfSales: true },
+  });
+  return runs
+    .map(run => ({ ...run, date: new Date(Date.UTC(run.year, run.month - 1, 1)) }))
+    .filter(
+      run =>
+        run.date >= new Date(Date.UTC(range.from.getUTCFullYear(), range.from.getUTCMonth(), 1)) && run.date <= range.to
+    );
+}
+
 async function results(tx: Tx, range: Range) {
   const invoices = await tx.invoice.aggregate({
     where: { status: { in: [...BILLED_STATUSES] }, issueDate: inRange(range) },
@@ -97,11 +114,13 @@ async function results(tx: Tx, range: Range) {
     where: { type: "EXPENSE", status: "ACTIVE", issueDate: inRange(range) },
     _sum: { total: true, taxTotal: true },
   });
+  const costOfSales = await costOfSalesIn(tx, range);
   const income = (invoices._sum.subtotal ?? ZERO).minus(invoices._sum.discountTotal ?? ZERO);
   const expense = (expenses._sum.total ?? ZERO)
     .minus(expenses._sum.taxTotal ?? ZERO)
     .plus(purchaseExpenses._sum.total ?? ZERO)
-    .minus(purchaseExpenses._sum.taxTotal ?? ZERO);
+    .minus(purchaseExpenses._sum.taxTotal ?? ZERO)
+    .plus(costOfSales.reduce((sum, run) => sum.plus(run.costOfSales), ZERO));
   return { income, expense, profit: income.minus(expense) };
 }
 
@@ -160,6 +179,10 @@ async function series(tx: Tx, today: Date, granularity: Granularity) {
   for (const day of [...expenseDays, ...purchaseDays]) {
     const bucket = totals.get(bucketKey(day.issueDate, granularity));
     if (bucket) bucket.expense = bucket.expense.plus(day._sum.total ?? ZERO).minus(day._sum.taxTotal ?? ZERO);
+  }
+  for (const run of await costOfSalesIn(tx, range)) {
+    const bucket = totals.get(bucketKey(run.date, granularity));
+    if (bucket) bucket.expense = bucket.expense.plus(run.costOfSales);
   }
   return periods.map(period => {
     const { income, expense } = totals.get(period.key)!;

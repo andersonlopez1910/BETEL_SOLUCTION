@@ -73,7 +73,7 @@ en un _Issue_ con la plantilla "Tarea".
 | 36  | Soporte por legalizar: notas crédito/débito, INC y otros impuestos, retenciones, .zip y validación de firma y respuesta DIAN        | compras     | —          |             |
 | 37  | Mensajes de error de la API en español en todas las rutas (validaciones de Fastify) y prueba automática del formato de error        | api         | —          |             |
 | 38  | Productos: devolución de stock por notas crédito y descuento por remisiones                                                         | productos   | —          |             |
-| 39  | Productos: Costeo mensual (costo promedio y costo de lo vendido) y bodegas                                                          | productos   | 38         |             |
+| 39  | Productos: bodegas, traslados, cierre de períodos costeados y costo de ventas en línea al facturar                                  | productos   | 38         |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):
 > falta el manejo de 422 en formularios y el login real (tarea 3).

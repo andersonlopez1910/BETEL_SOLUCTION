@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Costeo mensual** en Productos y servicios: los 12 meses del año con última ejecución y estado (Sin costear,
+  Costeado, Desactualizado, Mes futuro), "Calcular costeo" / "Recalcular" con **costo promedio ponderado** por
+  producto y costo de ventas contabilizado (613505/143505, con reversión al recalcular), detalle por producto con
+  descarga y "Crear documento". El tablero principal suma el costo de ventas de los meses costeados. Con esto los
+  tres submenús de Productos y servicios son funcionales.
 - **Documentos de productos / servicios** (inventario): saldo inicial (SI-n) y ajustes de inventario (AJ-n) con
   entradas y salidas a costo unitario, tercero opcional, asiento contable (370505, 429595, 519595 contra 143505) y
   anulación con asiento inverso. Lista con búsqueda por tercero o comprobante, más filtros (últimos 30 días por

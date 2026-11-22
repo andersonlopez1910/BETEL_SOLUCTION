@@ -280,6 +280,7 @@ model Organization {
   supplierPayments      SupplierPayment[]
   purchaseImports       PurchaseImport[]
   inventoryDocuments    InventoryDocument[]
+  costingRuns           CostingRun[]
   receivedInvoiceEvents ReceivedInvoiceEvent[]
 }
 
@@ -309,6 +310,7 @@ model User {
   supplierPayments           SupplierPayment[]      @relation("SupplierPaymentCreator")
   purchaseImports            PurchaseImport[]       @relation("PurchaseImportCreator")
   inventoryDocuments         InventoryDocument[]    @relation("InventoryDocumentCreator")
+  costingRuns                CostingRun[]           @relation("CostingRunExecutor")
   receivedInvoiceEvents      ReceivedInvoiceEvent[] @relation("ReceivedInvoiceEventCreator")
 }
 
@@ -398,6 +400,7 @@ model Product {
   recurringLines RecurringInvoiceLine[]
   purchaseLines  PurchaseLine[]
   inventoryLines InventoryLine[]
+  costingLines   CostingLine[]
 
   @@unique([organizationId, sku])
 }
@@ -1153,6 +1156,52 @@ model InventoryLine {
   total      Decimal            @db.Decimal(18, 2)
   document   InventoryDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   product    Product            @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+}
+
+/// Costeo mensual (Productos y servicios › Costeo mensual): costo promedio ponderado por producto y mes y costo de
+/// lo vendido. Uno por organización y mes; recalcular lo reemplaza (version + 1) y reversa el asiento anterior.
+model CostingRun {
+  id             String        @id @default(uuid())
+  organizationId String
+  year           Int
+  month          Int /// 1–12
+  version        Int           @default(1)
+  executedAt     DateTime /// Última ejecución
+  executedById   String?
+  productCount   Int
+  costOfSales    Decimal       @db.Decimal(18, 2) /// Costo de lo vendido en el mes (asiento 613505/143505)
+  closingValue   Decimal       @db.Decimal(18, 2) /// Valor del inventario al cierre del mes
+  negativeCount  Int           @default(0) /// Productos con stock negativo en el mes (costo menos preciso)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  executedBy     User?         @relation("CostingRunExecutor", fields: [executedById], references: [id], onDelete: SetNull)
+  lines          CostingLine[]
+
+  @@unique([organizationId, year, month])
+}
+
+/// Resultado del costeo de un producto en un mes.
+model CostingLine {
+  id             String     @id @default(uuid())
+  runId          String
+  productId      String
+  openingQty     Decimal    @db.Decimal(18, 4)
+  openingValue   Decimal    @db.Decimal(18, 2)
+  inQty          Decimal    @db.Decimal(18, 4) /// Compras, saldo inicial y ajustes de entrada del mes
+  inValue        Decimal    @db.Decimal(18, 2)
+  salesQty       Decimal    @db.Decimal(18, 4) /// Facturas de venta emitidas del mes
+  salesCost      Decimal    @db.Decimal(18, 2) /// salesQty × costo promedio
+  adjustOutQty   Decimal    @db.Decimal(18, 4) /// Ajustes de salida del mes (a su costo registrado)
+  adjustOutValue Decimal    @db.Decimal(18, 2)
+  closingQty     Decimal    @db.Decimal(18, 4)
+  closingValue   Decimal    @db.Decimal(18, 2)
+  averageCost    Decimal    @db.Decimal(18, 4)
+  negative       Boolean    @default(false)
+  run            CostingRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  product        Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
 }

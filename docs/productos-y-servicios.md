@@ -6,11 +6,11 @@ cotizaciones, remisiones, facturas recurrentes y compras.
 
 ## Estado por submenú
 
-| Submenú                             | Ruta                        | Estado                                                                      |
-| ----------------------------------- | --------------------------- | --------------------------------------------------------------------------- |
-| Gestión de productos / servicios    | `/productos?tab=gestion`    | Funcional: lista, filtros, crear, editar, importar, activar, eliminar.      |
-| Documentos de productos / servicios | `/productos?tab=documentos` | Funcional: saldo inicial y ajustes de inventario (crear, importar, anular). |
-| Costeo mensual                      | `/productos?tab=costeo`     | Pendiente (tarea 39). Muestra el aviso "en desarrollo".                     |
+| Submenú                             | Ruta                        | Estado                                                                       |
+| ----------------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| Gestión de productos / servicios    | `/productos?tab=gestion`    | Funcional: lista, filtros, crear, editar, importar, activar, eliminar.       |
+| Documentos de productos / servicios | `/productos?tab=documentos` | Funcional: saldo inicial y ajustes de inventario (crear, importar, anular).  |
+| Costeo mensual                      | `/productos?tab=costeo`     | Funcional: costo promedio ponderado mensual y costo de ventas contabilizado. |
 
 ## Gestión de productos / servicios
 
@@ -74,6 +74,43 @@ Comprobante, Fecha elaboración, Identificación, Sucursal, Tercero, Total y Mon
   motivo (asiento inverso `<n>-A`; el stock vuelve). Al anular un saldo inicial se puede registrar otro.
 - Los documentos vigentes suman o restan en el **stock** de Gestión de productos.
 
+## Costeo mensual
+
+Calcula, por mes, el **costo promedio ponderado** de cada producto y el **costo de lo vendido**, y lo contabiliza.
+
+**Pantalla** (`/productos?tab=costeo`): aviso, selector de año, "Crear documento" (saldo inicial, ajuste de
+inventario, compra o factura de venta) y los 12 meses con Última ejecución, Estado y Acciones.
+
+| Estado         | Significado                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sin costear    | El mes no se ha calculado                                                                                                                                     |
+| Costeado       | Calculado y ningún documento hasta el cierre del mes cambió después                                                                                           |
+| Desactualizado | Una factura con productos, una compra o un documento de inventario del mes **o de meses anteriores** cambió o se creó después del cálculo: hay que recalcular |
+| Mes futuro     | Aún no empieza: no se puede calcular                                                                                                                          |
+
+**Método** (por producto, solo productos, mes a mes desde el primer movimiento):
+
+1. Disponible = saldo final del mes anterior + entradas del mes. Entradas: compras vigentes (cantidad × precio con
+   descuento, **sin IVA**), saldo inicial y ajustes de entrada (a su costo registrado).
+2. Costo promedio = valor disponible ÷ cantidad disponible (sin disponible, se conserva el promedio anterior).
+3. Costo de ventas = cantidad vendida en facturas emitidas, aceptadas o vencidas × costo promedio.
+4. Ajustes de salida: a su costo registrado (ya contabilizados al crearlos).
+5. Saldo final = disponible − vendido − ajustes de salida. Si queda en 0, el residuo de redondeo va al costo de
+   ventas; si queda negativo se marca "stock negativo" (el costo es menos preciso).
+
+Cada cálculo recorre de nuevo los documentos, así que un mes no depende de que los anteriores estén costeados.
+
+**Contabilidad:** Débito 613505 Costo de ventas de mercancías / Crédito 143505 Inventario por el costo de ventas del
+mes, con referencia `CV-AAAA-MM-v<versión>`, fechado el último día del mes (o hoy en el mes en curso). Recalcular
+crea la versión siguiente y reversa el asiento anterior (`…-A`).
+
+**Detalle** (`/productos/costeo/mes?anio=&mes=`): costo de ventas, inventario al cierre, productos y con stock
+negativo; por producto saldo inicial, entradas, costo promedio, vendido, costo de ventas, ajustes de salida y saldo
+final (cantidad y valor). Búsqueda, descarga PDF/XLSX/CSV y Recalcular.
+
+**Tablero principal:** el indicador de gastos y la evolución de la utilidad incluyen el costo de ventas de los meses
+costeados.
+
 ## Permisos
 
 | Acción                                            | Roles                           |
@@ -83,6 +120,7 @@ Comprobante, Fecha elaboración, Identificación, Sucursal, Tercero, Total y Mon
 | Crear, editar, duplicar, importar, (in)activar    | OWNER, ADMIN, ACCOUNTANT, SALES |
 | Eliminar                                          | OWNER, ADMIN, ACCOUNTANT        |
 | Crear, importar y anular documentos de inventario | OWNER, ADMIN, ACCOUNTANT        |
+| Calcular o recalcular el costeo mensual           | OWNER, ADMIN, ACCOUNTANT        |
 
 Todo se valida en la API; cada cambio deja registro en `AuditLog` (incluido el valor anterior al editar).
 
@@ -107,6 +145,10 @@ Todo se valida en la API; cada cambio deja registro en `AuditLog` (incluido el v
 | `POST /v1/inventory-documents/import`        | Importar desde filas de Excel o CSV (todo o nada; 422 con errores por fila) |
 | `POST /v1/inventory-documents/:id/void`      | Anular con motivo y asiento inverso                                         |
 | `GET /v1/parties?search=`                    | Terceros por nombre o identificación (máx. 50)                              |
+| `GET /v1/costing?year=`                      | Meses del año con última ejecución y estado                                 |
+| `POST /v1/costing/:year/:month/calculate`    | Calcular o recalcular (422 si el mes es futuro)                             |
+| `GET /v1/costing/:year/:month`               | Detalle por producto (404 si no está costeado)                              |
+| `GET /v1/costing/:year/:month/export`        | Detalle para descargar (auditado)                                           |
 
 Código en `apps/api/src/products.ts`, `apps/api/src/inventory.ts`, `apps/web/components/products.tsx` y
 `apps/web/components/product-documents.tsx`. Tablas `InventoryDocument` e `InventoryLine` con RLS (migración
@@ -116,12 +158,14 @@ Código en `apps/api/src/products.ts`, `apps/api/src/inventory.ts`, `apps/web/co
 
 - Las remisiones no descuentan hasta facturarse y las notas crédito aún no devuelven stock (tarea 38).
 - No hay traslados entre bodegas ni documentos de producción: Betel aún no maneja bodegas (tarea 39).
-- Los costos de los ajustes los digita el usuario; el costo promedio llegará con Costeo mensual (tarea 39).
+- Los costos de los ajustes los digita el usuario (el costeo los respeta); las salidas por venta se valoran al promedio.
 - Un solo precio de venta por producto (sin listas de precios) y solo IVA (sin INC ni otros impuestos).
-- No hay bodegas ni costo promedio (Costeo mensual, tarea 39).
+- Costeo: un solo método (promedio ponderado mensual), sin bodegas, sin devoluciones por nota crédito y sin cierre de
+  períodos (un mes costeado se puede recalcular); el costo de ventas se contabiliza al calcular, no al facturar.
 
 ## Pruebas
 
 - Unitarias: `apps/api/test/products.test.ts` (código automático, estado del stock, lectura de filas de Excel/CSV).
 - Unitarias: `apps/api/test/inventory.test.ts` (numeración, valores, asientos, números en Excel, filas, validaciones).
-- Casos de aceptación HT-23 y HT-24 en `docs/human-test.md`.
+- Unitarias: `apps/api/test/costing.test.ts` (caso calculado a mano: promedio, arrastre, vaciado, stock negativo, redondeo, estados).
+- Casos de aceptación HT-23 a HT-25 en `docs/human-test.md`.

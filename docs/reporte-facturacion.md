@@ -196,15 +196,15 @@ electrónico, Total, Envío por email y Envío a la DIAN, con "Mostrando a-b de 
 
 `GET /v1/dashboard?granularity=month|quarter|year` (`apps/api/src/dashboard.ts`), para los roles que consultan reportes.
 
-| Indicador     | Definición                                                                                                        |
-| ------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Ingresos      | Σ (subtotal − descuentos) de las facturas vigentes del mes (ventas sin IVA).                                      |
-| Gastos        | Σ (total − IVA) de los documentos soporte contabilizados del mes. Betel aún no registra otros gastos.             |
-| Utilidad      | Ingresos − gastos.                                                                                                |
-| Margen        | Utilidad ÷ ingresos × 100 (1 decimal); "Sin ingresos" si no hay. Su variación se da en puntos porcentuales.       |
-| Variación     | Contra el mes anterior completo; "Sin base" si el anterior es 0.                                                  |
-| Flujo de caja | Entradas = recaudos del mes (contado + recibos activos); Salidas = documentos soporte del mes; neto = diferencia. |
-| Evolución     | Utilidad de los últimos 10 meses, 8 trimestres o 5 años; el detalle muestra ingresos y gastos de cada período.    |
+| Indicador     | Definición                                                                                                                                                             |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ingresos      | Σ (subtotal − descuentos) de las facturas vigentes del mes (ventas sin IVA).                                                                                           |
+| Gastos        | Σ (total − IVA) de los documentos soporte contabilizados y de los gastos de Compras y gastos del mes, más el costo de ventas si el mes está costeado (Costeo mensual). |
+| Utilidad      | Ingresos − gastos.                                                                                                                                                     |
+| Margen        | Utilidad ÷ ingresos × 100 (1 decimal); "Sin ingresos" si no hay. Su variación se da en puntos porcentuales.                                                            |
+| Variación     | Contra el mes anterior completo; "Sin base" si el anterior es 0.                                                                                                       |
+| Flujo de caja | Entradas = recaudos del mes (contado + recibos activos); Salidas = documentos soporte del mes; neto = diferencia.                                                      |
+| Evolución     | Utilidad de los últimos 10 meses, 8 trimestres o 5 años; el detalle muestra ingresos y gastos de cada período.                                                         |
 
 ## Clientes (cartera por cliente)
 
