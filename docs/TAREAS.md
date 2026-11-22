@@ -74,6 +74,7 @@ en un _Issue_ con la plantilla "Tarea".
 | 37  | Mensajes de error de la API en español en todas las rutas (validaciones de Fastify) y prueba automática del formato de error        | api         | —          |             |
 | 38  | Productos: devolución de stock por notas crédito y descuento por remisiones                                                         | productos   | —          |             |
 | 39  | Productos: bodegas, traslados, cierre de períodos costeados y costo de ventas en línea al facturar                                  | productos   | 38         |             |
+| 40  | Cajas y bancos: varias cuentas bancarias, elegir la cuenta en recibos y pagos, traslados y conciliación bancaria                    | tesorería   | —          |             |
 
 > El Reporte de facturación (`docs/reporte-facturacion.md`) ya creó `apps/web/lib/api.ts` (tarea 2):
 > falta el manejo de 422 en formularios y el login real (tarea 3).

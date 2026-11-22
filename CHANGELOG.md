@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Cajas y bancos** (nuevo menú lateral): saldo de cada caja (1105) y cuenta bancaria (1110) según la contabilidad,
+  con fecha de corte, total general, columnas configurables y descarga; y el **auxiliar** de cada cuenta con saldo
+  anterior, entradas, salidas, saldo acumulado y enlace al documento que originó cada movimiento.
+  Ver `docs/cajas-y-bancos.md`.
 - **Costeo mensual** en Productos y servicios: los 12 meses del año con última ejecución y estado (Sin costear,
   Costeado, Desactualizado, Mes futuro), "Calcular costeo" / "Recalcular" con **costo promedio ponderado** por
   producto y costo de ventas contabilizado (613505/143505, con reversión al recalcular), detalle por producto con

@@ -681,6 +681,22 @@ export const costingMonthParamsSchema = z.object({
   month: z.coerce.number().int().min(1).max(12),
 });
 
+// ─── Cajas y bancos ───────────────────────────────────────────────────────────
+
+/** Saldos de cajas y bancos a una fecha de corte (por defecto hoy). */
+export const banksQuerySchema = z.object({ to: z.coerce.date().optional() });
+
+/** Movimientos (auxiliar) de una cuenta de caja o banco en un período. */
+export const bankMovementsQuerySchema = z
+  .object({
+    ...reportPeriod,
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(periodInOrder, periodMessage);
+
+export type BankMovementsQuery = z.infer<typeof bankMovementsQuerySchema>;
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;

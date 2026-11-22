@@ -4189,3 +4189,37 @@ button.mass-button:disabled {
 .costing-actions > a {
   text-decoration: none;
 }
+
+/* ── Cajas y bancos (components/banks.tsx) ── */
+.banks-date {
+  width: 200px;
+}
+.banks-table tfoot th {
+  border-top: 2px solid var(--line);
+  color: var(--ink, #061724);
+  font-size: 13px;
+}
+.banks-negative {
+  color: #b42318 !important;
+}
+.banks-note {
+  margin: 14px 20px 18px;
+}
+.banks-period {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+.banks-period .field {
+  width: 200px;
+}
+.banks-movements td small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.banks-opening td {
+  background: #f4f8fb;
+  font-weight: 600;
+}
