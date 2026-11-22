@@ -6,6 +6,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Reportes › catálogo** con las áreas y secciones de la referencia: 45 reportes nuevos sobre los datos reales
+  (ventas por cliente, producto y vendedor, comparativos, obsequios, facturación electrónica, cuentas por cobrar y por
+  pagar con corte y por edades, terceros y contactos, compras por proveedor y producto, libros oficiales de compras y
+  ventas, saldos de inventario, kárdex, rentabilidad por producto, prima, provisiones, acumulados y seguridad social,
+  auxiliar por cuenta, consecutivo de comprobantes, comprobantes no contabilizados, cambios en el patrimonio, libro de
+  inventarios y balance, libro mayor, comprobante diario, impuestos detallados, auditoría de anulaciones y
+  localidades). Una sola pantalla con filtros, totales y descarga en PDF, Excel y CSV; permisos por reporte en la API.
+  Los reportes que aún no se pueden generar muestran el motivo.
 - **Menú Reportes** (`/reportes`): centro con enlace a todos los reportes de Betel agrupados por área y dos estados
   financieros nuevos: **estado de resultados** (utilidad bruta, operacional, antes de impuestos y neta, comparado con
   el período anterior) y **estado de situación financiera** (activo = pasivo + patrimonio, con el resultado de los

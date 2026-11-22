@@ -1,5 +1,6 @@
 /**
- * Menú Reportes: centro de reportes (/reportes) con enlace a todos los reportes de Betel por área, y los estados
+ * Menú Reportes: centro de reportes (/reportes) con todos los reportes por área (los del catálogo genérico abren
+ * /reportes/ver?id=..., ver catalog-report.tsx), y los estados
  * financieros: estado de resultados (/reportes/estado-de-resultados) y estado de situación financiera
  * (/reportes/situacion-financiera). API: apps/api/src/statements.ts.
  */
@@ -22,155 +23,323 @@ import { periodPresets, presetRange, type Preset } from "./billing-report-quotes
 
 // ─── Centro de reportes ──────────────────────────────────────────────────────
 
-type ReportLink = { label: string; href: string; detail: string; isNew?: boolean };
-const reportGroups: { title: string; reports: ReportLink[] }[] = [
+/**
+ * Áreas y secciones en el orden de la referencia. `href`: reporte disponible (los del catálogo genérico abren
+ * /reportes/ver?id=...). `pending`: aún no disponible; se muestra el motivo, sin enlace.
+ */
+type HubItem = { label: string; href?: string; pending?: string; isNew?: boolean };
+type HubSection = { title: string; items: HubItem[] };
+type HubArea = { title: string; sections: HubSection[] };
+const view = (id: string) => `/reportes/ver?id=${id}`;
+const billing = (tab: string) => `/reportes/facturacion?tab=${tab}`;
+
+const reportAreas: HubArea[] = [
   {
-    title: "Estados financieros",
-    reports: [
+    title: "Facturación y ventas",
+    sections: [
       {
-        label: "Estado de resultados",
-        href: "/reportes/estado-de-resultados",
-        detail: "Ingresos, costos, gastos y utilidad del período frente al anterior.",
-        isNew: true,
+        title: "Cotizaciones",
+        items: [{ label: "Cotizaciones por vendedor", href: view("cotizaciones-por-vendedor") }],
       },
       {
-        label: "Estado de situación financiera",
-        href: "/reportes/situacion-financiera",
-        detail: "Activo, pasivo y patrimonio a una fecha (balance general).",
-        isNew: true,
+        title: "Ventas",
+        items: [
+          { label: "Ventas por cliente", href: view("ventas-por-cliente") },
+          { label: "Ventas por producto", href: view("ventas-por-producto") },
+          { label: "Ventas por vendedor", href: view("ventas-por-vendedor") },
+          { label: "Ventas por cliente por producto", href: view("ventas-cliente-producto") },
+          { label: "Ventas por vendedor por producto", href: view("ventas-vendedor-producto") },
+          { label: "Comparativo de ventas por mes", href: view("comparativo-ventas-mes") },
+          { label: "Comparativo de ventas por producto", href: view("comparativo-ventas-producto") },
+          { label: "Comparativo de ventas por vendedor", href: view("comparativo-ventas-vendedor") },
+          { label: "Informe facturación de obsequios", href: view("obsequios") },
+          { label: "Impresión y envío masivo de comprobantes", href: billing("envio-masivo") },
+        ],
       },
       {
-        label: "Balance de prueba",
-        href: "/contabilidad/balance-de-prueba",
-        detail: "Saldos y movimientos por cuenta.",
+        title: "Proveedor tecnológico (PT)",
+        items: [{ label: "Informes facturación electrónica", href: view("facturacion-electronica") }],
       },
-      { label: "Libro diario", href: "/contabilidad/libro-diario", detail: "Comprobantes contables del período." },
-      { label: "Plan de cuentas", href: "/contabilidad?tab=cuentas", detail: "Catálogo PUC de la empresa." },
+      { title: "POS", items: [{ label: "Ventas POS", pending: "Betel no tiene punto de venta (POS)." }] },
+      {
+        title: "Facturas recurrentes",
+        items: [{ label: "Seguimiento de facturas recurrentes", href: billing("facturas-recurrentes") }],
+      },
+      {
+        title: "Recibos de caja",
+        items: [{ label: "Recibos de caja detallado por facturas", href: view("recibos-por-factura") }],
+      },
+      {
+        title: "Movimiento de documentos de ventas",
+        items: [
+          { label: "Movimiento facturas de venta / Ingresos", href: view("movimiento-facturas-venta") },
+          {
+            label: "Movimiento notas crédito y débito (ventas)",
+            pending: "Betel aún no emite notas crédito ni débito de venta.",
+          },
+        ],
+      },
+      {
+        title: "Reporte de facturación",
+        items: [
+          { label: "Facturas de venta (tablero)", href: billing("ventas") },
+          { label: "Recaudos", href: billing("recaudos") },
+          { label: "Cotizaciones", href: billing("cotizaciones") },
+          { label: "Remisiones", href: billing("remisiones") },
+          { label: "Clientes", href: billing("clientes") },
+        ],
+      },
     ],
   },
   {
-    title: "Ventas y facturación",
-    reports: [
+    title: "Clientes y proveedores",
+    sections: [
       {
-        label: "Facturas de venta",
-        href: "/reportes/facturacion?tab=ventas",
-        detail: "Ventas, IVA y estado de cada factura.",
-      },
-      { label: "Recaudos", href: "/reportes/facturacion?tab=recaudos", detail: "Recibos de caja y pagos en línea." },
-      {
-        label: "Gestión de cobro",
-        href: "/reportes/facturacion?tab=gestion-cobro",
-        detail: "Cartera por edades y vencimientos.",
-      },
-      {
-        label: "Cotizaciones",
-        href: "/reportes/facturacion?tab=cotizaciones",
-        detail: "Cotizaciones y su conversión.",
+        title: "Cuánto me deben (clientes) o cuánto estoy debiendo (proveedores)",
+        items: [
+          { label: "Cuentas por cobrar/pagar general por cliente/proveedor", href: view("cartera-general") },
+          { label: "Cuentas por cobrar/pagar detallada por documento", href: view("cartera-por-documento") },
+          { label: "Movimiento de cuentas por cobrar/pagar por documento", href: view("movimiento-cartera") },
+          { label: "Movimiento de recibos de caja/pago", href: view("movimiento-recibos") },
+          { label: "Cuentas por cobrar con corte a una fecha", href: view("cartera-corte") },
+        ],
       },
       {
-        label: "Remisiones",
-        href: "/reportes/facturacion?tab=remisiones",
-        detail: "Entregas pendientes y facturadas.",
-      },
-      {
-        label: "Facturas recurrentes",
-        href: "/reportes/facturacion?tab=facturas-recurrentes",
-        detail: "Programaciones y emisiones.",
-      },
-      { label: "Envío masivo", href: "/reportes/facturacion?tab=envio-masivo", detail: "Estados de cuenta enviados." },
-      { label: "Clientes", href: "/reportes/facturacion?tab=clientes", detail: "Ventas y saldo por cliente." },
-      {
-        label: "Seguimiento comercial",
-        href: "/reportes/facturacion?tab=seguimiento-comercial",
-        detail: "Productos más vendidos y vendedores.",
+        title: "Clientes",
+        items: [
+          { label: "Búsqueda de cliente, proveedor u otro", href: view("terceros") },
+          { label: "Búsqueda avanzada contacto de cliente, proveedor u otro", href: view("contactos-terceros") },
+        ],
       },
     ],
   },
   {
     title: "Compras y gastos",
-    reports: [
+    sections: [
       {
-        label: "Documentos de compra",
-        href: "/compras?tab=documentos",
-        detail: "Facturas de proveedor, gastos y soportes.",
+        title: "Compras y gastos",
+        items: [
+          { label: "Compras por proveedor", href: view("compras-por-proveedor") },
+          { label: "Compras por producto", href: view("compras-por-producto") },
+          { label: "Compras por producto por proveedor", href: view("compras-producto-proveedor") },
+          { label: "Cruce orden de compra vs factura de compra", pending: "Betel no maneja órdenes de compra." },
+        ],
       },
       {
-        label: "Registro de eventos",
-        href: "/compras?tab=eventos",
-        detail: "Acuse, recibo y aceptación ante la DIAN.",
+        title: "Movimiento de documentos compras",
+        items: [
+          { label: "Movimiento facturas de compra", href: view("movimiento-compras") },
+          {
+            label: "Movimiento notas débito",
+            pending: "Betel aún no registra notas débito ni crédito de proveedores.",
+          },
+        ],
       },
-      { label: "Proveedores", href: "/compras?tab=proveedores", detail: "Cuentas por pagar y estado de cuenta." },
       {
-        label: "Soporte por legalizar",
-        href: "/compras?tab=soporte-por-legalizar",
-        detail: "Facturas recibidas sin registrar.",
+        title: "Módulo de compras",
+        items: [
+          { label: "Registro de eventos DIAN", href: "/compras?tab=eventos" },
+          { label: "Proveedores y estado de cuenta", href: "/compras?tab=proveedores" },
+          { label: "Soporte por legalizar", href: "/compras?tab=soporte-por-legalizar" },
+        ],
       },
     ],
   },
   {
-    title: "Productos e inventario",
-    reports: [
-      { label: "Gestión de productos", href: "/productos?tab=gestion", detail: "Catálogo, precios y existencias." },
+    title: "Productos y servicios",
+    sections: [
       {
-        label: "Documentos de productos",
-        href: "/productos?tab=documentos",
-        detail: "Entradas, salidas y ajustes de inventario.",
+        title: "Gestión de costos",
+        items: [
+          { label: "Informe costeo mensual", href: "/productos?tab=costeo" },
+          { label: "Rentabilidad por producto", href: view("rentabilidad-producto") },
+        ],
       },
-      { label: "Costeo mensual", href: "/productos?tab=costeo", detail: "Costo promedio y costo de ventas por mes." },
+      {
+        title: "Saldos y movimientos",
+        items: [
+          { label: "Saldos de inventario", href: view("saldos-inventario") },
+          { label: "Movimiento de productos / Kárdex", href: view("kardex") },
+          { label: "Movimiento de productos", href: view("movimiento-productos") },
+          { label: "Listado de productos / servicios", href: view("listado-productos") },
+        ],
+      },
+      { title: "Remisiones", items: [{ label: "Informe de remisiones cruzadas", href: view("remisiones-cruzadas") }] },
     ],
   },
   {
     title: "Cajas y bancos",
-    reports: [
-      { label: "Saldos de cajas y bancos", href: "/bancos", detail: "Saldo por cuenta a una fecha y su auxiliar." },
-    ],
+    sections: [{ title: "Saldos", items: [{ label: "Saldos de cajas y bancos con auxiliar", href: "/bancos" }] }],
   },
   {
     title: "Nómina",
-    reports: [
+    sections: [
       {
-        label: "Liquidaciones de nómina",
-        href: "/nomina?tab=nominas",
-        detail: "Devengos, deducciones y costo empleador.",
+        title: "Reportes de nómina",
+        items: [
+          { label: "Prima de servicios", href: view("nomina-prima") },
+          { label: "Provisiones", href: view("nomina-provisiones") },
+          { label: "Acumulados", href: view("nomina-acumulados") },
+          { label: "Seguridad social y parafiscales", href: view("nomina-seguridad-social") },
+        ],
       },
       {
-        label: "Nómina electrónica",
-        href: "/nomina?tab=electronica",
-        detail: "Documentos soporte de nómina ante la DIAN.",
+        title: "Módulo de nómina",
+        items: [
+          { label: "Liquidaciones de nómina", href: "/nomina?tab=nominas" },
+          { label: "Nómina electrónica", href: "/nomina?tab=electronica" },
+          { label: "Certificado de ingresos y retenciones", href: "/contabilidad/certificado-ingresos" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "Contabilidad",
+    sections: [
+      {
+        title: "Contables",
+        items: [
+          { label: "Consecutivo de comprobantes", href: view("consecutivo-comprobantes") },
+          { label: "Comprobantes no contabilizados", href: view("comprobantes-no-contabilizados") },
+          {
+            label: "Informes personalizados de movimiento contable",
+            pending: "Informes configurables pendientes; usa el auxiliar por cuenta o el libro diario.",
+          },
+          { label: "Movimiento auxiliar por cuenta contable", href: view("auxiliar-cuenta") },
+          { label: "Balance de prueba general", href: "/contabilidad/balance-de-prueba" },
+        ],
       },
       {
-        label: "Certificado de ingresos y retenciones",
-        href: "/contabilidad/certificado-ingresos",
-        detail: "Formato 220 por empleado y año.",
+        title: "Financieros",
+        items: [
+          { label: "Estado de situación financiera", href: "/reportes/situacion-financiera" },
+          { label: "Estado de situación financiera (configurable)", pending: "Formatos configurables pendientes." },
+          { label: "Estado de resultado integral", href: "/reportes/estado-de-resultados" },
+          { label: "Estado de resultado integral (configurable)", pending: "Formatos configurables pendientes." },
+          { label: "Estado de resultado integral por función de gastos", href: "/reportes/estado-de-resultados" },
+          {
+            label: "Estado de flujos de efectivo - Método indirecto",
+            pending: "Requiere clasificar las cuentas por actividad (operación, inversión, financiación).",
+          },
+          { label: "Estado de cambios en el patrimonio", href: view("cambios-patrimonio") },
+        ],
       },
+      {
+        title: "Tributario / Libros oficiales",
+        items: [
+          { label: "Libro de inventarios y balance", href: view("libro-inventarios-balance") },
+          { label: "Impuestos detallados", href: view("impuestos-detallados") },
+          { label: "Libro oficial de compras", href: view("libro-compras") },
+          { label: "Libro oficial de ventas", href: view("libro-ventas") },
+          { label: "Libro Mayor y Balance", href: view("libro-mayor") },
+          { label: "Libro diario", href: "/contabilidad/libro-diario" },
+          { label: "Comprobante informe diario", href: view("comprobante-diario") },
+        ],
+      },
+      {
+        title: "Activos fijos",
+        items: [{ label: "Listado de activos fijos", pending: "Betel aún no maneja activos fijos." }],
+      },
+      { title: "Plan de cuentas", items: [{ label: "Plan de cuentas (PUC)", href: "/contabilidad?tab=cuentas" }] },
+    ],
+  },
+  {
+    title: "Seguimiento comercial (CRM) y de cobranza",
+    sections: [
+      {
+        title: "Seguimiento comercial (CRM) y de cobranza",
+        items: [
+          { label: "Seguimiento comercial (CRM)", href: billing("seguimiento-comercial") },
+          { label: "Gestión de cobro cartera", href: billing("gestion-cobro") },
+        ],
+      },
+    ],
+  },
+  {
+    title: "Auditoría",
+    sections: [
+      {
+        title: "Auditoría de comprobantes y catálogos",
+        items: [{ label: "Auditoría de borrado de comprobantes", href: view("auditoria-borrado") }],
+      },
+    ],
+  },
+  {
+    title: "Reportes de configuración",
+    sections: [
+      { title: "Localidad", items: [{ label: "Países, departamentos y ciudades", href: view("localidades") }] },
     ],
   },
 ];
 
 export function ReportsHub() {
+  const [filter, setFilter] = useState("");
+  const text = filter.trim().toLocaleLowerCase("es");
+  const areas = reportAreas
+    .map(area => ({
+      ...area,
+      sections: area.sections
+        .map(section => ({
+          ...section,
+          items: section.items.filter(item => !text || item.label.toLocaleLowerCase("es").includes(text)),
+        }))
+        .filter(section => section.items.length),
+    }))
+    .filter(area => area.sections.length);
+  const counts = reportAreas
+    .flatMap(area => area.sections.flatMap(section => section.items))
+    .reduce(
+      (acc, item) => ({ ready: acc.ready + (item.href ? 1 : 0), pending: acc.pending + (item.pending ? 1 : 0) }),
+      {
+        ready: 0,
+        pending: 0,
+      }
+    );
   return (
     <div className="page-content">
-      <p className="reports-intro">
-        Cada enlace abre el reporte con sus filtros y descargas; los permisos son los de cada módulo.
-      </p>
-      <div className="reports-hub">
-        {reportGroups.map(group => (
-          <section key={group.title} className="panel reports-group">
-            <h2>{group.title}</h2>
-            <ul>
-              {group.reports.map(report => (
-                <li key={report.href}>
-                  <Link href={report.href}>
-                    {report.label}
-                    {report.isNew && <small>Nuevo</small>}
-                  </Link>
-                  <span>{report.detail}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+      <div className="reports-toolbar">
+        <label className="field">
+          Buscar reporte
+          <input
+            type="search"
+            value={filter}
+            placeholder="Ej.: ventas por producto"
+            onChange={event => setFilter(event.target.value)}
+          />
+        </label>
+        <p className="reports-intro">
+          {counts.ready} reportes disponibles · {counts.pending} en desarrollo. Cada reporte valida los permisos de tu
+          rol.
+        </p>
       </div>
+      {!areas.length && <p className="report-message">Ningún reporte coincide con «{filter}».</p>}
+      {areas.map(area => (
+        <details key={area.title} className="panel reports-area" open>
+          <summary>{area.title}</summary>
+          <div className="reports-sections">
+            {area.sections.map(section => (
+              <section key={section.title} className="reports-section">
+                <h3>{section.title}</h3>
+                <ul>
+                  {section.items.map(item => (
+                    <li key={item.label}>
+                      {item.href ? (
+                        <Link href={item.href}>{item.label}</Link>
+                      ) : (
+                        <span className="reports-pending">
+                          {item.label}
+                          <small>En desarrollo</small>
+                          <em>{item.pending}</em>
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </details>
+      ))}
     </div>
   );
 }

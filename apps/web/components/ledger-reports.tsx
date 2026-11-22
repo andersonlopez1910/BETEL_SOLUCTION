@@ -30,7 +30,7 @@ const back = (
   </Link>
 );
 
-function PeriodPicker({
+export function PeriodPicker({
   preset,
   range,
   onChange,

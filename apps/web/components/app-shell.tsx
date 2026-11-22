@@ -50,7 +50,7 @@ const mainNav: { icon: IconName; label: string; href: string; match: string[] }[
     icon: "pie",
     label: "Reportes",
     href: "/reportes",
-    match: ["/reportes$", "/reportes/estado-de-resultados", "/reportes/situacion-financiera"],
+    match: ["/reportes$", "/reportes/estado-de-resultados", "/reportes/situacion-financiera", "/reportes/ver"],
   },
   { icon: "users", label: "Terceros", href: "/terceros/nuevo", match: ["/terceros"] },
   { icon: "calendar", label: "Calendario", href: "/calendario", match: ["/calendario"] },

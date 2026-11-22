@@ -44,6 +44,7 @@
  *   Nómina ......... /payroll/settings, /payroll/employees, /payroll/runs, /payroll/electronic (ver src/payroll.ts)
  *   Contabilidad ... /accounting/chart, /accounting/accounts, /accounting/trial-balance, /accounting/journal (ver src/ledger.ts)
  *   Estados ........ GET /reports/income-statement, GET /reports/balance-sheet (ver src/statements.ts)
+ *   Catálogo ....... GET /reports/catalog, GET /reports/catalog/:id (ver src/catalog/index.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -71,6 +72,7 @@ import { registerBankRoutes } from "./banks.js";
 import { registerPayrollRoutes } from "./payroll.js";
 import { registerLedgerRoutes } from "./ledger.js";
 import { registerStatementRoutes } from "./statements.js";
+import { registerCatalogRoutes } from "./catalog/index.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
@@ -695,6 +697,7 @@ registerBankRoutes(app, { auditIp });
 registerPayrollRoutes(app, { auditIp });
 registerLedgerRoutes(app, { auditIp });
 registerStatementRoutes(app);
+registerCatalogRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
