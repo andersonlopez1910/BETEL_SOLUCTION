@@ -38,6 +38,24 @@ export function calculateDocumentTotals<T extends DocumentLine>(lines: T[]) {
   };
 }
 
+/** Cuentas que usan los comprobantes automáticos de Betel (no se pueden inactivar ni eliminar). */
+export const DEFAULT_ACCOUNTS = [
+  ["110505", "Caja general", "ASSET"], // Recibos de caja en efectivo
+  ["111005", "Bancos", "ASSET"], // Recibos de caja por transferencia, tarjeta, cheque u otro medio
+  ["130505", "Clientes nacionales", "ASSET"], // Cuentas por cobrar de facturas a crédito/contado
+  ["138095", "Pasarela de pagos por desembolsar", "ASSET"],
+  ["143505", "Inventario de mercancías", "ASSET"], // Compras de mercancía (Compras y gastos) // Pagos en línea aprobados aún no desembolsados
+  ["530515", "Comisiones bancarias y de pasarela", "EXPENSE"], // Comisión de la pasarela de pagos
+  ["240805", "IVA generado", "LIABILITY"], // IVA cobrado en ventas
+  ["240810", "IVA descontable", "ASSET"], // IVA pagado en compras (documento soporte)
+  ["413595", "Ingresos por ventas", "INCOME"],
+  ["220505", "Proveedores nacionales", "LIABILITY"], // Cuentas por pagar de documentos soporte
+  ["519595", "Gastos operacionales", "EXPENSE"],
+  ["370505", "Utilidades acumuladas", "EQUITY"], // Contrapartida del saldo inicial de inventario
+  ["429595", "Otros ingresos diversos", "INCOME"], // Sobrantes de inventario (ajustes de entrada)
+  ["613505", "Costo de ventas de mercancías", "EXPENSE"], // Costeo mensual: costo de lo vendido
+] as const;
+
 /**
  * Garantiza que la organización tenga las cuentas PUC mínimas que usan los comprobantes automáticos.
  * Es idempotente (upsert): se puede llamar en cada emisión sin duplicar cuentas.
@@ -48,22 +66,7 @@ export function calculateDocumentTotals<T extends DocumentLine>(lines: T[]) {
  * con su contador antes de operar en producción.
  */
 export async function ensureDefaultAccounts(tx: Prisma.TransactionClient, organizationId: string) {
-  const definitions = [
-    ["110505", "Caja general", "ASSET"], // Recibos de caja en efectivo
-    ["111005", "Bancos", "ASSET"], // Recibos de caja por transferencia, tarjeta, cheque u otro medio
-    ["130505", "Clientes nacionales", "ASSET"], // Cuentas por cobrar de facturas a crédito/contado
-    ["138095", "Pasarela de pagos por desembolsar", "ASSET"],
-    ["143505", "Inventario de mercancías", "ASSET"], // Compras de mercancía (Compras y gastos) // Pagos en línea aprobados aún no desembolsados
-    ["530515", "Comisiones bancarias y de pasarela", "EXPENSE"], // Comisión de la pasarela de pagos
-    ["240805", "IVA generado", "LIABILITY"], // IVA cobrado en ventas
-    ["240810", "IVA descontable", "ASSET"], // IVA pagado en compras (documento soporte)
-    ["413595", "Ingresos por ventas", "INCOME"],
-    ["220505", "Proveedores nacionales", "LIABILITY"], // Cuentas por pagar de documentos soporte
-    ["519595", "Gastos operacionales", "EXPENSE"],
-    ["370505", "Utilidades acumuladas", "EQUITY"], // Contrapartida del saldo inicial de inventario
-    ["429595", "Otros ingresos diversos", "INCOME"], // Sobrantes de inventario (ajustes de entrada)
-    ["613505", "Costo de ventas de mercancías", "EXPENSE"], // Costeo mensual: costo de lo vendido
-  ] as const;
+  const definitions = DEFAULT_ACCOUNTS;
   const accounts = await Promise.all(
     definitions.map(([code, name, accountType]) =>
       tx.account.upsert({

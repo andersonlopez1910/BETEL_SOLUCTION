@@ -794,6 +794,79 @@ export type PayrollSettingsInput = z.infer<typeof payrollSettingsSchema>;
 export type EmployeeInput = z.infer<typeof employeeSchema>;
 export type PayrollItemInput = z.infer<typeof payrollItemSchema>;
 
+// ─── Contabilidad ─────────────────────────────────────────────────────────────
+
+/** Crear una cuenta bajo un grupo (4 dígitos), una cuenta (subcuenta de 6) o una subcuenta (auxiliar de 8). */
+export const createAccountSchema = z.object({
+  parentCode: z.string().regex(/^\d{2}$|^\d{4}$|^\d{6}$/, "Elige un grupo, una cuenta o una subcuenta."),
+  suffix: z
+    .string()
+    .regex(/^\d{2}$/, "El código nuevo son 2 dígitos.")
+    .refine(value => value !== "00", "El código no puede ser 00."),
+  name: z.string().trim().min(3, "Escribe el nombre de la cuenta.").max(120),
+});
+
+/** Editar el nombre o el estado de una cuenta de la organización. */
+export const updateAccountSchema = z.object({
+  name: z.string().trim().min(3, "Escribe el nombre de la cuenta.").max(120),
+  active: z.boolean(),
+});
+
+/** Balance de prueba: período y nivel de detalle (1 clase, 2 grupo, 4 cuenta, 6 subcuenta, 8 auxiliar). */
+export const trialBalanceQuerySchema = z
+  .object({
+    ...reportPeriod,
+    level: z.coerce
+      .number()
+      .refine(value => [1, 2, 4, 6, 8].includes(value), "Nivel inválido.")
+      .default(4),
+  })
+  .refine(periodInOrder, periodMessage);
+
+/** Libro diario: comprobantes del período. */
+export const journalQuerySchema = z
+  .object({
+    ...reportPeriod,
+    search: optionalText, // Comprobante o descripción
+    source: z.enum(["MANUAL", "AUTOMATIC"]).optional(),
+    page: pagination.page,
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine(periodInOrder, periodMessage);
+
+const entryAmount = z.coerce
+  .number()
+  .nonnegative()
+  .refine(value => Math.round(value * 100) === value * 100, "Máximo dos decimales.");
+
+/** Comprobante contable manual (CC-n): débitos = créditos, cada renglón con débito o crédito. */
+export const manualEntrySchema = z
+  .object({
+    date: z.coerce.date(),
+    description: z.string().trim().min(3, "Escribe la descripción.").max(300),
+    lines: z
+      .array(
+        z
+          .object({
+            accountId: z.string().uuid("Elige la cuenta."),
+            debit: entryAmount.default(0),
+            credit: entryAmount.default(0),
+            memo: z.string().trim().max(200).optional(),
+          })
+          .refine(line => line.debit > 0 !== line.credit > 0, "Cada renglón lleva débito o crédito (uno solo).")
+      )
+      .min(2, "Un comprobante tiene al menos dos renglones.")
+      .max(200),
+  })
+  .refine(
+    value =>
+      Math.round(value.lines.reduce((sum, line) => sum + line.debit, 0) * 100) ===
+      Math.round(value.lines.reduce((sum, line) => sum + line.credit, 0) * 100),
+    { message: "El comprobante no cuadra: los débitos deben ser iguales a los créditos.", path: ["lines"] }
+  );
+
+export type ManualEntryInput = z.infer<typeof manualEntrySchema>;
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;

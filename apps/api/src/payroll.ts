@@ -28,7 +28,7 @@
  *     si la empresa está exonerada (art. 114-1 E.T.) y el empleado gana menos de 10 SMMLV.
  *   - Provisiones: cesantías y prima = (devengos salariales + auxilio) ÷ 12; intereses = 12 % de las cesantías;
  *     vacaciones = básico ÷ 24. Salario integral: sin cesantías, intereses ni prima.
- *   - Asiento al aprobar: gastos 5105xx contra 2370xx/2380xx/2365xx (aportes y retenciones), 2510xx (prestaciones)
+ *   - Asiento al aprobar: gastos 5105xx contra 2370xx/2380xx/2365xx (aportes y retenciones), 2510–2525 (prestaciones)
  *     y 250505 Salarios por pagar. Pago: 250505 contra caja o bancos.
  */
 import type { FastifyInstance } from "fastify";
@@ -275,10 +275,10 @@ export function payrollJournal(calculations: Calculation[], accounts: Record<str
     ["237010", m2(sum("compensation") + sum("icbf") + sum("sena")), "Aportes parafiscales por pagar"],
     ["236505", sum("withholding"), "Retención en la fuente salarios"],
     ["237095", sum("otherDeductions"), "Otros descuentos de nómina"],
-    ["251010", sum("severance"), "Cesantías consolidadas"],
-    ["251015", sum("severanceInterest"), "Intereses sobre cesantías"],
-    ["251020", sum("serviceBonus"), "Prima de servicios"],
-    ["251025", sum("vacation"), "Vacaciones consolidadas"],
+    ["251005", sum("severance"), "Cesantías consolidadas"],
+    ["251505", sum("severanceInterest"), "Intereses sobre cesantías"],
+    ["252005", sum("serviceBonus"), "Prima de servicios"],
+    ["252505", sum("vacation"), "Vacaciones consolidadas"],
     ["250505", sum("netPay"), "Salarios por pagar"],
   ];
   return [
@@ -313,10 +313,10 @@ export const PAYROLL_ACCOUNTS: [string, string, string][] = [
   ["237095", "Otros descuentos de nómina", "LIABILITY"],
   ["238030", "Fondos de pensiones por pagar", "LIABILITY"],
   ["250505", "Salarios por pagar", "LIABILITY"],
-  ["251010", "Cesantías consolidadas", "LIABILITY"],
-  ["251015", "Intereses sobre cesantías", "LIABILITY"],
-  ["251020", "Prima de servicios por pagar", "LIABILITY"],
-  ["251025", "Vacaciones consolidadas", "LIABILITY"],
+  ["251005", "Cesantías consolidadas", "LIABILITY"],
+  ["251505", "Intereses sobre cesantías", "LIABILITY"],
+  ["252005", "Prima de servicios por pagar", "LIABILITY"],
+  ["252505", "Vacaciones consolidadas", "LIABILITY"],
 ];
 
 export const payrollNumber = (number: number) => `NOM-${number}`;

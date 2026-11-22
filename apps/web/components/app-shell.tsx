@@ -42,6 +42,7 @@ const mainNav: { icon: IconName; label: string; href: string; match: string[] }[
   { icon: "box", label: "Productos y servicios", href: "/productos", match: ["/productos"] },
   { icon: "wallet", label: "Cajas y bancos", href: "/bancos", match: ["/bancos"] },
   { icon: "idcard", label: "Nómina", href: "/nomina", match: ["/nomina"] },
+  { icon: "scale", label: "Contabilidad", href: "/contabilidad", match: ["/contabilidad"] },
   { icon: "users", label: "Terceros", href: "/terceros/nuevo", match: ["/terceros"] },
   { icon: "calendar", label: "Calendario", href: "/calendario", match: ["/calendario"] },
   { icon: "account", label: "Cuenta", href: "/cuenta", match: ["/cuenta"] },

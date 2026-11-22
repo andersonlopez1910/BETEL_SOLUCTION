@@ -4327,3 +4327,221 @@ button.mass-button:disabled {
 .payroll-table {
   font-size: 13px;
 }
+
+/* ── Contabilidad (components/accounting.tsx, ledger-reports.tsx) ── */
+.accounting-panel {
+  padding: 0;
+}
+.accounting-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+}
+.accounting-head h2 {
+  margin: 0;
+  color: var(--blue);
+  font-size: 22px;
+  font-weight: 500;
+}
+.accounting-head .secondary {
+  height: 36px;
+}
+.accounting-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 46%) 1fr;
+  border-top: 1px solid var(--line);
+}
+.accounting-tree {
+  max-height: 70vh;
+  overflow: auto;
+  padding: 10px 14px 16px;
+  border-right: 1px solid var(--line);
+}
+.accounting-expand {
+  padding: 0 0 8px;
+  font-size: 13px;
+}
+.accounting-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.accounting-table th {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 500;
+  text-align: left;
+}
+.accounting-table th:first-child,
+.accounting-table td:first-child {
+  width: 34%;
+  border-right: 1px solid var(--line);
+}
+.accounting-search th {
+  padding: 6px 8px;
+}
+.accounting-search .collections-search {
+  width: 100%;
+  height: 32px;
+  border: 0;
+  padding: 0 4px;
+}
+.accounting-table tbody tr {
+  cursor: pointer;
+}
+.accounting-table tbody tr:hover,
+.accounting-table tbody tr.is-selected {
+  background: #e9fbf9;
+}
+.accounting-table td {
+  padding: 7px 8px;
+  white-space: nowrap;
+}
+.accounting-caret,
+.accounting-caret-space {
+  display: inline-block;
+  width: 18px;
+  margin-right: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+.accounting-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.accounting-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #eef4ff;
+  color: var(--blue);
+  font-size: 10px;
+}
+.accounting-detail {
+  padding: 20px;
+}
+.accounting-empty {
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  margin: 0;
+  color: #b4c3cf;
+  font-size: 24px;
+  line-height: 1.5;
+  text-align: center;
+}
+.accounting-card h3 {
+  margin: 2px 0 10px;
+  font-size: 20px;
+}
+.accounting-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.accounting-figures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 8px;
+}
+.accounting-figures div {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.accounting-figures dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.accounting-figures dd {
+  margin: 2px 0 0;
+}
+.accounting-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.accounting-form h4 {
+  margin: 0;
+  font-size: 14px;
+}
+.accounting-new {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 10px;
+}
+.accounting-code {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.accounting-code input {
+  width: 64px;
+}
+.accounting-processes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.accounting-process {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+.accounting-process:hover {
+  border-color: var(--teal);
+  box-shadow: 0 6px 18px #06172414;
+}
+.accounting-process b {
+  color: var(--teal-dark);
+  font-size: 15px;
+}
+.accounting-process span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.ledger-lines select {
+  width: 100%;
+  min-width: 260px;
+  text-align: left;
+}
+.ledger-lines td input:not([type="number"]) {
+  width: 100%;
+  min-width: 160px;
+  text-align: left;
+}
+.ledger-add {
+  margin-top: 10px;
+  height: 34px;
+}
+@media (max-width: 900px) {
+  .accounting-layout {
+    grid-template-columns: 1fr;
+  }
+  .accounting-tree {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .accounting-figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

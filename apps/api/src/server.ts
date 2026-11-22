@@ -42,6 +42,7 @@
  *   Costeo ......... GET /costing, POST /costing/:year/:month/calculate (ver src/costing.ts)
  *   Cajas y bancos . GET /reports/banks, GET /banks/:accountId/movements (ver src/banks.ts)
  *   Nómina ......... /payroll/settings, /payroll/employees, /payroll/runs, /payroll/electronic (ver src/payroll.ts)
+ *   Contabilidad ... /accounting/chart, /accounting/accounts, /accounting/trial-balance, /accounting/journal (ver src/ledger.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -67,6 +68,7 @@ import { registerInventoryRoutes } from "./inventory.js";
 import { registerCostingRoutes } from "./costing.js";
 import { registerBankRoutes } from "./banks.js";
 import { registerPayrollRoutes } from "./payroll.js";
+import { registerLedgerRoutes } from "./ledger.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
@@ -689,6 +691,7 @@ registerInventoryRoutes(app, { auditIp });
 registerCostingRoutes(app, { auditIp });
 registerBankRoutes(app, { auditIp });
 registerPayrollRoutes(app, { auditIp });
+registerLedgerRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 

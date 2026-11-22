@@ -60,11 +60,11 @@ $2.222.727,27, deducciones $161.818,18, **neto $2.060.909,09** y costo del emple
 
 ### Contabilidad
 
-| Momento | Débito                                                                                                                  | Crédito                                                                                                                                                      |
-| ------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Aprobar | 510506 Sueldos, 510515 Extras, 510548 Bonificaciones, 510527 Auxilio, 510568–510578 Aportes, 510530–510539 Prestaciones | 237005 EPS, 238030 Pensiones, 237006 ARL, 237010 Parafiscales, 236505 Retención, 237095 Otros descuentos, 2510xx Prestaciones, **250505 Salarios por pagar** |
-| Pagar   | 250505 Salarios por pagar                                                                                               | 110505 Caja o 111005 Bancos                                                                                                                                  |
-| Anular  | Asiento inverso de la causación (`NOM-n-A`)                                                                             |                                                                                                                                                              |
+| Momento | Débito                                                                                                                  | Crédito                                                                                                                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aprobar | 510506 Sueldos, 510515 Extras, 510548 Bonificaciones, 510527 Auxilio, 510568–510578 Aportes, 510530–510539 Prestaciones | 237005 EPS, 238030 Pensiones, 237006 ARL, 237010 Parafiscales, 236505 Retención, 237095 Otros descuentos, 251005 Cesantías, 251505 Intereses, 252005 Prima y 252505 Vacaciones, **250505 Salarios por pagar** |
+| Pagar   | 250505 Salarios por pagar                                                                                               | 110505 Caja o 111005 Bancos                                                                                                                                                                                   |
+| Anular  | Asiento inverso de la causación (`NOM-n-A`)                                                                             |                                                                                                                                                                                                               |
 
 ## Nómina electrónica
 

@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Contabilidad** (nuevo menú lateral): **Cuentas contables** con el árbol del PUC (clase, grupo, cuenta, subcuenta,
+  auxiliar), búsqueda por código y nombre, expandir todo, descarga en Excel y panel para ver saldos y crear, editar o
+  eliminar cuentas; **Más procesos** con balance de prueba por nivel, libro diario, comprobante contable manual
+  (CC-n, cuadrado, con anulación) y accesos a Cajas y bancos, Costeo mensual y Nómina. Ver `docs/contabilidad.md`.
+
 - **Nómina** (nuevo menú lateral, solo propietario, administrador y contador): parámetros legales por año que se
   confirman antes de liquidar, empleados (contrato, salario ordinario o integral, frecuencia, ARL, EPS, pensión),
   liquidación mensual o quincenal con novedades (horas extra, recargos, bonificaciones, retención, descuentos), cálculo
@@ -117,6 +122,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Corregido
 
+- Nómina: las provisiones de intereses sobre cesantías, prima y vacaciones usan sus cuentas del PUC (251505, 252005 y
+  252505) en lugar de subcuentas de 2510 Cesantías.
 - Los errores de negocio de la API (p. ej. factura del proveedor repetida, evento fuera de orden, pago mayor al
   saldo) llegaban a la web como "Conflict" o "Unprocessable Entity": ahora se muestra el mensaje en español.
 - Gestión de cobro cartera Betel: los pagos en línea hechos después de las 7 p. m. (hora de Colombia) no aparecían en
