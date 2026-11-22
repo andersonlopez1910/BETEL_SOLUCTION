@@ -22,6 +22,7 @@ import {
 } from "./billing-report-common";
 import { periodPresets, presetRange, type Preset } from "./billing-report-quotes";
 import { VoidDocumentDialog } from "./collection-dialogs";
+import { SaveFavoriteDialog } from "./ledger-processes";
 
 const back = (
   <Link href="/contabilidad?tab=procesos" className="report-link">
@@ -408,7 +409,15 @@ type EntryDetail = {
   source: string | null;
   sourceLabel: string;
   status: string;
-  lines: { id: string; code: string; name: string; memo: string | null; debit: string; credit: string }[];
+  lines: {
+    id: string;
+    accountId: string;
+    code: string;
+    name: string;
+    memo: string | null;
+    debit: string;
+    credit: string;
+  }[];
   debits: string;
   credits: string;
 };
@@ -419,6 +428,7 @@ export function JournalEntryView() {
   const { company, canReceive: canEdit } = useSession();
   const report = useReport<{ data: EntryDetail }>(`/v1/accounting/journal/${id}`);
   const [voiding, setVoiding] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(params.get("creado") ? "Comprobante contabilizado." : null);
   const entry = report.data?.data;
   return (
@@ -432,6 +442,11 @@ export function JournalEntryView() {
             <button type="button" className="secondary" onClick={() => window.print()}>
               Imprimir / PDF
             </button>
+            {canEdit && (
+              <button type="button" className="secondary" onClick={() => setSaving(true)}>
+                Guardar como favorito
+              </button>
+            )}
             {entry.source === "Manual" && entry.status === "POSTED" && canEdit && (
               <button type="button" className="secondary danger" onClick={() => setVoiding(true)}>
                 Anular
@@ -497,6 +512,17 @@ export function JournalEntryView() {
           </div>
         </article>
       )}
+      {entry && saving && (
+        <SaveFavoriteDialog
+          description={entry.description}
+          lines={entry.lines}
+          onClose={() => setSaving(false)}
+          onSaved={name => {
+            setSaving(false);
+            setNotice(`Guardado como favorito “${name}”.`);
+          }}
+        />
+      )}
       {entry && voiding && (
         <VoidDocumentDialog
           title={`Anular ${entry.reference}`}
@@ -521,17 +547,51 @@ type Postable = { id: string | null; code: string; name: string; postable: boole
 type EntryLine = { key: number; accountId: string; debit: string; credit: string; memo: string };
 const cents = (value: string) => Math.round(Number(value || 0) * 100);
 
-export function ManualEntryForm() {
+/**
+ * Comprobante manual (CC-n) o, con kind="OPENING", saldos iniciales de otras cuentas (SIC-n, solo cuentas de balance).
+ * ?plantilla=<id> carga un comprobante favorito.
+ */
+export function ManualEntryForm({ kind = "MANUAL" }: { kind?: "MANUAL" | "OPENING" }) {
   const router = useRouter();
+  const templateId = useSearchParams().get("plantilla");
   const { canReceive: canEdit } = useSession();
   const chart = useReport<{ data: Postable[] }>("/v1/accounting/chart");
-  const accounts = useMemo(() => (chart.data?.data ?? []).filter(node => node.postable && node.id), [chart.data]);
+  const templates = useReport<{
+    data: {
+      id: string;
+      name: string;
+      description: string;
+      lines: { accountId: string; debit: number; credit: number; memo?: string }[];
+    }[];
+  }>(templateId ? "/v1/accounting/templates" : null);
+  const accounts = useMemo(
+    () =>
+      (chart.data?.data ?? []).filter(
+        node => node.postable && node.id && (kind === "MANUAL" || ["1", "2", "3"].includes(node.code[0]!))
+      ),
+    [chart.data, kind]
+  );
   const today = defaultPeriod().to;
-  const [form, setForm] = useState({ date: today, description: "" });
+  const [form, setForm] = useState({ date: today, description: kind === "OPENING" ? "Saldos iniciales" : "" });
   const [lines, setLines] = useState<EntryLine[]>([
     { key: 1, accountId: "", debit: "", credit: "", memo: "" },
     { key: 2, accountId: "", debit: "", credit: "", memo: "" },
   ]);
+  const [loadedTemplate, setLoadedTemplate] = useState<string | null>(null);
+  const template = templates.data?.data.find(item => item.id === templateId);
+  if (template && loadedTemplate !== template.id) {
+    setLoadedTemplate(template.id);
+    setForm(current => ({ ...current, description: template.description }));
+    setLines(
+      template.lines.map((line, index) => ({
+        key: index + 1,
+        accountId: line.accountId,
+        debit: line.debit ? String(line.debit) : "",
+        credit: line.credit ? String(line.credit) : "",
+        memo: line.memo ?? "",
+      }))
+    );
+  }
   const [state, setState] = useState<{ busy: boolean; error?: string }>({ busy: false });
   const debits = lines.reduce((sum, line) => sum + cents(line.debit), 0);
   const credits = lines.reduce((sum, line) => sum + cents(line.credit), 0);
@@ -542,6 +602,7 @@ export function ManualEntryForm() {
     setState({ busy: true });
     try {
       const created = await apiPost<{ data: { id: string } }>("/v1/accounting/journal", {
+        kind,
         date: form.date,
         description: form.description.trim(),
         lines: lines
@@ -562,13 +623,20 @@ export function ManualEntryForm() {
     <form className="page-content receipt-form" onSubmit={submit}>
       <section className="panel">
         <div className="panel-head">
-          <h2>Comprobante contable</h2>
+          <h2>{kind === "OPENING" ? "Saldos iniciales de otras cuentas" : "Comprobante contable"}</h2>
           {back}
         </div>
         <p className="report-hint">
-          Solo se registran movimientos en cuentas de movimiento (de la organización, activas y sin subcuentas). Crea
-          subcuentas o auxiliares en Contabilidad › Cuentas contables.
+          {kind === "OPENING"
+            ? "Registra los saldos con que empieza la contabilidad en cuentas de balance (activo, pasivo y patrimonio). La diferencia entre débitos y créditos se suele llevar a 370505 Utilidades acumuladas."
+            : "Solo se registran movimientos en cuentas de movimiento (de la organización, activas y sin subcuentas)."}{" "}
+          Crea subcuentas o auxiliares en Contabilidad › Cuentas contables.
         </p>
+        {template && (
+          <p className="collections-notice">
+            Cargado desde el favorito “{template.name}”: revisa los valores antes de contabilizar.
+          </p>
+        )}
         <div className="receipt-fields">
           <label className="field">
             Fecha
@@ -715,7 +783,11 @@ export function ManualEntryForm() {
             className="primary"
             disabled={state.busy || !canEdit || debits === 0 || debits !== credits}
           >
-            {state.busy ? "Guardando…" : "Contabilizar comprobante"}
+            {state.busy
+              ? "Guardando…"
+              : kind === "OPENING"
+                ? "Contabilizar saldos iniciales"
+                : "Contabilizar comprobante"}
           </button>
         </div>
       </section>

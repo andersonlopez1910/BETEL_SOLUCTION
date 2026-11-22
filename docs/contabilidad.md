@@ -26,40 +26,89 @@ Todos los saldos salen de los comprobantes contabilizados (`JournalEntry` con es
 
 ## Más procesos
 
-| Proceso                                | Ruta                              | Qué hace                                                                                                                                       |
-| -------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Balance de prueba                      | `/contabilidad/balance-de-prueba` | Por período y nivel: saldo inicial, débitos, créditos y saldo final (débito +, crédito −), totales y aviso de si cuadra; descarga PDF/XLSX/CSV |
-| Libro diario                           | `/contabilidad/libro-diario`      | Comprobantes del período (automáticos y manuales) con origen, búsqueda y detalle                                                               |
-| Comprobante contable                   | `/contabilidad/comprobante/nuevo` | Comprobante manual **CC-n** (ajustes, causaciones, reclasificaciones)                                                                          |
-| Cajas y bancos, Costeo mensual, Nómina | sus módulos                       | Accesos a los procesos contables de otros módulos                                                                                              |
+Seis grupos, como la referencia. Los procesos sin desarrollo muestran el aviso **En desarrollo** con el motivo (sin
+enlace ni botón).
 
-**Comprobante manual:**
+| Grupo                          | Proceso                                     | Estado                                                           |
+| ------------------------------ | ------------------------------------------- | ---------------------------------------------------------------- |
+| Contables                      | Diferencia en cambio                        | No aplica aún: Betel no registra moneda extranjera               |
+|                                | **Cierre de año**                           | Funcional (`/contabilidad/cierre-de-ano`)                        |
+|                                | Cierre de cuentas de impuestos por tercero  | Pendiente: requiere tercero en cada renglón contable             |
+|                                | Verifica y bloquea documentos               | Pendiente (tarea 43)                                             |
+|                                | **Copias de comprobantes favoritos**        | Funcional (`/contabilidad/favoritos`)                            |
+|                                | **Borrado masivo de comprobantes**          | Funcional como anulación masiva (`/contabilidad/borrado-masivo`) |
+| Medios Magnéticos              | Asistente e informe distrital/municipal     | Pendiente: requieren tercero en cada renglón (tarea 43)          |
+| Activos fijos                  | Creación e importación                      | Pendiente (tarea 43)                                             |
+| Certificados                   | Retención a título de renta, IVA e ICA      | Pendiente: Betel aún no calcula retenciones                      |
+|                                | **Ingresos y retenciones / Formulario 220** | Funcional (`/contabilidad/certificado-ingresos`)                 |
+| Saldos iniciales               | Cuentas por cobrar y por pagar              | Pendiente (tarea 43)                                             |
+|                                | **Inventario**                              | Funcional: saldo inicial de Documentos de productos / servicios  |
+| Saldos iniciales otras cuentas | **Otras cuentas contables**                 | Funcional (`/contabilidad/saldos-iniciales`)                     |
 
-- Fecha (no futura), descripción y al menos dos renglones; cada renglón con débito **o** crédito.
-- **Débitos = créditos.** Solo en **cuentas de movimiento**: de la organización, activas y sin subcuentas.
-- **Anular:** solo los manuales. Quedan REVERSED, dejan de sumar y se ven tachados en el libro diario. Los automáticos
-  se anulan desde su documento (factura, recibo, compra…).
+Además siguen disponibles el balance de prueba, el libro diario y el comprobante contable manual
+(`/contabilidad/balance-de-prueba`, `/contabilidad/libro-diario`, `/contabilidad/comprobante/nuevo`).
+
+### Cierre de año
+
+- Solo un año ya terminado. Vista previa con ingresos, gastos y costos del año y el resultado.
+- Asiento **CIERRE-AAAA** al 31 de diciembre: lleva a cero cada cuenta de las clases 4 a 7 y traslada la diferencia a
+  **360505 Utilidad del ejercicio** (crédito) o **361005 Pérdida del ejercicio** (débito).
+- Un año no se cierra dos veces; el cierre se puede anular y repetir.
+- **Desactualizado:** si después del cierre se registran ingresos, gastos o costos de ese año (p. ej. una nómina de
+  diciembre aprobada tarde), la pantalla lo advierte para anular y volver a cerrar.
+
+### Comprobantes favoritos
+
+Desde el detalle de cualquier comprobante, **Guardar como favorito** guarda cuentas, valores y detalle. En
+Favoritos, **Usar** abre el comprobante manual con esos datos para cambiarlos y contabilizar. Tabla `JournalTemplate`
+con RLS (migración `20261127000000_add_journal_templates`).
+
+### Borrado masivo
+
+Selecciona comprobantes manuales o de saldos iniciales vigentes de un período y los **anula** con un motivo (en Betel
+no se borran, para conservar la trazabilidad). Los automáticos se omiten: se anulan desde su documento.
+
+### Saldos iniciales de otras cuentas
+
+Comprobante **SIC-n** con el mismo formulario del comprobante manual, solo en cuentas de balance (clases 1, 2 y 3) y
+cuadrado. Aparece en el libro diario como "Saldos iniciales" y se anula como un manual.
+
+### Certificado de ingresos y retenciones (Formulario 220)
+
+Por año gravable y empleado (uno por página al imprimir), con los datos del retenedor y del trabajador y, de las
+liquidaciones de nómina aprobadas o pagadas del año: pagos por salarios (básico, extras, recargos y pagos
+salariales), auxilio de transporte, otros pagos no salariales, total de ingresos brutos, aportes obligatorios de salud
+y de pensión (con Fondo de Solidaridad) a cargo del trabajador y retención en la fuente. Solo OWNER, ADMIN y
+ACCOUNTANT. Es una base para el formato 220: las casillas deben verificarse con la resolución vigente del año y aún
+no incluye las prestaciones sociales pagadas (cesantías, prima), que Betel no registra.
 
 ## Permisos
 
-| Acción                                                  | Roles                          |
-| ------------------------------------------------------- | ------------------------------ |
-| Ver el plan de cuentas                                  | Los del Reporte de facturación |
-| Crear, editar o eliminar cuentas; comprobantes manuales | OWNER, ADMIN, ACCOUNTANT       |
-| Balance de prueba y libro diario                        | OWNER, ADMIN, ACCOUNTANT       |
+| Acción                                                     | Roles                          |
+| ---------------------------------------------------------- | ------------------------------ |
+| Ver el plan de cuentas                                     | Los del Reporte de facturación |
+| Crear, editar o eliminar cuentas; comprobantes manuales    | OWNER, ADMIN, ACCOUNTANT       |
+| Balance de prueba y libro diario                           | OWNER, ADMIN, ACCOUNTANT       |
+| Cierre de año, favoritos, borrado masivo, saldos iniciales | OWNER, ADMIN, ACCOUNTANT       |
+| Certificado de ingresos y retenciones                      | OWNER, ADMIN, ACCOUNTANT       |
 
 ## API
 
-| Método y ruta                            | Uso                                           |
-| ---------------------------------------- | --------------------------------------------- |
-| `GET /v1/accounting/chart`               | Árbol con saldos acumulados                   |
-| `POST /v1/accounting/accounts`           | Crear (parentCode, suffix, name)              |
-| `PUT/DELETE /v1/accounting/accounts/:id` | Editar o eliminar                             |
-| `GET /v1/accounting/trial-balance`       | Balance de prueba (from, to, level 1/2/4/6/8) |
-| `GET /v1/accounting/journal`             | Libro diario (from, to, search, source, page) |
-| `GET /v1/accounting/journal/:id`         | Detalle de un comprobante                     |
-| `POST /v1/accounting/journal`            | Comprobante manual                            |
-| `POST /v1/accounting/journal/:id/void`   | Anular comprobante manual                     |
+| Método y ruta                                            | Uso                                           |
+| -------------------------------------------------------- | --------------------------------------------- |
+| `GET /v1/accounting/chart`                               | Árbol con saldos acumulados                   |
+| `POST /v1/accounting/accounts`                           | Crear (parentCode, suffix, name)              |
+| `PUT/DELETE /v1/accounting/accounts/:id`                 | Editar o eliminar                             |
+| `GET /v1/accounting/trial-balance`                       | Balance de prueba (from, to, level 1/2/4/6/8) |
+| `GET /v1/accounting/journal`                             | Libro diario (from, to, search, source, page) |
+| `GET /v1/accounting/journal/:id`                         | Detalle de un comprobante                     |
+| `POST /v1/accounting/journal`                            | Comprobante manual                            |
+| `POST /v1/accounting/journal/:id/void`                   | Anular comprobante manual                     |
+| `POST /v1/accounting/journal` con `kind: OPENING`        | Saldos iniciales de otras cuentas (SIC-n)     |
+| `POST /v1/accounting/journal/bulk-void`                  | Anulación masiva (ids, reason)                |
+| `GET/POST /v1/accounting/templates`, `DELETE /:id`       | Comprobantes favoritos                        |
+| `GET/POST /v1/accounting/year-close`, `POST /:year/void` | Cierre de año (vista previa, cerrar, anular)  |
+| `GET /v1/payroll/certificates?year=`                     | Certificado de ingresos y retenciones         |
 
 Código en `apps/api/src/ledger.ts`, `apps/api/src/puc.ts`, `apps/web/components/accounting.tsx` y
 `apps/web/components/ledger-reports.tsx`. Sin tablas nuevas: usa `Account`, `JournalEntry` y `JournalLine`.
@@ -67,7 +116,7 @@ Código en `apps/api/src/ledger.ts`, `apps/api/src/puc.ts`, `apps/web/components
 ## Limitaciones
 
 - Los comprobantes automáticos siguen usando las cuentas del sistema (p. ej. 110505) aunque se les creen auxiliares.
-- No hay cierre contable de períodos, estados financieros (balance general, estado de resultados), libro mayor por
+- No hay bloqueo de períodos, estados financieros (balance general, estado de resultados), libro mayor por
   tercero ni exógena (tarea 42).
 - El PUC base no trae todas las cuentas de 4 dígitos: las que falten se crean bajo su grupo.
 - La descarga del plan de cuentas se arma en el navegador con los datos del árbol (no queda en la auditoría).
@@ -75,5 +124,5 @@ Código en `apps/api/src/ledger.ts`, `apps/api/src/puc.ts`, `apps/web/components
 ## Pruebas
 
 - Unitarias: `apps/api/test/ledger.test.ts` (niveles y padres del PUC, árbol con saldos y naturaleza, balance de
-  prueba por nivel, validaciones del comprobante).
-- Caso de aceptación HT-28 en `docs/human-test.md`.
+  prueba por nivel, validaciones del comprobante, cierre de año con utilidad y con pérdida).
+- Casos de aceptación HT-28 y HT-29 en `docs/human-test.md`.

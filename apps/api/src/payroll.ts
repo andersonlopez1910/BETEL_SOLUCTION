@@ -1191,4 +1191,81 @@ export function registerPayrollRoutes(app: FastifyInstance, options: { auditIp: 
       return reply.code(201).send({ data: result });
     }
   );
+  // ── Certificado de ingresos y retenciones (Contabilidad › Más procesos › Certificados) ──
+
+  /**
+   * GET /v1/payroll/certificates?year= — por empleado, lo pagado en el año según las liquidaciones aprobadas o pagadas
+   * que terminan en ese año: salarios (básico, extras, recargos y pagos salariales), auxilio de transporte, pagos no
+   * salariales, aportes obligatorios del trabajador (salud; pensión y Fondo de Solidaridad) y retención en la fuente.
+   */
+  app.get<{ Querystring: { year?: string } }>("/v1/payroll/certificates", can, async (request, reply) => {
+    const value = year(request.query.year ?? "");
+    if (!value) return reply.code(422).send({ error: "Indica el año." });
+    const result = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const items = await tx.payrollItem.findMany({
+        where: {
+          run: { status: { in: ["APPROVED", "PAID"] }, periodEnd: { gte: utc(value, 1, 1), lte: utc(value, 12, 31) } },
+        },
+        include: {
+          run: { select: { periodStart: true, periodEnd: true } },
+          employee: {
+            select: {
+              id: true,
+              identificationType: true,
+              identificationNumber: true,
+              firstName: true,
+              lastName: true,
+              position: true,
+            },
+          },
+        },
+      });
+      const organization = await tx.organization.findUniqueOrThrow({
+        where: { id: request.actor!.organizationId },
+        select: { legalName: true, nit: true, verificationDigit: true, address: true },
+      });
+      return { items, organization };
+    });
+    const byEmployee = new Map<string, ReturnType<typeof emptyCertificate>>();
+    function emptyCertificate(item: (typeof result.items)[number]) {
+      return {
+        employee: item.employee,
+        from: item.run.periodStart,
+        to: item.run.periodEnd,
+        runs: 0,
+        salaries: 0,
+        transport: 0,
+        nonSalary: 0,
+        health: 0,
+        pension: 0,
+        withholding: 0,
+      };
+    }
+    for (const item of result.items) {
+      const c = item.calculation as unknown as Calculation;
+      const row = byEmployee.get(item.employeeId) ?? emptyCertificate(item);
+      if (item.run.periodStart < row.from) row.from = item.run.periodStart;
+      if (item.run.periodEnd > row.to) row.to = item.run.periodEnd;
+      row.runs++;
+      row.salaries = m2(row.salaries + c.basicPay + c.overtimePay + c.salaryBonus);
+      row.transport = m2(row.transport + c.transport);
+      row.nonSalary = m2(row.nonSalary + c.nonSalaryBonus);
+      row.health = m2(row.health + c.healthEmployee);
+      row.pension = m2(row.pension + c.pensionEmployee + c.solidarity);
+      row.withholding = m2(row.withholding + c.withholding);
+      byEmployee.set(item.employeeId, row);
+    }
+    return {
+      data: [...byEmployee.values()]
+        .sort((a, b) => a.employee.lastName.localeCompare(b.employee.lastName))
+        .map(row => ({
+          ...row,
+          from: iso(row.from),
+          to: iso(row.to),
+          grossIncome: m2(row.salaries + row.transport + row.nonSalary),
+        })),
+      year: value,
+      organization: result.organization,
+    };
+  });
 }

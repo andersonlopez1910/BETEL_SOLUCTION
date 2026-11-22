@@ -113,3 +113,32 @@ test("validaciones y cuentas del sistema", () => {
   );
   assert.equal(manualEntrySchema.safeParse({ ...base, lines: [base.lines[0]] }).success, false);
 });
+
+test("cierre de año: utilidad y pérdida", async () => {
+  const { yearCloseLines } = await import("../src/ledger.js");
+  // Ingresos 1.000 (saldo crédito), gastos 300 y costos 200 (saldo débito) → utilidad 500.
+  const profit = yearCloseLines([
+    { code: "413595", balance: d("-1000") },
+    { code: "519595", balance: d("300") },
+    { code: "613505", balance: d("200") },
+    { code: "429595", balance: d("0") },
+  ]);
+  assert.equal(profit.result.toFixed(2), "500.00");
+  assert.deepEqual(
+    profit.lines.map(line => `${line.code}:${line.debit.toFixed(0)}/${line.credit.toFixed(0)}`),
+    ["413595:1000/0", "519595:0/300", "613505:0/200", "360505:0/500"]
+  );
+  const totals = profit.lines.reduce(
+    (sum, line) => [sum[0] + line.debit.toNumber(), sum[1] + line.credit.toNumber()],
+    [0, 0]
+  );
+  assert.equal(totals[0], totals[1]);
+  // Gastos mayores que los ingresos → pérdida en 361005 (débito).
+  const loss = yearCloseLines([
+    { code: "413595", balance: d("-100") },
+    { code: "510506", balance: d("400") },
+  ]);
+  assert.equal(loss.result.toFixed(2), "-300.00");
+  assert.equal(loss.lines.at(-1)!.code, "361005");
+  assert.equal(loss.lines.at(-1)!.debit.toFixed(2), "300.00");
+});

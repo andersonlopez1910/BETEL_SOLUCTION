@@ -842,6 +842,8 @@ const entryAmount = z.coerce
 /** Comprobante contable manual (CC-n): débitos = créditos, cada renglón con débito o crédito. */
 export const manualEntrySchema = z
   .object({
+    // MANUAL: comprobante contable (CC-n). OPENING: saldos iniciales de otras cuentas (SIC-n), solo clases 1, 2 y 3.
+    kind: z.enum(["MANUAL", "OPENING"]).default("MANUAL"),
     date: z.coerce.date(),
     description: z.string().trim().min(3, "Escribe la descripción.").max(300),
     lines: z
@@ -866,6 +868,36 @@ export const manualEntrySchema = z
   );
 
 export type ManualEntryInput = z.infer<typeof manualEntrySchema>;
+
+// ─── Contabilidad › Más procesos ──────────────────────────────────────────────
+
+/** Cierre de año: año ya terminado. */
+export const yearCloseSchema = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
+
+/** Comprobante favorito: renglones con cuenta y valores (pueden ir en 0 para completarlos al usarlo). */
+export const journalTemplateSchema = z.object({
+  name: z.string().trim().min(3, "Escribe el nombre del favorito.").max(80),
+  description: z.string().trim().min(3, "Escribe la descripción.").max(300),
+  lines: z
+    .array(
+      z
+        .object({
+          accountId: z.string().uuid("Elige la cuenta."),
+          debit: z.coerce.number().nonnegative().default(0),
+          credit: z.coerce.number().nonnegative().default(0),
+          memo: z.string().trim().max(200).optional(),
+        })
+        .refine(line => !(line.debit > 0 && line.credit > 0), "Un renglón no puede llevar débito y crédito.")
+    )
+    .min(2, "Un comprobante tiene al menos dos renglones.")
+    .max(200),
+});
+
+/** Borrado masivo: anular varios comprobantes manuales o de saldos iniciales. */
+export const bulkVoidEntriesSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1, "Selecciona al menos un comprobante.").max(500),
+  reason: z.string().trim().min(3, "Indica el motivo (mínimo 3 caracteres).").max(300),
+});
 
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 

@@ -27,8 +27,11 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
 import {
+  bulkVoidEntriesSchema,
   createAccountSchema,
   journalQuerySchema,
+  journalTemplateSchema,
+  yearCloseSchema,
   manualEntrySchema,
   trialBalanceQuerySchema,
   updateAccountSchema,
@@ -70,6 +73,8 @@ export const sourceLabels: Record<string, string> = {
   CostingRun: "Costeo mensual",
   PayrollRun: "Nómina",
   Manual: "Comprobante contable",
+  Opening: "Saldos iniciales",
+  YearClose: "Cierre de año",
 };
 
 // ─── Cálculos puros (probados en test/ledger.test.ts) ────────────────────────
@@ -171,6 +176,39 @@ export function trialBalanceRows(
 
 export const manualNumber = (number: number) => `CC-${number}`;
 
+/** Comprobantes que se anulan desde Contabilidad (los automáticos se anulan desde su documento). */
+export const VOIDABLE_SOURCES = ["Manual", "Opening"] as const;
+export const yearCloseReference = (year: number) => `CIERRE-${year}`;
+type TemplateLine = { accountId: string; debit: number; credit: number; memo?: string };
+
+/**
+ * Asiento de cierre de año: lleva a cero cada cuenta de resultado (clases 4 a 7; saldo = débitos − créditos) y la
+ * diferencia a 360505 Utilidad del ejercicio (crédito) o 361005 Pérdida del ejercicio (débito).
+ */
+export function yearCloseLines(balances: { code: string; balance: Prisma.Decimal }[]) {
+  const lines: { code: string; debit: Prisma.Decimal; credit: Prisma.Decimal; memo: string }[] = [];
+  let income = ZERO;
+  let expenses = ZERO;
+  for (const { code, balance } of balances) {
+    if (balance.isZero()) continue;
+    if (code.startsWith("4")) income = income.minus(balance);
+    else expenses = expenses.plus(balance);
+    lines.push(
+      balance.isPositive()
+        ? { code, debit: ZERO, credit: balance, memo: "Cierre de cuenta de resultado" }
+        : { code, debit: balance.negated(), credit: ZERO, memo: "Cierre de cuenta de resultado" }
+    );
+  }
+  const result = income.minus(expenses);
+  if (!result.isZero())
+    lines.push(
+      result.isPositive()
+        ? { code: "360505", debit: ZERO, credit: result, memo: "Utilidad del ejercicio" }
+        : { code: "361005", debit: result.negated(), credit: ZERO, memo: "Pérdida del ejercicio" }
+    );
+  return { lines, income, expenses, result };
+}
+
 // ─── Consultas ────────────────────────────────────────────────────────────────
 
 const httpError = (statusCode: number, message: string) => Object.assign(new Error(message), { statusCode });
@@ -199,13 +237,16 @@ async function loadChart(tx: Tx) {
   return buildChart(accounts, movements);
 }
 
-async function nextManualNumber(tx: Tx) {
-  const references = await tx.journalEntry.findMany({ where: { sourceType: "Manual" }, select: { reference: true } });
+/** Siguiente número de un tipo de comprobante manual (CC-n o SIC-n). */
+async function nextManualNumber(tx: Tx, sourceType: "Manual" | "Opening") {
+  const prefix = sourceType === "Manual" ? "CC" : "SIC";
+  const references = await tx.journalEntry.findMany({ where: { sourceType }, select: { reference: true } });
+  const pattern = new RegExp(`^${prefix}-(\\d+)$`);
   const max = references.reduce((top, entry) => {
-    const match = entry.reference.match(/^CC-(\d+)$/);
+    const match = entry.reference.match(pattern);
     return match ? Math.max(top, Number(match[1])) : top;
   }, 0);
-  return max + 1;
+  return `${prefix}-${max + 1}`;
 }
 
 // ─── Rutas ────────────────────────────────────────────────────────────────────
@@ -364,8 +405,8 @@ export function registerLedgerRoutes(app: FastifyInstance, options: { auditIp: (
     const where: Prisma.JournalEntryWhereInput = {
       status: { in: ["POSTED", "REVERSED"] },
       date: { gte: period.from, lte: period.to },
-      ...(source === "MANUAL" && { sourceType: "Manual" }),
-      ...(source === "AUTOMATIC" && { NOT: { sourceType: "Manual" } }),
+      ...(source === "MANUAL" && { sourceType: { in: [...VOIDABLE_SOURCES] } }),
+      ...(source === "AUTOMATIC" && { NOT: { sourceType: { in: [...VOIDABLE_SOURCES] } } }),
       ...(search && {
         OR: [
           { reference: { contains: search, mode: "insensitive" as const } },
@@ -433,6 +474,7 @@ export function registerLedgerRoutes(app: FastifyInstance, options: { auditIp: (
           )
           .map(line => ({
             id: line.id,
+            accountId: line.accountId,
             code: line.account.code,
             name: line.account.name,
             memo: line.memo,
@@ -463,6 +505,11 @@ export function registerLedgerRoutes(app: FastifyInstance, options: { auditIp: (
           const account = byId.get(line.accountId);
           if (!account) throw httpError(404, "Una de las cuentas no existe en esta organización.");
           if (!account.active) throw httpError(422, `La cuenta ${account.code} está inactiva.`);
+          if (body.kind === "OPENING" && !["1", "2", "3"].includes(account.code[0]!))
+            throw httpError(
+              422,
+              `Los saldos iniciales son de cuentas de balance (clases 1, 2 y 3): ${account.code} no lo es.`
+            );
           const children = await tx.account.count({
             where: { code: { startsWith: account.code }, NOT: { id: account.id } },
           });
@@ -476,16 +523,17 @@ export function registerLedgerRoutes(app: FastifyInstance, options: { auditIp: (
           memo: line.memo || null,
         }));
         assertBalanced(lines);
-        const number = await nextManualNumber(tx);
+        const sourceType = body.kind === "OPENING" ? "Opening" : "Manual";
+        const reference = await nextManualNumber(tx, sourceType);
         const entry = await tx.journalEntry.create({
           data: {
             organizationId: request.actor!.organizationId,
-            reference: manualNumber(number),
+            reference,
             date: body.date,
             description: body.description,
             status: "POSTED",
             postedAt: new Date(),
-            sourceType: "Manual",
+            sourceType,
             lines: { create: lines },
           },
         });
@@ -513,9 +561,245 @@ export function registerLedgerRoutes(app: FastifyInstance, options: { auditIp: (
     const voided = await withOrganizationScope(request.actor!.organizationId, async tx => {
       const entry = await tx.journalEntry.findFirst({ where: { id: request.params.id } });
       if (!entry) throw httpError(404, "Comprobante no encontrado.");
-      if (entry.sourceType !== "Manual")
+      if (!VOIDABLE_SOURCES.includes(entry.sourceType as (typeof VOIDABLE_SOURCES)[number]))
         throw httpError(409, "Solo se anulan comprobantes manuales; los automáticos se anulan desde su documento.");
       if (entry.status !== "POSTED") throw httpError(409, "El comprobante ya está anulado.");
+      await tx.journalEntry.update({
+        where: { id: entry.id },
+        data: { status: "REVERSED", description: `${entry.description} — ANULADO: ${parsed.data.reason}` },
+      });
+      await audit(tx, request, "JournalEntry", entry.id, "VOID", {
+        reference: entry.reference,
+        reason: parsed.data.reason,
+      });
+      return entry;
+    });
+    return { data: { id: voided.id, status: "REVERSED" } };
+  });
+
+  // ── Más procesos: comprobantes favoritos ──
+
+  /** GET /v1/accounting/templates — favoritos con las cuentas de sus renglones. */
+  app.get("/v1/accounting/templates", canEdit, async request => {
+    const data = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const templates = await tx.journalTemplate.findMany({ orderBy: { name: "asc" } });
+      const ids = [
+        ...new Set(templates.flatMap(template => (template.lines as TemplateLine[]).map(line => line.accountId))),
+      ];
+      const accounts = await tx.account.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, code: true, name: true, active: true },
+      });
+      const byId = new Map(accounts.map(account => [account.id, account]));
+      return templates.map(template => ({
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        createdAt: template.createdAt.toISOString(),
+        lines: (template.lines as TemplateLine[]).map(line => ({ ...line, account: byId.get(line.accountId) ?? null })),
+      }));
+    });
+    return { data };
+  });
+
+  /** POST /v1/accounting/templates — Body: journalTemplateSchema (desde el formulario o copiando un comprobante). */
+  app.post("/v1/accounting/templates", canEdit, async (request, reply) => {
+    const parsed = journalTemplateSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(422).send({ error: parsed.error.issues[0]?.message ?? "Favorito inválido" });
+    try {
+      const created = await withOrganizationScope(request.actor!.organizationId, async tx => {
+        const found = await tx.account.count({ where: { id: { in: parsed.data.lines.map(line => line.accountId) } } });
+        if (found !== new Set(parsed.data.lines.map(line => line.accountId)).size)
+          throw httpError(404, "Una de las cuentas no existe en esta organización.");
+        const template = await tx.journalTemplate.create({
+          data: {
+            organizationId: request.actor!.organizationId,
+            name: parsed.data.name,
+            description: parsed.data.description,
+            lines: parsed.data.lines as unknown as Prisma.InputJsonValue,
+            createdById: request.actor!.sub,
+          },
+        });
+        await audit(tx, request, "JournalTemplate", template.id, "CREATE", {
+          name: template.name,
+          lines: parsed.data.lines.length,
+        });
+        return template;
+      });
+      return reply.code(201).send({ data: { id: created.id } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+        return reply.code(409).send({ error: "Ya existe un favorito con ese nombre." });
+      throw error;
+    }
+  });
+
+  /** DELETE /v1/accounting/templates/:id */
+  app.delete<{ Params: { id: string } }>("/v1/accounting/templates/:id", canEdit, async (request, reply) => {
+    if (!validId(request.params.id)) return reply.code(404).send({ error: "Favorito no encontrado." });
+    const count = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const result = await tx.journalTemplate.deleteMany({ where: { id: request.params.id } });
+      if (result.count) await audit(tx, request, "JournalTemplate", request.params.id, "DELETE", {});
+      return result.count;
+    });
+    if (!count) return reply.code(404).send({ error: "Favorito no encontrado." });
+    return { data: { id: request.params.id } };
+  });
+
+  // ── Más procesos: borrado masivo (anulación) ──
+
+  /** POST /v1/accounting/journal/bulk-void — Body: { ids, reason }. Solo manuales y de saldos iniciales vigentes. */
+  app.post("/v1/accounting/journal/bulk-void", canEdit, async (request, reply) => {
+    const parsed = bulkVoidEntriesSchema.safeParse(request.body);
+    if (!parsed.success)
+      return reply.code(422).send({ error: parsed.error.issues[0]?.message ?? "Selección inválida" });
+    const result = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const entries = await tx.journalEntry.findMany({
+        where: { id: { in: parsed.data.ids }, status: "POSTED", sourceType: { in: [...VOIDABLE_SOURCES] } },
+      });
+      for (const entry of entries)
+        await tx.journalEntry.update({
+          where: { id: entry.id },
+          data: { status: "REVERSED", description: `${entry.description} — ANULADO: ${parsed.data.reason}` },
+        });
+      await audit(tx, request, "JournalEntry", "bulk", "VOID", {
+        references: entries.map(entry => entry.reference),
+        reason: parsed.data.reason,
+      });
+      return { voided: entries.length, skipped: parsed.data.ids.length - entries.length };
+    });
+    return { data: result };
+  });
+
+  // ── Más procesos: cierre de año ──
+
+  /** Saldos del año de las cuentas de resultado (clases 4 a 7), sin contar un cierre anterior del mismo año. */
+  const resultBalances = async (tx: Tx, year: number, includeClose = false) => {
+    const accounts = await tx.account.findMany({
+      where: { OR: ["4", "5", "6", "7"].map(digit => ({ code: { startsWith: digit } })) },
+      select: { id: true, code: true, name: true },
+    });
+    const sums = await tx.journalLine.groupBy({
+      by: ["accountId"],
+      where: {
+        accountId: { in: accounts.map(account => account.id) },
+        journalEntry: {
+          status: "POSTED",
+          date: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) },
+          ...(!includeClose && { NOT: { sourceType: "YearClose" } }),
+        },
+      },
+      _sum: { debit: true, credit: true },
+    });
+    const byId = new Map(accounts.map(account => [account.id, account]));
+    return sums.map(row => ({
+      ...byId.get(row.accountId)!,
+      balance: (row._sum.debit ?? ZERO).minus(row._sum.credit ?? ZERO),
+    }));
+  };
+
+  /** GET /v1/accounting/year-close?year= — vista previa y estado del cierre. */
+  app.get<{ Querystring: { year?: string } }>("/v1/accounting/year-close", canEdit, async (request, reply) => {
+    const parsed = yearCloseSchema.safeParse(request.query);
+    if (!parsed.success) return reply.code(422).send({ error: "Año inválido." });
+    const { year } = parsed.data;
+    const data = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const balances = await resultBalances(tx, year);
+      const close = yearCloseLines(balances.map(row => ({ code: row.code, balance: row.balance })));
+      const existing = await tx.journalEntry.findFirst({ where: { reference: yearCloseReference(year) } });
+      // Cierre desactualizado: después de cerrar se registraron movimientos de resultado en el año.
+      const remaining = existing?.status === "POSTED" ? await resultBalances(tx, year, true) : [];
+      const outdated = remaining.some(row => !row.balance.isZero());
+      return {
+        year,
+        finished: year < todayIn("America/Bogota").getUTCFullYear(),
+        accounts: balances
+          .filter(row => !row.balance.isZero())
+          .sort((a, b) => a.code.localeCompare(b.code))
+          .map(row => ({ code: row.code, name: row.name, balance: row.balance.toFixed(2) })),
+        income: close.income.toFixed(2),
+        expenses: close.expenses.toFixed(2),
+        result: close.result.toFixed(2),
+        closing: existing
+          ? { id: existing.id, status: existing.status, postedAt: existing.postedAt?.toISOString() ?? null, outdated }
+          : null,
+      };
+    });
+    return { data };
+  });
+
+  /** POST /v1/accounting/year-close — Body: { year }. Asiento CIERRE-AAAA al 31 de diciembre. */
+  app.post("/v1/accounting/year-close", canEdit, async (request, reply) => {
+    const parsed = yearCloseSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(422).send({ error: "Año inválido." });
+    const { year } = parsed.data;
+    if (year >= todayIn("America/Bogota").getUTCFullYear())
+      return reply.code(422).send({ error: "Solo se cierra un año ya terminado." });
+    const created = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`year-close:${request.actor!.organizationId}`}))`;
+      const existing = await tx.journalEntry.findFirst({ where: { reference: yearCloseReference(year) } });
+      if (existing?.status === "POSTED")
+        throw httpError(409, `${year} ya está cerrado. Anula el cierre para repetirlo.`);
+      const balances = await resultBalances(tx, year);
+      const close = yearCloseLines(balances.map(row => ({ code: row.code, balance: row.balance })));
+      if (!close.lines.length) throw httpError(422, `No hay saldos de ingresos, gastos ni costos en ${year}.`);
+      const result = await Promise.all(
+        [
+          ["360505", "Utilidad del ejercicio"],
+          ["361005", "Pérdida del ejercicio"],
+        ].map(([code, name]) =>
+          tx.account.upsert({
+            where: { organizationId_code: { organizationId: request.actor!.organizationId, code: code! } },
+            update: {},
+            create: { organizationId: request.actor!.organizationId, code: code!, name: name!, accountType: "EQUITY" },
+          })
+        )
+      );
+      const codeToId = new Map([
+        ...balances.map(row => [row.code, row.id] as const),
+        ["360505", result[0]!.id],
+        ["361005", result[1]!.id],
+      ]);
+      const lines = close.lines.map(line => ({
+        accountId: codeToId.get(line.code)!,
+        debit: line.debit.toNumber(),
+        credit: line.credit.toNumber(),
+        memo: line.memo,
+      }));
+      assertBalanced(lines);
+      const data = {
+        organizationId: request.actor!.organizationId,
+        reference: yearCloseReference(year),
+        date: new Date(Date.UTC(year, 11, 31)),
+        description: `Cierre del año ${year}: ${close.result.isNegative() ? "pérdida" : "utilidad"} del ejercicio`,
+        status: "POSTED" as const,
+        postedAt: new Date(),
+        sourceType: "YearClose",
+      };
+      // Un cierre anulado se reemplaza (la referencia es única por organización).
+      if (existing) await tx.journalEntry.delete({ where: { id: existing.id } });
+      const entry = await tx.journalEntry.create({ data: { ...data, lines: { create: lines } } });
+      await audit(tx, request, "JournalEntry", entry.id, "YEAR_CLOSE", {
+        year,
+        result: close.result.toFixed(2),
+        lines: lines.length,
+      });
+      return { id: entry.id, result: close.result.toFixed(2) };
+    });
+    return reply.code(201).send({ data: created });
+  });
+
+  /** POST /v1/accounting/year-close/:year/void — Body: { reason }. */
+  app.post<{ Params: { year: string } }>("/v1/accounting/year-close/:year/void", canEdit, async (request, reply) => {
+    const parsedYear = yearCloseSchema.safeParse({ year: request.params.year });
+    const parsed = voidCashReceiptSchema.safeParse(request.body);
+    if (!parsedYear.success || !parsed.success)
+      return reply.code(422).send({ error: "Indica el motivo de la anulación (mínimo 3 caracteres)." });
+    const voided = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const entry = await tx.journalEntry.findFirst({
+        where: { reference: yearCloseReference(parsedYear.data.year), status: "POSTED" },
+      });
+      if (!entry) throw httpError(404, "Ese año no tiene un cierre vigente.");
       await tx.journalEntry.update({
         where: { id: entry.id },
         data: { status: "REVERSED", description: `${entry.description} — ANULADO: ${parsed.data.reason}` },

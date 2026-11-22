@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Contabilidad › Más procesos** con los 6 grupos de la referencia: **cierre de año** (asiento CIERRE-AAAA contra
+  utilidad o pérdida del ejercicio, vista previa, anulación y aviso de cierre desactualizado), **comprobantes
+  favoritos** (guardar cualquier comprobante y usarlo como plantilla), **borrado masivo** (anulación de comprobantes
+  manuales), **saldos iniciales** de inventario y de otras cuentas (SIC-n) y **certificado de ingresos y retenciones**
+  (formato 220) desde la nómina. Los demás procesos muestran el motivo por el que aún no están disponibles.
 - **Contabilidad** (nuevo menú lateral): **Cuentas contables** con el árbol del PUC (clase, grupo, cuenta, subcuenta,
   auxiliar), búsqueda por código y nombre, expandir todo, descarga en Excel y panel para ver saldos y crear, editar o
   eliminar cuentas; **Más procesos** con balance de prueba por nivel, libro diario, comprobante contable manual

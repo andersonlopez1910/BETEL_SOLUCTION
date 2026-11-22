@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { apiDelete, apiPost, apiPut } from "../lib/api";
 import { exportReport, type ReportColumn } from "../lib/report-export";
 import { money, ReportStatus, useReport, useSession } from "./billing-report-common";
+import { ProcessGroups } from "./ledger-processes";
 
 const tabs = [
   ["cuentas", "Cuentas contables"],
@@ -484,42 +485,6 @@ function AccountDetail({
   );
 }
 
-const processes: { href: string; title: string; text: string }[] = [
-  {
-    href: "/contabilidad/balance-de-prueba",
-    title: "Balance de prueba",
-    text: "Saldo inicial, débitos, créditos y saldo final por clase, grupo, cuenta, subcuenta o auxiliar.",
-  },
-  {
-    href: "/contabilidad/libro-diario",
-    title: "Libro diario",
-    text: "Todos los comprobantes contables del período, automáticos y manuales, con su detalle.",
-  },
-  {
-    href: "/contabilidad/comprobante/nuevo",
-    title: "Comprobante contable",
-    text: "Registra un comprobante manual (ajustes, causaciones, reclasificaciones) que cuadre débitos y créditos.",
-  },
-  { href: "/bancos", title: "Cajas y bancos", text: "Saldo y movimientos de cada caja y cuenta bancaria." },
-  {
-    href: "/productos?tab=costeo",
-    title: "Costeo mensual",
-    text: "Costo promedio y costo de ventas contabilizado de cada mes.",
-  },
-  { href: "/nomina", title: "Nómina", text: "Causación y pago de la nómina." },
-];
-
 function MoreProcesses() {
-  return (
-    <section className="panel">
-      <div className="accounting-processes">
-        {processes.map(process => (
-          <Link key={process.href} href={process.href} className="accounting-process">
-            <b>{process.title}</b>
-            <span>{process.text}</span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
+  return <ProcessGroups />;
 }
