@@ -12,8 +12,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es">
-      <body>{children}</body>
+    // suppressHydrationWarning: extensiones del navegador (p. ej. LanguageTool, Grammarly) inyectan
+    // atributos en <html>/<body> antes de que React hidrate. Solo afecta a estos elementos, no a sus hijos.
+    <html lang="es" suppressHydrationWarning>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }
