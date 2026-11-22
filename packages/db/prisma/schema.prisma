@@ -281,6 +281,10 @@ model Organization {
   purchaseImports       PurchaseImport[]
   inventoryDocuments    InventoryDocument[]
   costingRuns           CostingRun[]
+  payrollSettings       PayrollSettings[]
+  employees             Employee[]
+  payrollRuns           PayrollRun[]
+  payrollElectronic     PayrollElectronic[]
   receivedInvoiceEvents ReceivedInvoiceEvent[]
 }
 
@@ -311,6 +315,7 @@ model User {
   purchaseImports            PurchaseImport[]       @relation("PurchaseImportCreator")
   inventoryDocuments         InventoryDocument[]    @relation("InventoryDocumentCreator")
   costingRuns                CostingRun[]           @relation("CostingRunExecutor")
+  payrollRuns                PayrollRun[]           @relation("PayrollRunCreator")
   receivedInvoiceEvents      ReceivedInvoiceEvent[] @relation("ReceivedInvoiceEventCreator")
 }
 
@@ -1204,4 +1209,169 @@ model CostingLine {
   product        Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
+}
+
+// ─── Nómina ───────────────────────────────────────────────────────────────────
+
+enum ContractType {
+  INDEFINITE /// Término indefinido
+  FIXED /// Término fijo
+  WORK /// Obra o labor
+}
+
+enum SalaryType {
+  ORDINARY /// Salario ordinario
+  INTEGRAL /// Salario integral (al menos 13 SMMLV; IBC 70 %, sin prima ni cesantías)
+}
+
+enum PayFrequency {
+  BIWEEKLY /// Quincenal
+  MONTHLY /// Mensual
+}
+
+enum PayrollStatus {
+  DRAFT /// En borrador: se editan novedades
+  APPROVED /// Aprobada y contabilizada (causación)
+  PAID /// Pagada (egreso de caja o bancos)
+  VOID /// Anulada
+}
+
+/// Parámetros legales de nómina por año. Deben confirmarse antes de liquidar ese año (los decreta el Gobierno).
+model PayrollSettings {
+  id                  String       @id @default(uuid())
+  organizationId      String
+  year                Int
+  minimumWage         Decimal      @db.Decimal(18, 2) /// SMMLV
+  transportAllowance  Decimal      @db.Decimal(18, 2) /// Auxilio de transporte mensual
+  monthlyHours        Int /// Horas mensuales para el valor de la hora (según la jornada máxima legal)
+  overtimeDayPct      Decimal      @db.Decimal(6, 2) /// Hora extra diurna (recargo %)
+  overtimeNightPct    Decimal      @db.Decimal(6, 2) /// Hora extra nocturna (recargo %)
+  nightSurchargePct   Decimal      @db.Decimal(6, 2) /// Recargo nocturno %
+  holidaySurchargePct Decimal      @db.Decimal(6, 2) /// Recargo dominical y festivo %
+  healthEmployeePct   Decimal      @db.Decimal(6, 2)
+  pensionEmployeePct  Decimal      @db.Decimal(6, 2)
+  healthEmployerPct   Decimal      @db.Decimal(6, 2)
+  pensionEmployerPct  Decimal      @db.Decimal(6, 2)
+  compensationFundPct Decimal      @db.Decimal(6, 2) /// Caja de compensación familiar
+  icbfPct             Decimal      @db.Decimal(6, 2)
+  senaPct             Decimal      @db.Decimal(6, 2)
+  exempt              Boolean      @default(true) /// Exonerado de salud, ICBF y SENA (art. 114-1 E.T.) para quien gana menos de 10 SMMLV
+  confirmed           Boolean      @default(false)
+  confirmedAt         DateTime?
+  confirmedById       String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, year])
+}
+
+/// Empleado de la organización (nómina).
+model Employee {
+  id                   String              @id @default(uuid())
+  organizationId       String
+  identificationType   String
+  identificationNumber String
+  firstName            String
+  lastName             String
+  email                String?
+  phone                String?
+  position             String /// Cargo
+  startDate            DateTime            @db.Date
+  endDate              DateTime?           @db.Date /// Fecha de retiro
+  contractType         ContractType
+  salaryType           SalaryType          @default(ORDINARY)
+  salary               Decimal             @db.Decimal(18, 2) /// Salario mensual
+  frequency            PayFrequency        @default(MONTHLY)
+  riskClass            Int                 @default(1) /// Clase de riesgo ARL (1 a 5)
+  healthFund           String /// EPS
+  pensionFund          String
+  severanceFund        String?
+  bankName             String?
+  bankAccount          String?
+  active               Boolean             @default(true)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payrollItems         PayrollItem[]
+  electronic           PayrollElectronic[]
+
+  @@unique([organizationId, identificationType, identificationNumber])
+}
+
+/// Liquidación de nómina de un período (NOM-n): un renglón por empleado.
+model PayrollRun {
+  id              String            @id @default(uuid())
+  organizationId  String
+  number          Int
+  frequency       PayFrequency
+  periodStart     DateTime          @db.Date
+  periodEnd       DateTime          @db.Date
+  status          PayrollStatus     @default(DRAFT)
+  totalEarnings   Decimal           @default(0) @db.Decimal(18, 2) /// Devengado
+  totalDeductions Decimal           @default(0) @db.Decimal(18, 2) /// Deducciones del empleado
+  netPay          Decimal           @default(0) @db.Decimal(18, 2) /// Neto a pagar
+  employerCost    Decimal           @default(0) @db.Decimal(18, 2) /// Aportes del empleador + provisiones
+  approvedAt      DateTime?
+  paidAt          DateTime?         @db.Date
+  paymentMethod   CollectionMethod?
+  voidReason      String?
+  createdById     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy       User?             @relation("PayrollRunCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items           PayrollItem[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, periodEnd])
+}
+
+/// Renglón de un empleado en una liquidación: novedades digitadas y resultado del cálculo.
+model PayrollItem {
+  id              String     @id @default(uuid())
+  runId           String
+  employeeId      String
+  days            Int /// Días laborados (mes comercial de 30)
+  overtimeDay     Decimal    @default(0) @db.Decimal(8, 2) /// Horas extra diurnas
+  overtimeNight   Decimal    @default(0) @db.Decimal(8, 2) /// Horas extra nocturnas
+  nightHours      Decimal    @default(0) @db.Decimal(8, 2) /// Horas con recargo nocturno
+  holidayHours    Decimal    @default(0) @db.Decimal(8, 2) /// Horas con recargo dominical o festivo
+  salaryBonus     Decimal    @default(0) @db.Decimal(18, 2) /// Otros devengos salariales (comisiones, bonificaciones salariales)
+  nonSalaryBonus  Decimal    @default(0) @db.Decimal(18, 2) /// Bonificaciones no salariales
+  withholding     Decimal    @default(0) @db.Decimal(18, 2) /// Retención en la fuente (digitada)
+  otherDeductions Decimal    @default(0) @db.Decimal(18, 2) /// Préstamos, libranzas y otros descuentos
+  notes           String?
+  earnings        Decimal    @default(0) @db.Decimal(18, 2)
+  deductions      Decimal    @default(0) @db.Decimal(18, 2)
+  netPay          Decimal    @default(0) @db.Decimal(18, 2)
+  employerCost    Decimal    @default(0) @db.Decimal(18, 2)
+  calculation     Json /// Detalle: básico, auxilio, extras, IBC, salud, pensión, FSP, aportes, provisiones
+  run             PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee        Employee   @relation(fields: [employeeId], references: [id])
+
+  @@unique([runId, employeeId])
+}
+
+/// Documento soporte de pago de nómina electrónica (mensual por empleado) enviado al proveedor DIAN.
+model PayrollElectronic {
+  id               String       @id @default(uuid())
+  organizationId   String
+  employeeId       String
+  year             Int
+  month            Int
+  number           Int /// Consecutivo NE-n por organización
+  earnings         Decimal      @db.Decimal(18, 2)
+  deductions       Decimal      @db.Decimal(18, 2)
+  netPay           Decimal      @db.Decimal(18, 2)
+  runCount         Int
+  dianStatus       String /// QUEUED, SENT, ACCEPTED o REJECTED
+  providerResponse Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee         Employee     @relation(fields: [employeeId], references: [id])
+
+  @@unique([organizationId, employeeId, year, month])
+  @@unique([organizationId, number])
 }

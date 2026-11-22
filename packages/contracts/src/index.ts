@@ -697,6 +697,103 @@ export const bankMovementsQuerySchema = z
 
 export type BankMovementsQuery = z.infer<typeof bankMovementsQuerySchema>;
 
+// ─── Nómina ───────────────────────────────────────────────────────────────────
+
+const percent = z.coerce.number().min(0, "No puede ser negativo.").max(100, "Máximo 100 %.");
+const nonNegativeMoney = z.coerce
+  .number()
+  .nonnegative("No puede ser negativo.")
+  .refine(value => Math.round(value * 100) === value * 100, "Máximo dos decimales.");
+
+/** Parámetros legales de un año (Nómina › Parámetros). */
+export const payrollSettingsSchema = z.object({
+  minimumWage: nonNegativeMoney.refine(value => value > 0, "Indica el salario mínimo."),
+  transportAllowance: nonNegativeMoney,
+  monthlyHours: z.coerce.number().int().min(100).max(260),
+  overtimeDayPct: percent,
+  overtimeNightPct: percent,
+  nightSurchargePct: percent,
+  holidaySurchargePct: percent,
+  healthEmployeePct: percent,
+  pensionEmployeePct: percent,
+  healthEmployerPct: percent,
+  pensionEmployerPct: percent,
+  compensationFundPct: percent,
+  icbfPct: percent,
+  senaPct: percent,
+  exempt: z.boolean(),
+  confirmed: z.boolean(),
+});
+
+/** Empleado (crear o editar). */
+export const employeeSchema = z
+  .object({
+    identificationType: z.enum(["CC", "CE", "PA", "PPT", "TI"]),
+    identificationNumber: z
+      .string()
+      .trim()
+      .regex(/^[0-9A-Za-z]{4,20}$/, "Identificación inválida."),
+    firstName: z.string().trim().min(2, "Escribe los nombres.").max(80),
+    lastName: z.string().trim().min(2, "Escribe los apellidos.").max(80),
+    email: z
+      .string()
+      .trim()
+      .email("Correo inválido.")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    phone: optionalText,
+    position: z.string().trim().min(2, "Escribe el cargo.").max(80),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date().optional(),
+    contractType: z.enum(["INDEFINITE", "FIXED", "WORK"]),
+    salaryType: z.enum(["ORDINARY", "INTEGRAL"]).default("ORDINARY"),
+    salary: nonNegativeMoney.refine(value => value > 0, "Indica el salario."),
+    frequency: z.enum(["BIWEEKLY", "MONTHLY"]).default("MONTHLY"),
+    riskClass: z.coerce.number().int().min(1).max(5).default(1),
+    healthFund: z.string().trim().min(2, "Indica la EPS.").max(80),
+    pensionFund: z.string().trim().min(2, "Indica el fondo de pensiones.").max(80),
+    severanceFund: optionalText,
+    bankName: optionalText,
+    bankAccount: optionalText,
+  })
+  .refine(value => !value.endDate || value.endDate >= value.startDate, {
+    message: "La fecha de retiro no puede ser anterior al ingreso.",
+    path: ["endDate"],
+  });
+
+/** Nueva liquidación: frecuencia y período (quincena 1–15 / 16–fin de mes, o mes completo). */
+export const createPayrollRunSchema = z.object({
+  frequency: z.enum(["BIWEEKLY", "MONTHLY"]),
+  year: z.coerce.number().int().min(2000).max(2100),
+  month: z.coerce.number().int().min(1).max(12),
+  half: z.coerce.number().int().min(1).max(2).optional(), // Quincena 1 o 2 (solo quincenal)
+});
+
+const hours = z.coerce.number().min(0).max(300);
+/** Novedades de un empleado en una liquidación en borrador. */
+export const payrollItemSchema = z.object({
+  days: z.coerce.number().int().min(0).max(30),
+  overtimeDay: hours.default(0),
+  overtimeNight: hours.default(0),
+  nightHours: hours.default(0),
+  holidayHours: hours.default(0),
+  salaryBonus: nonNegativeMoney.default(0),
+  nonSalaryBonus: nonNegativeMoney.default(0),
+  withholding: nonNegativeMoney.default(0),
+  otherDeductions: nonNegativeMoney.default(0),
+  notes: z.string().trim().max(300).optional(),
+});
+
+/** Pagar una liquidación aprobada. */
+export const payPayrollSchema = z.object({
+  date: z.coerce.date(),
+  method: z.enum(["CASH", "BANK_TRANSFER", "CHECK", "OTHER"]),
+});
+
+export type PayrollSettingsInput = z.infer<typeof payrollSettingsSchema>;
+export type EmployeeInput = z.infer<typeof employeeSchema>;
+export type PayrollItemInput = z.infer<typeof payrollItemSchema>;
+
 // ─── Seguimiento comercial ────────────────────────────────────────────────────
 
 export const commitmentTypes = ["CALL", "MEETING", "VISIT", "EMAIL", "SEND_QUOTE", "FOLLOW_UP", "OTHER"] as const;

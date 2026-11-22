@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Nómina** (nuevo menú lateral, solo propietario, administrador y contador): parámetros legales por año que se
+  confirman antes de liquidar, empleados (contrato, salario ordinario o integral, frecuencia, ARL, EPS, pensión),
+  liquidación mensual o quincenal con novedades (horas extra, recargos, bonificaciones, retención, descuentos), cálculo
+  de IBC, salud, pensión, Fondo de Solidaridad, aportes del empleador y provisiones, aprobación con asiento contable,
+  pago (Cajas y bancos), anulación, desprendibles imprimibles y nómina electrónica mensual por el puerto DIAN (en
+  pruebas, en cola). Ver `docs/nomina.md`.
 - **Cajas y bancos** (nuevo menú lateral): saldo de cada caja (1105) y cuenta bancaria (1110) según la contabilidad,
   con fecha de corte, total general, columnas configurables y descarga; y el **auxiliar** de cada cuenta con saldo
   anterior, entradas, salidas, saldo acumulado y enlace al documento que originó cada movimiento.

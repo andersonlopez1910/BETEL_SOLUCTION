@@ -27,6 +27,8 @@ export interface DianProvider {
     cufe: string;
     code: string;
   }): Promise<DianSubmission>;
+  /** Documento soporte de pago de nómina electrónica (mensual por empleado). */
+  submitPayroll(input: { documentId: string; organizationId: string; number: string }): Promise<DianSubmission>;
 }
 
 /**
@@ -62,6 +64,20 @@ class SandboxDianProvider implements DianProvider {
         code: input.code,
         queuedAt: new Date().toISOString(),
         message: "Evento registrado en pruebas: no se transmite a la DIAN sin proveedor tecnológico.",
+      },
+    };
+  }
+
+  async submitPayroll(input: { documentId: string; organizationId: string; number: string }): Promise<DianSubmission> {
+    return {
+      accepted: false,
+      status: "QUEUED",
+      providerResponse: {
+        mode: "sandbox",
+        documentId: input.documentId,
+        number: input.number,
+        queuedAt: new Date().toISOString(),
+        message: "Nómina electrónica en pruebas: no se transmite a la DIAN sin proveedor tecnológico.",
       },
     };
   }
