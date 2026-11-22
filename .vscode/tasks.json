@@ -1,0 +1,104 @@
+{
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Tareas de VS Code para Betel Solution.
+  //
+  // Cómo usarlas:
+  //   - Al ABRIR la carpeta, "Betel: iniciar todo" arranca solo (base de datos + web + API).
+  //     La primera vez VS Code pregunta si permite tareas automáticas: responder "Permitir".
+  //   - Ctrl+Shift+B ............ iniciar todo (tarea de compilación por defecto)
+  //   - Ctrl+Shift+P → "Tasks: Run Task" → elegir cualquier tarea "Betel: ..."
+  //   - Ctrl+Shift+P → "Tasks: Run Test Task" → verificar tipos + pruebas
+  //
+  // Web: http://localhost:3000 · API: http://localhost:4000/health
+  // ─────────────────────────────────────────────────────────────────────────────
+  "version": "2.0.0",
+  "options": {
+    // Evita que corepack pregunte si descarga pnpm (bloquearía la tarea).
+    "env": { "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0" }
+  },
+  "tasks": [
+    {
+      "label": "Betel: iniciar todo",
+      "detail": "Base de datos (Docker) y luego web + API en modo desarrollo.",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Betel: base de datos", "Betel: web + API"],
+      "group": { "kind": "build", "isDefault": true },
+      "runOptions": { "runOn": "folderOpen" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Betel: base de datos",
+      "detail": "Inicia Docker Desktop si hace falta y levanta PostgreSQL (puerto 5433).",
+      "type": "shell",
+      // En Windows un script abre Docker Desktop y espera a que el motor responda.
+      "windows": {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/iniciar-base-datos.ps1"
+      },
+      "command": "docker compose up -d --wait postgres",
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Betel: web + API",
+      "detail": "corepack pnpm dev → Next.js (3000) y Fastify (4000) con recarga automática.",
+      "type": "shell",
+      "command": "corepack pnpm dev",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Betel: abrir en el navegador",
+      "detail": "Abre http://localhost:3000",
+      "type": "shell",
+      "windows": { "command": "start http://localhost:3000" },
+      "osx": { "command": "open http://localhost:3000" },
+      "linux": { "command": "xdg-open http://localhost:3000" },
+      "presentation": { "reveal": "never" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Betel: verificar (tipos + pruebas)",
+      "detail": "Lo mismo que revisa el CI antes de aprobar un Pull Request.",
+      "type": "shell",
+      "command": "corepack pnpm typecheck; corepack pnpm test",
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Betel: formatear todo el código",
+      "type": "shell",
+      "command": "corepack pnpm format",
+      "problemMatcher": []
+    },
+    {
+      "label": "Betel: instalar dependencias",
+      "detail": "Ejecutar después de un git pull que cambie package.json o el esquema Prisma.",
+      "type": "shell",
+      "command": "corepack pnpm install; corepack pnpm db:generate",
+      "problemMatcher": []
+    },
+    {
+      "label": "Betel: actualizar base de datos (esquema + RLS)",
+      "detail": "Aplica schema.prisma a la base local y vuelve a aplicar la seguridad RLS.",
+      "type": "shell",
+      "command": "corepack pnpm db:push; corepack pnpm db:rls",
+      "problemMatcher": []
+    },
+    {
+      "label": "Betel: ver datos (Prisma Studio)",
+      "detail": "Explorador visual de la base de datos en http://localhost:5555",
+      "type": "shell",
+      "command": "corepack pnpm --filter @betel/db exec prisma studio",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Betel: detener base de datos",
+      "type": "shell",
+      "command": "docker compose stop postgres",
+      "problemMatcher": []
+    }
+  ]
+}

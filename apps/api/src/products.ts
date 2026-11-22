@@ -1,0 +1,560 @@
+/**
+ * Productos y servicios › Gestión de productos / servicios.
+ *
+ * Rutas:
+ *   GET    /v1/products ........................ catálogo activo (máx. 100; ?search=, ?kind=) para los formularios
+ *   POST   /v1/products ........................ crear producto o servicio (código vacío = siguiente C-n)
+ *   PUT    /v1/products/:id .................... editar
+ *   POST   /v1/products/:id/active ............. activar o inactivar
+ *   POST   /v1/products/bulk-active ............ activar o inactivar los seleccionados
+ *   DELETE /v1/products/:id .................... eliminar (solo si ningún documento lo usa)
+ *   POST   /v1/products/import ................. importar filas leídas de Excel o CSV
+ *   GET    /v1/reports/products ................ lista paginada con stock
+ *   GET    /v1/reports/products/export ......... todas las filas filtradas (descarga Excel)
+ *   GET    /v1/reports/products/top ............ Ver reportes › Productos más vendidos
+ *
+ * DEFINICIONES (también en docs/productos-y-servicios.md):
+ *   - Stock (solo productos) = entradas − salidas, calculado de los documentos:
+ *       entradas: cantidades de las COMPRAS vigentes (CG-n tipo compra) con el producto y las entradas de
+ *         saldo inicial y ajustes de inventario vigentes (inventory.ts);
+ *       salidas: cantidades de las facturas de venta emitidas, aceptadas o vencidas con el producto y las salidas
+ *         de los ajustes de inventario vigentes.
+ *     Puede ser negativo si se vendió más de lo que se ha registrado como comprado (igual que la referencia).
+ *     Las remisiones no descuentan hasta facturarse.
+ *   - Los servicios no manejan stock.
+ *   - Un producto inactivo no se ofrece al crear documentos nuevos; su historial se conserva.
+ */
+import type { FastifyInstance } from "fastify";
+import { Prisma, withOrganizationScope } from "@betel/db";
+import {
+  bulkProductActiveSchema,
+  importProductsSchema,
+  productQuerySchema,
+  productSchema,
+  toggleCustomerSchema,
+  topProductsQuerySchema,
+  type ProductQuery,
+} from "@betel/contracts";
+import { allowRoles, requireActor, type MembershipRole } from "./auth.js";
+import { BILLED_STATUSES, EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod } from "./reports.js";
+
+type Tx = Prisma.TransactionClient;
+const ZERO = new Prisma.Decimal(0);
+
+/** Crean, editan, activan e importan productos (los vendedores también, como hasta ahora). */
+export const PRODUCT_ROLES: MembershipRole[] = ["OWNER", "ADMIN", "ACCOUNTANT", "SALES"];
+/** Eliminar es irreversible: solo administración y contabilidad. */
+const DELETE_ROLES: MembershipRole[] = ["OWNER", "ADMIN", "ACCOUNTANT"];
+
+// ─── Cálculos puros (probados en test/products.test.ts) ──────────────────────
+
+/** Siguiente código automático C-n a partir de los códigos existentes. */
+export function nextProductCode(codes: (string | null)[]) {
+  const max = codes.reduce((top, code) => {
+    const match = code?.match(/^C-(\d+)$/i);
+    return match ? Math.max(top, Number(match[1])) : top;
+  }, 0);
+  return `C-${max + 1}`;
+}
+
+/** Estado del stock para el indicador y el filtro. */
+export const stockState = (stock: Prisma.Decimal) =>
+  stock.isNegative() ? "NEGATIVE" : stock.isZero() ? "ZERO" : "POSITIVE";
+
+const KIND_WORDS: Record<string, "PRODUCT" | "SERVICE"> = {
+  producto: "PRODUCT",
+  product: "PRODUCT",
+  servicio: "SERVICE",
+  service: "SERVICE",
+};
+const UNIT_WORDS: Record<string, string> = {
+  unidad: "UND",
+  und: "UND",
+  un: "UND",
+  servicio: "SERV",
+  serv: "SERV",
+  kilogramo: "KG",
+  kg: "KG",
+  metro: "M",
+  m: "M",
+  litro: "L",
+  l: "L",
+  caja: "CAJA",
+  hora: "HORA",
+  galon: "GAL",
+  galón: "GAL",
+  paquete: "PAQ",
+  m2: "M2",
+  m3: "M3",
+};
+const pick = (row: Record<string, unknown>, ...keys: string[]) => {
+  for (const key of Object.keys(row)) {
+    const normalized = key.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+    if (keys.includes(normalized)) {
+      const value = row[key];
+      return value === null || value === undefined ? "" : String(value).trim();
+    }
+  }
+  return "";
+};
+const number = (value: string) => {
+  // Acepta 1.234,56 · 1,234.56 · 1234.56 · $ 5.500
+  const clean = value.replace(/[^\d.,-]/g, "");
+  if (!clean) return NaN;
+  const lastComma = clean.lastIndexOf(",");
+  const lastDot = clean.lastIndexOf(".");
+  const decimal = lastComma > lastDot ? "," : ".";
+  const thousands = decimal === "," ? "." : ",";
+  const decimals = clean.length - Math.max(lastComma, lastDot) - 1;
+  // "5.500" (punto y 3 dígitos, sin coma) se lee como miles, como se escribe en Colombia.
+  if (decimal === "." && lastComma < 0 && decimals === 3 && clean.split(".").length === 2)
+    return Number(clean.replace(".", ""));
+  return Number(clean.split(thousands).join("").replace(decimal, "."));
+};
+
+/**
+ * Convierte una fila de Excel/CSV (encabezados en español o inglés) en un producto. Columnas: Nombre (obligatoria),
+ * Código, Tipo (Producto/Servicio), Unidad, Precio, IVA, Descripción. Devuelve el producto o el error.
+ */
+export function productFromRow(row: Record<string, unknown>) {
+  const kindText = pick(row, "tipo", "type", "kind").toLowerCase();
+  const unitText = pick(row, "unidad", "unidad de medida", "unit").toLowerCase();
+  const tax = pick(row, "iva", "iva %", "impuesto", "tax", "taxrate").replace("%", "");
+  const parsed = productSchema.safeParse({
+    sku: pick(row, "codigo", "code", "sku", "referencia") || undefined,
+    name: pick(row, "nombre", "name", "producto", "producto o servicio"),
+    description: pick(row, "descripcion", "description") || undefined,
+    kind: kindText ? (KIND_WORDS[kindText] ?? kindText.toUpperCase()) : undefined,
+    // Sin unidad: "servicio" para los servicios y "unidad" para los productos (como al crearlos en pantalla).
+    unit: unitText
+      ? (UNIT_WORDS[unitText] ?? unitText.toUpperCase()).slice(0, 10)
+      : KIND_WORDS[kindText] === "SERVICE"
+        ? "SERV"
+        : undefined,
+    unitPrice: number(pick(row, "precio", "precio de venta", "valor", "price", "unitprice")),
+    taxRate: tax ? number(tax) : undefined,
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]!;
+    const field = { name: "Nombre", unitPrice: "Precio", taxRate: "IVA", kind: "Tipo", unit: "Unidad", sku: "Código" }[
+      String(issue.path[0])
+    ];
+    return {
+      error: `${field ?? "Fila"}: ${issue.path[0] === "unitPrice" ? "precio inválido o vacío" : issue.message}`,
+    };
+  }
+  return { product: parsed.data };
+}
+
+// ─── Consultas ────────────────────────────────────────────────────────────────
+
+/** Entradas, salidas y stock por producto (ver DEFINICIONES). */
+export async function stockByProduct(tx: Tx, productIds?: string[]) {
+  const product = productIds ? { in: productIds } : { not: null };
+  const [purchases, sales, adjustments] = await Promise.all([
+    tx.purchaseLine.groupBy({
+      by: ["productId"],
+      where: { productId: product, purchaseDocument: { status: "ACTIVE", type: "PURCHASE" } },
+      _sum: { quantity: true },
+    }),
+    tx.invoiceLine.groupBy({
+      by: ["productId"],
+      where: { productId: product, invoice: { status: { in: [...BILLED_STATUSES] } } },
+      _sum: { quantity: true },
+    }),
+    // Saldo inicial y ajustes de inventario vigentes (inventory.ts): entradas y salidas.
+    tx.inventoryLine.groupBy({
+      by: ["productId", "direction"],
+      where: { productId: productIds ? { in: productIds } : undefined, document: { status: "ACTIVE" } },
+      _sum: { quantity: true },
+    }),
+  ]);
+  const result = new Map<string, { inflow: Prisma.Decimal; outflow: Prisma.Decimal; stock: Prisma.Decimal }>();
+  const entry = (id: string) => result.get(id) ?? { inflow: ZERO, outflow: ZERO, stock: ZERO };
+  for (const row of purchases) {
+    const current = entry(row.productId!);
+    const inflow = current.inflow.plus(row._sum.quantity ?? ZERO);
+    result.set(row.productId!, { ...current, inflow, stock: inflow.minus(current.outflow) });
+  }
+  for (const row of sales) {
+    const current = entry(row.productId!);
+    const outflow = current.outflow.plus(row._sum.quantity ?? ZERO);
+    result.set(row.productId!, { ...current, outflow, stock: current.inflow.minus(outflow) });
+  }
+  for (const row of adjustments) {
+    const current = entry(row.productId);
+    const quantity = row._sum.quantity ?? ZERO;
+    const inflow = row.direction === "IN" ? current.inflow.plus(quantity) : current.inflow;
+    const outflow = row.direction === "OUT" ? current.outflow.plus(quantity) : current.outflow;
+    result.set(row.productId, { inflow, outflow, stock: inflow.minus(outflow) });
+  }
+  return result;
+}
+
+async function loadProducts(tx: Tx, query: ProductQuery, rows: { skip: number; take: number }) {
+  const contains = (value: string) => ({ contains: value, mode: "insensitive" as const });
+  const stock = await stockByProduct(tx);
+  const conditions: Prisma.ProductWhereInput[] = [];
+  if (query.kind) conditions.push({ kind: query.kind });
+  if (query.status !== "ALL") conditions.push({ active: query.status === "ACTIVE" });
+  if (query.search)
+    conditions.push({
+      OR: [{ name: contains(query.search) }, { sku: contains(query.search) }, { description: contains(query.search) }],
+    });
+  if (query.stock) {
+    // El stock se calcula: se filtra por los ids que cumplen (los productos sin movimientos tienen stock 0).
+    const matching = [...stock].filter(([, value]) => stockState(value.stock) === query.stock).map(([id]) => id);
+    conditions.push({ kind: "PRODUCT" });
+    conditions.push(
+      query.stock === "ZERO"
+        ? { OR: [{ id: { in: matching } }, { id: { notIn: [...stock.keys()] } }] }
+        : { id: { in: matching } }
+    );
+  }
+  const where: Prisma.ProductWhereInput = { AND: conditions };
+  const [count, products] = await Promise.all([
+    tx.product.count({ where }),
+    tx.product.findMany({ where, orderBy: [{ name: "asc" }, { id: "asc" }], skip: rows.skip, take: rows.take }),
+  ]);
+  return {
+    count,
+    rows: products.map(product => {
+      const moves = stock.get(product.id) ?? { inflow: ZERO, outflow: ZERO, stock: ZERO };
+      const service = product.kind === "SERVICE";
+      return {
+        id: product.id,
+        kind: product.kind,
+        name: product.name,
+        sku: product.sku,
+        description: product.description,
+        unit: product.unit,
+        unitPrice: product.unitPrice.toFixed(2),
+        taxRate: product.taxRate.toFixed(2),
+        priceWithTax: product.unitPrice.times(product.taxRate.dividedBy(100).plus(1)).toDecimalPlaces(2).toFixed(2),
+        active: product.active,
+        stock: service
+          ? null
+          : {
+              inflow: moves.inflow.toFixed(2),
+              outflow: moves.outflow.toFixed(2),
+              quantity: moves.stock.toFixed(2),
+              state: stockState(moves.stock),
+            },
+      };
+    }),
+  };
+}
+
+const httpError = (statusCode: number, message: string) => Object.assign(new Error(message), { statusCode });
+
+/** Código libre: si viene vacío se asigna el siguiente C-n; si ya existe en otro producto, 409. */
+async function resolveCode(tx: Tx, sku: string | undefined, exceptId?: string) {
+  if (!sku) {
+    const codes = await tx.product.findMany({ where: { sku: { startsWith: "C-" } }, select: { sku: true } });
+    return nextProductCode(codes.map(item => item.sku));
+  }
+  const taken = await tx.product.findFirst({
+    where: { sku: { equals: sku, mode: "insensitive" }, ...(exceptId && { id: { not: exceptId } }) },
+    select: { name: true },
+  });
+  if (taken) throw httpError(409, `El código ${sku} ya lo usa "${taken.name}".`);
+  return sku;
+}
+
+// ─── Rutas ────────────────────────────────────────────────────────────────────
+
+export function registerProductRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
+  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
+  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
+  const canEdit = { preHandler: allowRoles(...PRODUCT_ROLES) };
+  const canDelete = { preHandler: allowRoles(...DELETE_ROLES) };
+  const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
+  const audit = (
+    tx: Tx,
+    request: { ip: string; actor?: { organizationId: string; sub: string } },
+    entityId: string,
+    action: string,
+    after: Prisma.InputJsonValue,
+    before?: Prisma.InputJsonValue
+  ) =>
+    tx.auditLog.create({
+      data: {
+        organizationId: request.actor!.organizationId,
+        userId: request.actor!.sub,
+        entity: "Product",
+        entityId,
+        action,
+        after,
+        ...(before && { before }),
+        ipHash: options.auditIp(request.ip),
+      },
+    });
+  const conflict = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+
+  /** GET /v1/products — catálogo activo de la organización (máx. 100), para los editores de ítems. */
+  app.get<{ Querystring: { search?: string; kind?: string } }>(
+    "/v1/products",
+    { preHandler: requireActor },
+    async request => {
+      // ?search= (nombre o código) y ?kind=PRODUCT|SERVICE para los buscadores de los formularios.
+      const search = request.query.search?.trim().slice(0, 120);
+      const kind =
+        request.query.kind === "PRODUCT" || request.query.kind === "SERVICE" ? request.query.kind : undefined;
+      return {
+        data: await withOrganizationScope(request.actor!.organizationId, tx =>
+          tx.product.findMany({
+            where: {
+              active: true,
+              ...(kind && { kind }),
+              ...(search && {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" } },
+                  { sku: { contains: search, mode: "insensitive" } },
+                ],
+              }),
+            },
+            orderBy: { name: "asc" },
+            take: 100,
+          })
+        ),
+      };
+    }
+  );
+
+  /** POST /v1/products — Body: productSchema. */
+  app.post("/v1/products", canEdit, async (request, reply) => {
+    const parsed = productSchema.safeParse(request.body);
+    if (!parsed.success)
+      return reply.code(422).send({ error: "Producto o servicio inválido", details: parsed.error.flatten() });
+    const actor = request.actor!;
+    try {
+      const product = await withOrganizationScope(actor.organizationId, async tx => {
+        const sku = await resolveCode(tx, parsed.data.sku);
+        const created = await tx.product.create({
+          data: { ...parsed.data, sku, organizationId: actor.organizationId },
+        });
+        await audit(tx, request, created.id, "CREATE", { ...parsed.data, sku });
+        return created;
+      });
+      return reply.code(201).send({ data: product });
+    } catch (error) {
+      if (conflict(error)) return reply.code(409).send({ error: "Ese código ya existe. Intenta de nuevo." });
+      throw error;
+    }
+  });
+
+  /** PUT /v1/products/:id — Body: productSchema. */
+  app.put<{ Params: { id: string } }>("/v1/products/:id", canEdit, async (request, reply) => {
+    const parsed = productSchema.safeParse(request.body);
+    if (!parsed.success)
+      return reply.code(422).send({ error: "Producto o servicio inválido", details: parsed.error.flatten() });
+    if (!validId(request.params.id)) return reply.code(404).send({ error: "Producto no encontrado." });
+    try {
+      const product = await withOrganizationScope(request.actor!.organizationId, async tx => {
+        const current = await tx.product.findFirst({ where: { id: request.params.id } });
+        if (!current) throw httpError(404, "Producto no encontrado.");
+        const sku = await resolveCode(tx, parsed.data.sku ?? current.sku ?? undefined, current.id);
+        // Un producto con movimientos no puede pasar a servicio: perdería su stock.
+        if (current.kind === "PRODUCT" && parsed.data.kind === "SERVICE") {
+          const moves = (await stockByProduct(tx, [current.id])).get(current.id);
+          if (moves && (!moves.inflow.isZero() || !moves.outflow.isZero()))
+            throw httpError(409, "Este producto ya tiene compras o ventas: no se puede convertir en servicio.");
+        }
+        const updated = await tx.product.update({ where: { id: current.id }, data: { ...parsed.data, sku } });
+        await audit(
+          tx,
+          request,
+          current.id,
+          "UPDATE",
+          { ...parsed.data, sku },
+          {
+            sku: current.sku,
+            name: current.name,
+            kind: current.kind,
+            unit: current.unit,
+            unitPrice: current.unitPrice.toFixed(2),
+            taxRate: current.taxRate.toFixed(2),
+          }
+        );
+        return updated;
+      });
+      return { data: product };
+    } catch (error) {
+      if (conflict(error)) return reply.code(409).send({ error: "Ese código ya existe." });
+      throw error;
+    }
+  });
+
+  /** POST /v1/products/:id/active — Body: { active }. */
+  app.post<{ Params: { id: string } }>("/v1/products/:id/active", canEdit, async (request, reply) => {
+    const parsed = toggleCustomerSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(422).send({ error: "Indica si queda activo." });
+    if (!validId(request.params.id)) return reply.code(404).send({ error: "Producto no encontrado." });
+    const count = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const result = await tx.product.updateMany({
+        where: { id: request.params.id },
+        data: { active: parsed.data.active },
+      });
+      if (result.count)
+        await audit(tx, request, request.params.id, parsed.data.active ? "ACTIVATE" : "DEACTIVATE", {
+          active: parsed.data.active,
+        });
+      return result.count;
+    });
+    if (!count) return reply.code(404).send({ error: "Producto no encontrado." });
+    return { data: { id: request.params.id, active: parsed.data.active } };
+  });
+
+  /** POST /v1/products/bulk-active — Body: { ids, active }. */
+  app.post("/v1/products/bulk-active", canEdit, async (request, reply) => {
+    const parsed = bulkProductActiveSchema.safeParse(request.body);
+    if (!parsed.success)
+      return reply.code(422).send({ error: parsed.error.issues[0]?.message ?? "Selección inválida." });
+    const updated = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const result = await tx.product.updateMany({
+        where: { id: { in: parsed.data.ids } },
+        data: { active: parsed.data.active },
+      });
+      await audit(tx, request, "bulk", parsed.data.active ? "ACTIVATE" : "DEACTIVATE", {
+        ids: parsed.data.ids,
+        updated: result.count,
+      });
+      return result.count;
+    });
+    return { data: { updated } };
+  });
+
+  /** DELETE /v1/products/:id — solo si ningún documento (factura, cotización, remisión, compra…) lo usa. */
+  app.delete<{ Params: { id: string } }>("/v1/products/:id", canDelete, async (request, reply) => {
+    if (!validId(request.params.id)) return reply.code(404).send({ error: "Producto no encontrado." });
+    const deleted = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const product = await tx.product.findFirst({
+        where: { id: request.params.id },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          _count: {
+            select: {
+              invoiceLines: true,
+              quoteLines: true,
+              deliveryLines: true,
+              recurringLines: true,
+              purchaseLines: true,
+            },
+          },
+        },
+      });
+      if (!product) return null;
+      const uses = Object.values(product._count).reduce((sum, value) => sum + value, 0);
+      if (uses)
+        throw httpError(
+          409,
+          `"${product.name}" aparece en ${uses} documento(s): no se puede eliminar. Puedes inactivarlo.`
+        );
+      await tx.product.delete({ where: { id: product.id } });
+      await audit(tx, request, product.id, "DELETE", { name: product.name, sku: product.sku });
+      return product;
+    });
+    if (!deleted) return reply.code(404).send({ error: "Producto no encontrado." });
+    return { data: { id: deleted.id } };
+  });
+
+  /**
+   * POST /v1/products/import — Body: { rows } (filas ya leídas del Excel o CSV en el navegador). Crea los productos
+   * válidos; las filas con error o con un código que ya existe se informan y no se crean.
+   */
+  app.post("/v1/products/import", { ...canEdit, bodyLimit: 5 * 1024 * 1024 }, async (request, reply) => {
+    const parsed = importProductsSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(422).send({ error: parsed.error.issues[0]?.message ?? "Archivo inválido." });
+    const result = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const existing = await tx.product.findMany({ select: { sku: true } });
+      const codes = new Set(existing.map(item => item.sku?.toLowerCase()).filter(Boolean));
+      let next = Number(nextProductCode(existing.map(item => item.sku)).slice(2));
+      const errors: { row: number; message: string }[] = [];
+      const valid: Prisma.ProductCreateManyInput[] = [];
+      parsed.data.rows.forEach((row, index) => {
+        const item = productFromRow(row);
+        if ("error" in item) return errors.push({ row: index + 2, message: item.error! });
+        const product = item.product!;
+        let sku = product.sku;
+        if (sku && codes.has(sku.toLowerCase()))
+          return errors.push({ row: index + 2, message: `El código ${sku} ya existe.` });
+        if (!sku) {
+          while (codes.has(`c-${next}`)) next++;
+          sku = `C-${next++}`;
+        }
+        codes.add(sku.toLowerCase());
+        valid.push({ ...product, sku, organizationId: request.actor!.organizationId });
+      });
+      const created = valid.length ? (await tx.product.createMany({ data: valid })).count : 0;
+      await audit(tx, request, "import", "IMPORT", { rows: parsed.data.rows.length, created, errors: errors.length });
+      return { created, errors: errors.slice(0, 200), errorCount: errors.length };
+    });
+    return reply.code(201).send({ data: result });
+  });
+
+  /** GET /v1/reports/products — Query: productQuerySchema. */
+  app.get("/v1/reports/products", canView, async (request, reply) => {
+    const parsed = productQuerySchema.safeParse(request.query);
+    if (!parsed.success) return reply.code(422).send({ error: "Filtros inválidos", details: parsed.error.flatten() });
+    const { page, pageSize } = parsed.data;
+    const { rows, count } = await withOrganizationScope(request.actor!.organizationId, tx =>
+      loadProducts(tx, parsed.data, { skip: (page - 1) * pageSize, take: pageSize })
+    );
+    return { data: rows, pagination: { page, pageSize, total: count } };
+  });
+
+  /** GET /v1/reports/products/export — todas las filas filtradas (auditado). */
+  app.get("/v1/reports/products/export", canExport, async (request, reply) => {
+    const parsed = productQuerySchema.safeParse(request.query);
+    if (!parsed.success) return reply.code(422).send({ error: "Filtros inválidos", details: parsed.error.flatten() });
+    const report = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const result = await loadProducts(tx, parsed.data, { skip: 0, take: EXPORT_LIMIT + 1 });
+      if (result.count <= EXPORT_LIMIT)
+        await audit(tx, request, "list", "EXPORT", {
+          filters: request.query,
+          rows: result.count,
+        } as Prisma.InputJsonValue);
+      return result;
+    });
+    if (report.count > EXPORT_LIMIT)
+      return reply.code(413).send({ error: `La consulta supera ${EXPORT_LIMIT} filas. Acota los filtros.` });
+    return { data: report.rows, total: report.count };
+  });
+
+  /** GET /v1/reports/products/top — más vendidos en el período (facturas emitidas); total = valor de las líneas con IVA. */
+  app.get("/v1/reports/products/top", canView, async (request, reply) => {
+    const parsed = topProductsQuerySchema.safeParse(request.query);
+    if (!parsed.success) return reply.code(422).send({ error: "Período inválido", details: parsed.error.flatten() });
+    const period = resolvePeriod(parsed.data);
+    const data = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const sales = await tx.invoiceLine.groupBy({
+        by: ["productId"],
+        where: {
+          productId: { not: null },
+          invoice: { status: { in: [...BILLED_STATUSES] }, issueDate: { gte: period.from, lte: period.to } },
+        },
+        _sum: { quantity: true, lineTotal: true },
+        _count: { _all: true },
+        orderBy: { _sum: { lineTotal: "desc" } },
+        take: 20,
+      });
+      const products = await tx.product.findMany({
+        where: { id: { in: sales.map(item => item.productId!) } },
+        select: { id: true, name: true, sku: true, kind: true, unit: true },
+      });
+      const byId = new Map(products.map(product => [product.id, product]));
+      return sales.map(item => ({
+        ...byId.get(item.productId!)!,
+        quantity: (item._sum.quantity ?? ZERO).toFixed(2),
+        total: (item._sum.lineTotal ?? ZERO).toFixed(2),
+        lines: item._count._all,
+      }));
+    });
+    return {
+      data,
+      period: { from: period.from.toISOString().slice(0, 10), to: period.to.toISOString().slice(0, 10) },
+    };
+  });
+}

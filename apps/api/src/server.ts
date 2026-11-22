@@ -22,6 +22,29 @@
  *   Doc. soporte ..... GET/POST /support-documents, POST /support-documents/:id/issue
  *   Contabilidad ..... GET /accounting/journal-entries
  *   Notificaciones ... GET /notifications, POST /notifications/:id/read
+ *   Reportes ......... GET /reports/billing/* (ver src/reports.ts y src/collections.ts)
+ *   Recaudos ......... POST /cash-receipts, POST /cash-receipts/:id/void, GET /collections/*,
+ *                      POST /documents/email (ver src/collections.ts)
+ *   Cobro en línea ... GET/POST /online-payments/*, GET/POST /public/payments/:token (ver src/payments.ts)
+ *   Cotizaciones ..... GET/POST /quotes, /quotes/:id/(email|void|invoice) (ver src/quotes.ts)
+ *   Remisiones ....... GET/POST /deliveries, /deliveries/:id/(email|void|invoice) (ver src/deliveries.ts)
+ *   Recurrentes ...... GET/POST /recurring-invoices, /recurring-invoices/:id/(active|generate) (ver src/recurring.ts)
+ *   Envío masivo ..... GET /reports/billing/mass-send (ver src/mass-send.ts)
+ *   Tablero ......... GET /dashboard (ver src/dashboard.ts)
+ *   Clientes ......... GET /reports/billing/portfolio, GET/POST /customers/:id/(statement|active) (ver src/portfolio.ts)
+ *   Comercial ........ GET/POST /commercial-tasks, /commercial-tasks/:id/(complete|reopen) (ver src/commercial.ts)
+ *   Compras y gastos . GET /reports/purchases/documents, GET/POST /purchases (ver src/purchases.ts)
+ *   Eventos DIAN ... GET /reports/purchases/events, GET/POST /purchases/received-invoices (ver src/received-invoices.ts)
+ *   Proveedores .... GET /reports/purchases/suppliers, /suppliers/:id/statement, POST /supplier-payments (ver src/payables.ts)
+ *   Soportes ....... GET /reports/purchases/imports, POST /purchases/imports (+ legalize) (ver src/purchase-imports.ts)
+ *   Productos ...... GET/POST/PUT/DELETE /products, GET /reports/products (ver src/products.ts)
+ *   Inventario ..... GET /reports/inventory-documents, POST /inventory-documents (+ import, void) (ver src/inventory.ts)
+ *   Costeo ......... GET /costing, POST /costing/:year/:month/calculate (ver src/costing.ts)
+ *   Cajas y bancos . GET /reports/banks, GET /banks/:accountId/movements (ver src/banks.ts)
+ *   Nómina ......... /payroll/settings, /payroll/employees, /payroll/runs, /payroll/electronic (ver src/payroll.ts)
+ *   Contabilidad ... /accounting/chart, /accounting/accounts, /accounting/trial-balance, /accounting/journal (ver src/ledger.ts)
+ *   Estados ........ GET /reports/income-statement, GET /reports/balance-sheet (ver src/statements.ts)
+ *   Catálogo ....... GET /reports/catalog, GET /reports/catalog/:id (ver src/catalog/index.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -31,16 +54,32 @@ import jwt from "@fastify/jwt";
 import Fastify from "fastify";
 import { prisma, withOrganizationScope } from "@betel/db";
 import type { Prisma } from "@betel/db";
-import {
-  calendarEventSchema,
-  createInvoiceSchema,
-  createSupportDocumentSchema,
-  partySchema,
-  productSchema,
-} from "@betel/contracts";
+import { calendarEventSchema, createInvoiceSchema, createSupportDocumentSchema, partySchema } from "@betel/contracts";
 import { allowRoles, requireActor, type BetelJwt } from "./auth.js";
 import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "./accounting.js";
 import { getDianProvider } from "./dian.js";
+import { registerCollectionRoutes } from "./collections.js";
+import { registerPaymentRoutes } from "./payments.js";
+import { registerPortfolioRoutes } from "./portfolio.js";
+import { registerPurchaseRoutes } from "./purchases.js";
+import { registerReceivedInvoiceRoutes } from "./received-invoices.js";
+import { registerPayableRoutes } from "./payables.js";
+import { registerPurchaseImportRoutes } from "./purchase-imports.js";
+import { registerProductRoutes } from "./products.js";
+import { registerInventoryRoutes } from "./inventory.js";
+import { registerCostingRoutes } from "./costing.js";
+import { registerBankRoutes } from "./banks.js";
+import { registerPayrollRoutes } from "./payroll.js";
+import { registerLedgerRoutes } from "./ledger.js";
+import { registerStatementRoutes } from "./statements.js";
+import { registerCatalogRoutes } from "./catalog/index.js";
+import { registerCommercialRoutes } from "./commercial.js";
+import { registerDashboardRoutes } from "./dashboard.js";
+import { registerDeliveryRoutes } from "./deliveries.js";
+import { registerMassSendRoutes } from "./mass-send.js";
+import { registerQuoteRoutes } from "./quotes.js";
+import { registerRecurringRoutes, startRecurringScheduler } from "./recurring.js";
+import { registerBillingReportRoutes } from "./reports.js";
 
 // ─── Configuración ────────────────────────────────────────────────────────────
 
@@ -55,6 +94,26 @@ const app = Fastify({ logger: true });
 await app.register(cors, { origin: process.env.WEB_ORIGIN ?? "http://localhost:3000" });
 // Tokens de corta duración (15 min) para reducir el impacto si uno se filtra.
 await app.register(jwt, { secret: jwtSecret, sign: { expiresIn: "15m" } });
+
+/**
+ * Errores lanzados con código HTTP (httpError dentro de las transacciones) y errores de Fastify (cuerpo muy grande,
+ * JSON inválido…): responden { error: "<mensaje>" } como el resto de la API, que es lo que muestra la web. Sin esto,
+ * Fastify pondría en `error` el nombre del código ("Conflict") y el mensaje en español quedaría oculto.
+ * Los errores 5xx no exponen detalles internos.
+ */
+const fastifyMessages: Record<string, string> = {
+  FST_ERR_CTP_BODY_TOO_LARGE: "El archivo o los datos enviados son demasiado grandes.",
+  FST_ERR_CTP_INVALID_JSON_BODY: "Los datos enviados no son un JSON válido.",
+  FST_ERR_CTP_EMPTY_JSON_BODY: "Los datos enviados están vacíos.",
+};
+app.setErrorHandler((error: Error & { statusCode?: number; code?: string }, request, reply) => {
+  const status = error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;
+  if (status >= 500) {
+    request.log.error(error);
+    return reply.code(status).send({ error: "Error interno de la API. Intenta de nuevo." });
+  }
+  return reply.code(status).send({ error: fastifyMessages[error.code ?? ""] ?? error.message });
+});
 
 /**
  * La IP del usuario se guarda en AuditLog como hash (SHA-256 con el secreto como "sal"),
@@ -124,12 +183,25 @@ app.get("/v1/me", { preHandler: requireActor }, async request => {
 
 /**
  * GET /v1/parties — Lista los terceros de la organización ordenados por nombre.
- * PENDIENTE: paginación y búsqueda (hoy devuelve máximo 50).
+ * Query opcional ?search= (nombre o identificación). PENDIENTE: paginación (hoy devuelve máximo 50).
  */
-app.get("/v1/parties", { preHandler: requireActor }, async request => {
+app.get<{ Querystring: { search?: string } }>("/v1/parties", { preHandler: requireActor }, async request => {
   const actor = request.actor!;
+  // ?search= busca por nombre o identificación (contiene); sin búsqueda, los primeros 50 por nombre.
+  const search = request.query.search?.trim().slice(0, 120);
   const data = await withOrganizationScope(actor.organizationId, tx =>
-    tx.party.findMany({ orderBy: { legalName: "asc" }, take: 50 })
+    tx.party.findMany({
+      where: search
+        ? {
+            OR: [
+              { legalName: { contains: search, mode: "insensitive" } },
+              { identificationNumber: { contains: search } },
+            ],
+          }
+        : undefined,
+      orderBy: { legalName: "asc" },
+      take: 50,
+    })
   );
   return { data };
 });
@@ -143,6 +215,17 @@ app.post("/v1/parties", { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT",
   if (!parsed.success)
     return reply.code(422).send({ error: "Datos del tercero inválidos", details: parsed.error.flatten() });
   const actor = request.actor!;
+  const duplicate = await withOrganizationScope(actor.organizationId, tx =>
+    tx.party.findFirst({
+      where: {
+        identificationType: parsed.data.identificationType,
+        identificationNumber: parsed.data.identificationNumber,
+      },
+      select: { id: true },
+    })
+  );
+  if (duplicate)
+    return reply.code(409).send({ error: "Ya existe un tercero con ese tipo y número de identificación." });
   const party = await withOrganizationScope(actor.organizationId, async tx => {
     const created = await tx.party.create({ data: { ...parsed.data, organizationId: actor.organizationId } });
     await tx.auditLog.create({
@@ -161,49 +244,7 @@ app.post("/v1/parties", { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT",
   return reply.code(201).send({ data: party });
 });
 
-// ─── Productos y servicios ────────────────────────────────────────────────────
-
-/** GET /v1/products — Catálogo activo de la organización (máx. 100). */
-app.get("/v1/products", { preHandler: requireActor }, async request => {
-  const actor = request.actor!;
-  return {
-    data: await withOrganizationScope(actor.organizationId, tx =>
-      tx.product.findMany({ where: { active: true }, orderBy: { name: "asc" }, take: 100 })
-    ),
-  };
-});
-
-/**
- * POST /v1/products — Crea un producto o servicio. Body: productSchema.
- * Roles: OWNER, ADMIN, ACCOUNTANT, SALES.
- * PENDIENTE: editar y desactivar (active = false) productos.
- */
-app.post(
-  "/v1/products",
-  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "SALES") },
-  async (request, reply) => {
-    const parsed = productSchema.safeParse(request.body);
-    if (!parsed.success)
-      return reply.code(422).send({ error: "Producto o servicio inválido", details: parsed.error.flatten() });
-    const actor = request.actor!;
-    const product = await withOrganizationScope(actor.organizationId, async tx => {
-      const created = await tx.product.create({ data: { ...parsed.data, organizationId: actor.organizationId } });
-      await tx.auditLog.create({
-        data: {
-          organizationId: actor.organizationId,
-          userId: actor.sub,
-          entity: "Product",
-          entityId: created.id,
-          action: "CREATE",
-          after: parsed.data,
-          ipHash: auditIp(request.ip),
-        },
-      });
-      return created;
-    });
-    return reply.code(201).send({ data: product });
-  }
-);
+// ─── Productos y servicios: ver src/products.ts (registerProductRoutes) ────────
 
 // ─── Calendario ───────────────────────────────────────────────────────────────
 
@@ -633,8 +674,35 @@ app.post<{ Params: { id: string } }>(
   }
 );
 
+// ─── Reporte de facturación ───────────────────────────────────────────────────
+
+registerBillingReportRoutes(app, { auditIp });
+registerCollectionRoutes(app, { auditIp });
+registerPaymentRoutes(app, { auditIp });
+registerQuoteRoutes(app, { auditIp });
+registerDeliveryRoutes(app, { auditIp });
+registerRecurringRoutes(app, { auditIp });
+registerMassSendRoutes(app);
+registerDashboardRoutes(app);
+registerPortfolioRoutes(app, { auditIp });
+registerCommercialRoutes(app, { auditIp });
+registerPurchaseRoutes(app, { auditIp });
+registerReceivedInvoiceRoutes(app, { auditIp });
+registerPayableRoutes(app, { auditIp });
+registerPurchaseImportRoutes(app, { auditIp });
+registerProductRoutes(app, { auditIp });
+registerInventoryRoutes(app, { auditIp });
+registerCostingRoutes(app, { auditIp });
+registerBankRoutes(app, { auditIp });
+registerPayrollRoutes(app, { auditIp });
+registerLedgerRoutes(app, { auditIp });
+registerStatementRoutes(app);
+registerCatalogRoutes(app, { auditIp });
+
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
 // host 0.0.0.0 permite acceder desde Docker u otros equipos de la red local.
 const port = Number(process.env.BETEL_API_PORT ?? 4000);
 await app.listen({ port, host: "0.0.0.0" });
+// Generación automática de facturas recurrentes (al arrancar y cada hora).
+startRecurringScheduler(app.log);

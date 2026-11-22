@@ -20,6 +20,15 @@ export type DianSubmission = {
 /** Contrato que debe cumplir cualquier proveedor DIAN (sandbox o real). */
 export interface DianProvider {
   submitSalesInvoice(input: { invoiceId: string; organizationId: string }): Promise<DianSubmission>;
+  /** Evento de una factura electrónica recibida (030, 031, 032 o 033; Res. DIAN 000085 de 2022). */
+  submitDocumentEvent(input: {
+    eventId: string;
+    organizationId: string;
+    cufe: string;
+    code: string;
+  }): Promise<DianSubmission>;
+  /** Documento soporte de pago de nómina electrónica (mensual por empleado). */
+  submitPayroll(input: { documentId: string; organizationId: string; number: string }): Promise<DianSubmission>;
 }
 
 /**
@@ -39,6 +48,39 @@ class SandboxDianProvider implements DianProvider {
       },
     };
   }
+
+  async submitDocumentEvent(input: {
+    eventId: string;
+    organizationId: string;
+    cufe: string;
+    code: string;
+  }): Promise<DianSubmission> {
+    return {
+      accepted: false,
+      status: "QUEUED",
+      providerResponse: {
+        mode: "sandbox",
+        eventId: input.eventId,
+        code: input.code,
+        queuedAt: new Date().toISOString(),
+        message: "Evento registrado en pruebas: no se transmite a la DIAN sin proveedor tecnológico.",
+      },
+    };
+  }
+
+  async submitPayroll(input: { documentId: string; organizationId: string; number: string }): Promise<DianSubmission> {
+    return {
+      accepted: false,
+      status: "QUEUED",
+      providerResponse: {
+        mode: "sandbox",
+        documentId: input.documentId,
+        number: input.number,
+        queuedAt: new Date().toISOString(),
+        message: "Nómina electrónica en pruebas: no se transmite a la DIAN sin proveedor tecnológico.",
+      },
+    };
+  }
 }
 
 /**
@@ -50,4 +92,17 @@ export function getDianProvider(): DianProvider {
   if (process.env.DIAN_MODE && process.env.DIAN_MODE !== "sandbox")
     throw new Error("No hay proveedor DIAN de producción configurado.");
   return new SandboxDianProvider();
+}
+
+/** true mientras se use el proveedor de pruebas (DIAN_MODE vacío o "sandbox"). */
+export const dianIsSandbox = () => !process.env.DIAN_MODE || process.env.DIAN_MODE === "sandbox";
+
+/**
+ * Una factura electrónica solo se entrega al cliente cuando la DIAN la aprobó. Con el proveedor de pruebas
+ * (que nunca aprueba) se permite, para poder probar el envío. Devuelve el motivo si no se puede enviar.
+ */
+export function invoiceEmailBlocked(invoice: { status: string; dianStatus: string }) {
+  if (invoice.status === "DRAFT") return "La factura está en borrador.";
+  if (!dianIsSandbox() && invoice.dianStatus !== "ACCEPTED") return "La DIAN todavía no ha aprobado la factura.";
+  return null;
 }

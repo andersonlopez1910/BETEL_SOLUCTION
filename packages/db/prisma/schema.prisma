@@ -25,6 +25,7 @@ enum PartyKind {
   PERSON
   COMPANY
 }
+
 /// Rol del usuario dentro de una organización. Define permisos en apps/api/src/auth.ts.
 enum MembershipRole {
   OWNER
@@ -34,6 +35,7 @@ enum MembershipRole {
   SUPPORT
   VIEWER
 }
+
 /// Estado interno del documento (independiente del estado DIAN).
 enum InvoiceStatus {
   DRAFT
@@ -43,6 +45,7 @@ enum InvoiceStatus {
   VOID
   OVERDUE
 }
+
 /// Tipo de documento electrónico intercambiado con el proveedor DIAN.
 enum ElectronicDocumentKind {
   SALES_INVOICE
@@ -51,6 +54,7 @@ enum ElectronicDocumentKind {
   SUPPORT_DOCUMENT
   SUPPORT_ADJUSTMENT
 }
+
 /// Estado de la transmisión ante la DIAN.
 enum DianTransmissionStatus {
   PENDING
@@ -60,11 +64,148 @@ enum DianTransmissionStatus {
   REJECTED
   ERROR
 }
+
 /// Forma de pago: contado (CASH) o crédito (CREDIT).
 enum PaymentTerm {
   CASH
   CREDIT
 }
+
+/// Medio de pago de un recibo de caja: efectivo, transferencia/consignación, tarjeta, cheque u otro.
+enum CollectionMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHECK
+  OTHER
+  ONLINE /// Pago en línea por pasarela (Gestión de cobro cartera Betel)
+}
+
+/// Estado de un pago en línea: link generado (PENDING), aprobado, rechazado o anulado antes de pagarse.
+enum OnlinePaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// Desembolso de la pasarela a la cuenta bancaria de la empresa (solo pagos aprobados).
+enum DisbursementStatus {
+  PENDING
+  DISBURSED
+}
+
+/// Estado de una cotización. "Vencida" no se guarda: es OPEN con validUntil anterior a hoy.
+enum QuoteStatus {
+  OPEN
+  INVOICED
+  VOID
+}
+
+/// Tipo de transacción de una remisión: entrega por venta, en consignación o como muestra.
+enum DeliveryType {
+  SALE
+  CONSIGNMENT
+  SAMPLE
+}
+
+/// Estado de una remisión: abierta, facturada (se creó la factura en borrador) o anulada.
+enum DeliveryStatus {
+  OPEN
+  INVOICED
+  VOID
+}
+
+/// Frecuencia de una factura recurrente.
+enum RecurrenceFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
+
+/// Seguimiento comercial: estado de la tarea.
+enum CommercialTaskStatus {
+  PENDING
+  COMPLETED
+}
+
+/// Compromiso de la tarea comercial (qué hay que hacer).
+enum CommitmentType {
+  CALL
+  MEETING
+  VISIT
+  EMAIL
+  SEND_QUOTE
+  FOLLOW_UP
+  OTHER
+}
+
+/// Etapa de la oportunidad en el embudo comercial.
+enum SalesStage {
+  PROSPECT
+  CONTACTED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+/// Avance de la negociación.
+enum NegotiationProgress {
+  NONE
+  INITIAL
+  INTERMEDIATE
+  ADVANCED
+  CLOSED
+}
+
+/// Origen del contacto u oportunidad.
+enum LeadOrigin {
+  REFERRAL
+  WEBSITE
+  SOCIAL
+  CALL
+  EVENT
+  CUSTOMER
+  OTHER
+}
+
+/// Tamaño de la empresa del contacto.
+enum CompanySize {
+  MICRO
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+/// Compras y gastos: compra (mercancía o activos) o gasto (servicios, arriendos…) con factura del proveedor.
+enum PurchaseType {
+  PURCHASE
+  EXPENSE
+}
+
+/// Estado de un documento de compra o gasto. Anulado (VOID) no suma y se reversa su asiento.
+enum PurchaseStatus {
+  ACTIVE
+  VOID
+}
+
+/// Estado de un recibo de caja. Anulado (VOID) no suma y devuelve el saldo a las facturas.
+enum CashReceiptStatus {
+  ACTIVE
+  VOID
+}
+
+/// Resultado del envío de un documento por correo.
+enum EmailDeliveryStatus {
+  SENT
+  FAILED
+}
+
 /// Categoría de notificación mostrada al usuario.
 enum NotificationKind {
   DIAN
@@ -74,6 +215,7 @@ enum NotificationKind {
   SECURITY
   SYSTEM
 }
+
 /// Tipo de evento del calendario.
 enum EventType {
   TASK
@@ -81,6 +223,7 @@ enum EventType {
   DEADLINE
   DIAN_DUE_DATE
 }
+
 /// Estado del plan contratado por la organización.
 enum SubscriptionStatus {
   TRIAL
@@ -88,6 +231,7 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
 }
+
 /// Estado de un comprobante contable.
 enum JournalStatus {
   DRAFT
@@ -97,66 +241,101 @@ enum JournalStatus {
 
 /// Empresa cliente de Betel. Es el límite de multitenencia: casi todo cuelga de aquí.
 model Organization {
-  id                 String              @id @default(uuid())
-  legalName          String
-  tradeName          String?
-  nit                String              @unique
-  verificationDigit  String?
-  email              String?
-  phone              String?
-  address            String?
-  municipalityCode   String?
-  timezone           String              @default("America/Bogota")
-  currency           String              @default("COP")
-  dianEnabled        Boolean             @default(false)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  memberships        Membership[]
-  parties            Party[]
-  products           Product[]
-  invoices           Invoice[]
-  documentSupports   SupportDocument[]
-  electronicEvents   ElectronicEvent[]
-  calendarEvents     CalendarEvent[]
-  notifications      Notification[]
-  chartOfAccounts    Account[]
-  journalEntries     JournalEntry[]
-  auditLogs          AuditLog[]
-  legalDocuments     LegalDocument[]
-  subscriptions      Subscription[]
+  id                    String                 @id @default(uuid())
+  legalName             String
+  tradeName             String?
+  nit                   String                 @unique
+  verificationDigit     String?
+  email                 String?
+  phone                 String?
+  address               String?
+  municipalityCode      String?
+  timezone              String                 @default("America/Bogota")
+  currency              String                 @default("COP")
+  dianEnabled           Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  memberships           Membership[]
+  parties               Party[]
+  products              Product[]
+  invoices              Invoice[]
+  documentSupports      SupportDocument[]
+  electronicEvents      ElectronicEvent[]
+  calendarEvents        CalendarEvent[]
+  notifications         Notification[]
+  chartOfAccounts       Account[]
+  journalEntries        JournalEntry[]
+  auditLogs             AuditLog[]
+  legalDocuments        LegalDocument[]
+  subscriptions         Subscription[]
+  cashReceipts          CashReceipt[]
+  onlinePayments        OnlinePayment[]
+  documentEmails        DocumentEmail[]
+  quotes                Quote[]
+  deliveries            Delivery[]
+  recurringInvoices     RecurringInvoice[]
+  commercialTasks       CommercialTask[]
+  purchaseDocuments     PurchaseDocument[]
+  receivedInvoices      ReceivedInvoice[]
+  supplierPayments      SupplierPayment[]
+  purchaseImports       PurchaseImport[]
+  inventoryDocuments    InventoryDocument[]
+  costingRuns           CostingRun[]
+  payrollSettings       PayrollSettings[]
+  employees             Employee[]
+  payrollRuns           PayrollRun[]
+  payrollElectronic     PayrollElectronic[]
+  journalTemplates      JournalTemplate[]
+  receivedInvoiceEvents ReceivedInvoiceEvent[]
 }
 
 /// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
 model User {
-  id           String       @id @default(uuid())
-  email        String       @unique
-  displayName  String
-  phone        String?
-  avatarUrl    String?
-  active       Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  memberships  Membership[]
-  events       CalendarEvent[] @relation("EventOwner")
-  notifications Notification[]
-  auditLogs    AuditLog[]
+  id                         String                 @id @default(uuid())
+  email                      String                 @unique
+  displayName                String
+  phone                      String?
+  avatarUrl                  String?
+  active                     Boolean                @default(true)
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+  memberships                Membership[]
+  events                     CalendarEvent[]        @relation("EventOwner")
+  notifications              Notification[]
+  auditLogs                  AuditLog[]
+  cashReceipts               CashReceipt[]          @relation("CashReceiptCreator")
+  sentEmails                 DocumentEmail[]        @relation("DocumentEmailSender")
+  quotes                     Quote[]                @relation("QuoteCreator")
+  deliveries                 Delivery[]             @relation("DeliveryCreator")
+  recurringInvoices          RecurringInvoice[]     @relation("RecurringInvoiceCreator")
+  commercialTasksCreated     CommercialTask[]       @relation("CommercialTaskCreator")
+  commercialTasksResponsible CommercialTask[]       @relation("CommercialTaskResponsible")
+  purchaseDocuments          PurchaseDocument[]     @relation("PurchaseCreator")
+  receivedInvoices           ReceivedInvoice[]      @relation("ReceivedInvoiceCreator")
+  supplierPayments           SupplierPayment[]      @relation("SupplierPaymentCreator")
+  purchaseImports            PurchaseImport[]       @relation("PurchaseImportCreator")
+  inventoryDocuments         InventoryDocument[]    @relation("InventoryDocumentCreator")
+  costingRuns                CostingRun[]           @relation("CostingRunExecutor")
+  payrollRuns                PayrollRun[]           @relation("PayrollRunCreator")
+  receivedInvoiceEvents      ReceivedInvoiceEvent[] @relation("ReceivedInvoiceEventCreator")
 }
 
 /// Relación usuario ↔ organización con su rol. Única por (organizationId, userId).
 model Membership {
-  id             String          @id @default(uuid())
+  id             String         @id @default(uuid())
   organizationId String
   userId         String
-  role           MembershipRole  @default(VIEWER)
-  createdAt      DateTime        @default(now())
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           MembershipRole @default(VIEWER)
+  createdAt      DateTime       @default(now())
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([organizationId, userId])
 }
 
 /// Tercero: cliente, proveedor y/o pagador (isCustomer / isSupplier / isPayer).
 model Party {
-  id                   String       @id @default(uuid())
+  id                   String              @id @default(uuid())
   organizationId       String
   kind                 PartyKind
   identificationType   String
@@ -170,76 +349,163 @@ model Party {
   municipalityCode     String?
   postalCode           String?
   taxResponsibilities  String[]
-  isCustomer           Boolean      @default(false)
-  isSupplier           Boolean      @default(false)
-  isPayer              Boolean      @default(false)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  isCustomer           Boolean             @default(false)
+  isSupplier           Boolean             @default(false)
+  isPayer              Boolean             @default(false)
+  /// Cliente activo. Un cliente inactivo no aparece al crear documentos nuevos; su historial se conserva.
+  active               Boolean             @default(true)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   contacts             PartyContact[]
-  invoices             Invoice[]    @relation("InvoiceCustomer")
-  supportDocuments     SupportDocument[] @relation("SupportSupplier")
+  invoices             Invoice[]           @relation("InvoiceCustomer")
+  supportDocuments     SupportDocument[]   @relation("SupportSupplier")
+  cashReceipts         CashReceipt[]       @relation("CashReceiptCustomer")
+  onlinePayments       OnlinePayment[]     @relation("OnlinePaymentCustomer")
+  quotes               Quote[]             @relation("QuoteCustomer")
+  deliveries           Delivery[]          @relation("DeliveryCustomer")
+  recurringInvoices    RecurringInvoice[]  @relation("RecurringInvoiceCustomer")
+  commercialTasks      CommercialTask[]    @relation("CommercialTaskParty")
+  purchaseDocuments    PurchaseDocument[]  @relation("PurchaseSupplier")
+  receivedInvoices     ReceivedInvoice[]   @relation("ReceivedInvoiceSupplier")
+  supplierPayments     SupplierPayment[]   @relation("SupplierPaymentSupplier")
+  inventoryDocuments   InventoryDocument[] @relation("InventoryDocumentParty")
+
   @@unique([organizationId, identificationType, identificationNumber])
   @@index([organizationId, legalName])
 }
 
 /// Contactos adicionales de un tercero.
 model PartyContact {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   partyId   String
   name      String
   email     String?
   phone     String?
   position  String?
   isPrimary Boolean @default(false)
-  party     Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  party     Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
 }
 
 /// Producto o servicio del catálogo de la organización.
 model Product {
-  id             String       @id @default(uuid())
+  id             String                 @id @default(uuid())
   organizationId String
   sku            String?
   name           String
   description    String?
-  kind           String       @default("PRODUCT")
-  unit           String       @default("UND")
-  unitPrice      Decimal      @db.Decimal(18, 2)
-  taxRate        Decimal      @default(19) @db.Decimal(5, 2)
-  active         Boolean      @default(true)
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kind           String                 @default("PRODUCT")
+  unit           String                 @default("UND")
+  unitPrice      Decimal                @db.Decimal(18, 2)
+  taxRate        Decimal                @default(19) @db.Decimal(5, 2)
+  active         Boolean                @default(true)
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoiceLines   InvoiceLine[]
+  quoteLines     QuoteLine[]
+  deliveryLines  DeliveryLine[]
+  recurringLines RecurringInvoiceLine[]
+  purchaseLines  PurchaseLine[]
+  inventoryLines InventoryLine[]
+  costingLines   CostingLine[]
+
   @@unique([organizationId, sku])
 }
 
 /// Factura de venta. DRAFT → ISSUED. Una vez emitida no se edita: se anula o ajusta con notas.
 model Invoice {
-  id                String                 @id @default(uuid())
-  organizationId    String
-  customerId        String
-  number            String?
-  prefix            String?
-  issueDate         DateTime               @db.Date
-  dueDate           DateTime?              @db.Date
-  status            InvoiceStatus          @default(DRAFT)
-  paymentTerm       PaymentTerm            @default(CASH)
-  currency          String                 @default("COP")
-  subtotal          Decimal                @default(0) @db.Decimal(18, 2)
-  discountTotal     Decimal                @default(0) @db.Decimal(18, 2)
-  taxTotal          Decimal                @default(0) @db.Decimal(18, 2)
-  total             Decimal                @default(0) @db.Decimal(18, 2)
-  notes             String?
-  dianStatus        DianTransmissionStatus @default(PENDING)
-  cufe              String?                @unique
-  resolutionNumber  String?
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customer          Party                  @relation("InvoiceCustomer", fields: [customerId], references: [id])
-  lines             InvoiceLine[]
-  electronicEvents  ElectronicEvent[]
+  id                  String                   @id @default(uuid())
+  organizationId      String
+  customerId          String
+  number              String?
+  prefix              String?
+  issueDate           DateTime                 @db.Date
+  dueDate             DateTime?                @db.Date
+  status              InvoiceStatus            @default(DRAFT)
+  paymentTerm         PaymentTerm              @default(CASH)
+  currency            String                   @default("COP")
+  subtotal            Decimal                  @default(0) @db.Decimal(18, 2)
+  discountTotal       Decimal                  @default(0) @db.Decimal(18, 2)
+  taxTotal            Decimal                  @default(0) @db.Decimal(18, 2)
+  total               Decimal                  @default(0) @db.Decimal(18, 2)
+  notes               String?
+  dianStatus          DianTransmissionStatus   @default(PENDING)
+  cufe                String?                  @unique
+  resolutionNumber    String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  organization        Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer            Party                    @relation("InvoiceCustomer", fields: [customerId], references: [id])
+  lines               InvoiceLine[]
+  electronicEvents    ElectronicEvent[]
+  receiptApplications CashReceiptApplication[]
+  onlinePayments      OnlinePayment[]
+  quote               Quote?
+  delivery            Delivery?
+  recurringRun        RecurringInvoiceRun?
+
   @@unique([organizationId, prefix, number])
   @@index([organizationId, status, issueDate])
+  /// Reporte de facturación por cliente (agrupa por customerId dentro de un período).
+  @@index([organizationId, customerId, issueDate])
+}
+
+/// Recibo de caja (RC): dinero recibido de un cliente que abona a una o varias facturas a crédito.
+/// El total es la suma de sus aplicaciones. Se anula (VOID) en lugar de borrarse.
+model CashReceipt {
+  id             String                   @id @default(uuid())
+  organizationId String
+  customerId     String
+  number         Int /// Consecutivo por organización; se muestra como RC-<número>.
+  date           DateTime                 @db.Date
+  method         CollectionMethod
+  reference      String? /// Número de transferencia, voucher o cheque.
+  notes          String?
+  total          Decimal                  @db.Decimal(18, 2)
+  status         CashReceiptStatus        @default(ACTIVE)
+  voidReason     String?
+  voidedAt       DateTime?
+  createdById    String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Party                    @relation("CashReceiptCustomer", fields: [customerId], references: [id])
+  createdBy      User?                    @relation("CashReceiptCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  applications   CashReceiptApplication[]
+  onlinePayment  OnlinePayment?
+
+  @@unique([organizationId, number])
+  @@index([organizationId, date])
+  @@index([organizationId, customerId])
+}
+
+/// Valor de un recibo de caja aplicado a una factura. Saldo de la factura = total − aplicaciones activas.
+model CashReceiptApplication {
+  id        String      @id @default(uuid())
+  receiptId String
+  invoiceId String
+  amount    Decimal     @db.Decimal(18, 2)
+  receipt   CashReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  invoice   Invoice     @relation(fields: [invoiceId], references: [id])
+
+  @@unique([receiptId, invoiceId])
+  @@index([invoiceId])
+}
+
+/// Registro de cada envío de un documento por correo (alimenta la columna "Correo": Enviado / Sin enviar).
+model DocumentEmail {
+  id             String              @id @default(uuid())
+  organizationId String
+  documentType   String /// "Invoice" o "CashReceipt"
+  documentId     String
+  recipient      String
+  status         EmailDeliveryStatus
+  error          String?
+  sentById       String?
+  createdAt      DateTime            @default(now())
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sentBy         User?               @relation("DocumentEmailSender", fields: [sentById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, documentType, documentId])
 }
 
 /// Línea (ítem) de una factura de venta.
@@ -259,21 +525,22 @@ model InvoiceLine {
 
 /// Documento soporte de compras a no obligados a facturar (CUDS).
 model SupportDocument {
-  id                String                 @id @default(uuid())
-  organizationId    String
-  supplierId        String
-  number            String?
-  issueDate         DateTime               @db.Date
-  status            InvoiceStatus          @default(DRAFT)
-  subtotal          Decimal                @default(0) @db.Decimal(18, 2)
-  taxTotal          Decimal                @default(0) @db.Decimal(18, 2)
-  total             Decimal                @default(0) @db.Decimal(18, 2)
-  dianStatus        DianTransmissionStatus @default(PENDING)
-  cuds              String?                @unique
-  createdAt         DateTime               @default(now())
-  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  supplier          Party                  @relation("SupportSupplier", fields: [supplierId], references: [id])
-  lines             SupportDocumentLine[]
+  id             String                 @id @default(uuid())
+  organizationId String
+  supplierId     String
+  number         String?
+  issueDate      DateTime               @db.Date
+  status         InvoiceStatus          @default(DRAFT)
+  subtotal       Decimal                @default(0) @db.Decimal(18, 2)
+  taxTotal       Decimal                @default(0) @db.Decimal(18, 2)
+  total          Decimal                @default(0) @db.Decimal(18, 2)
+  dianStatus     DianTransmissionStatus @default(PENDING)
+  cuds           String?                @unique
+  createdAt      DateTime               @default(now())
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier       Party                  @relation("SupportSupplier", fields: [supplierId], references: [id])
+  lines          SupportDocumentLine[]
+
   @@index([organizationId, status, issueDate])
 }
 
@@ -291,16 +558,17 @@ model SupportDocumentLine {
 
 /// Bitácora del intercambio con el proveedor DIAN (envíos, respuestas, eventos).
 model ElectronicEvent {
-  id              String                 @id @default(uuid())
-  organizationId  String
-  invoiceId       String?
-  kind            ElectronicDocumentKind
-  status          DianTransmissionStatus @default(PENDING)
-  providerPayload Json?
+  id               String                 @id @default(uuid())
+  organizationId   String
+  invoiceId        String?
+  kind             ElectronicDocumentKind
+  status           DianTransmissionStatus @default(PENDING)
+  providerPayload  Json?
   providerResponse Json?
-  occurredAt      DateTime               @default(now())
-  invoice         Invoice?               @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  occurredAt       DateTime               @default(now())
+  invoice          Invoice?               @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@index([organizationId, occurredAt])
 }
 
@@ -320,6 +588,7 @@ model CalendarEvent {
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   owner          User         @relation("EventOwner", fields: [ownerId], references: [id])
+
   @@index([organizationId, startsAt])
 }
 
@@ -336,20 +605,22 @@ model Notification {
   createdAt      DateTime         @default(now())
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([organizationId, readAt, createdAt])
 }
 
 /// Cuenta contable del PUC de la organización. Única por (organizationId, code).
 model Account {
-  id             String       @id @default(uuid())
+  id             String        @id @default(uuid())
   organizationId String
   code           String
   name           String
   accountType    String
   parentId       String?
-  active         Boolean      @default(true)
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  active         Boolean       @default(true)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lines          JournalLine[]
+
   @@unique([organizationId, code])
 }
 
@@ -367,6 +638,7 @@ model JournalEntry {
   createdAt      DateTime      @default(now())
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lines          JournalLine[]
+
   @@unique([organizationId, reference])
   @@index([organizationId, date])
 }
@@ -421,5 +693,701 @@ model AuditLog {
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   @@index([organizationId, entity, entityId])
+}
+
+/// Pago en línea de una factura (Gestión de cobro cartera Betel). Se crea al generar el link de pago;
+/// la pasarela lo aprueba o rechaza. Al aprobarse se crea el recibo de caja (método ONLINE) que abona la
+/// factura, y queda pendiente el desembolso de la pasarela (neto = total pagado − comisión).
+model OnlinePayment {
+  id                 String              @id @default(uuid())
+  organizationId     String
+  invoiceId          String
+  customerId         String
+  number             Int /// Consecutivo por organización; se muestra como PL-<número>.
+  amount             Decimal             @db.Decimal(18, 2) /// Valor cobrado en el link
+  fee                Decimal?            @db.Decimal(18, 2) /// Comisión de la pasarela (al aprobarse)
+  net                Decimal?            @db.Decimal(18, 2) /// Neto recibido = amount − fee
+  status             OnlinePaymentStatus @default(PENDING)
+  method             String? /// Medio usado por el cliente: CARD, PSE, NEQUI…
+  provider           String /// Adaptador de pasarela ("sandbox", "wompi"…)
+  providerReference  String?
+  token              String              @unique /// Secreto del link público de pago
+  paidAt             DateTime?
+  rejectionReason    String?
+  disbursementStatus DisbursementStatus?
+  disbursedAt        DateTime?
+  cashReceiptId      String?             @unique
+  createdById        String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice            Invoice             @relation(fields: [invoiceId], references: [id])
+  customer           Party               @relation("OnlinePaymentCustomer", fields: [customerId], references: [id])
+  cashReceipt        CashReceipt?        @relation(fields: [cashReceiptId], references: [id])
+
+  @@unique([organizationId, number])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+}
+
+/// Cotización (COT-n): propuesta de venta a un cliente. No es factura ni genera contabilidad; se puede
+/// convertir en una factura en borrador (invoiceId) o anular. Totales calculados igual que la factura.
+model Quote {
+  id             String       @id @default(uuid())
+  organizationId String
+  customerId     String
+  number         Int /// Consecutivo por organización; se muestra como COT-<número>.
+  issueDate      DateTime     @db.Date /// Fecha de elaboración
+  validUntil     DateTime?    @db.Date
+  currency       String       @default("COP")
+  subtotal       Decimal      @db.Decimal(18, 2)
+  discountTotal  Decimal      @db.Decimal(18, 2)
+  taxTotal       Decimal      @db.Decimal(18, 2)
+  total          Decimal      @db.Decimal(18, 2)
+  notes          String?
+  status         QuoteStatus  @default(OPEN)
+  voidReason     String?
+  invoiceId      String?      @unique /// Factura en borrador creada desde la cotización
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Party        @relation("QuoteCustomer", fields: [customerId], references: [id])
+  createdBy      User?        @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  invoice        Invoice?     @relation(fields: [invoiceId], references: [id])
+  lines          QuoteLine[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, issueDate])
+  @@index([organizationId, createdById])
+}
+
+/// Línea de una cotización (mismos campos que InvoiceLine).
+model QuoteLine {
+  id           String   @id @default(uuid())
+  quoteId      String
+  productId    String?
+  description  String
+  quantity     Decimal  @db.Decimal(18, 4)
+  unitPrice    Decimal  @db.Decimal(18, 2)
+  discountRate Decimal  @default(0) @db.Decimal(5, 2)
+  taxRate      Decimal  @default(19) @db.Decimal(5, 2)
+  lineTotal    Decimal  @db.Decimal(18, 2)
+  quote        Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id])
+}
+
+/// Remisión (REM-n): constancia de mercancía entregada a un cliente. No es factura ni genera contabilidad;
+/// se puede convertir en una factura en borrador (invoiceId) o anular.
+model Delivery {
+  id              String         @id @default(uuid())
+  organizationId  String
+  customerId      String
+  number          Int /// Consecutivo por organización; se muestra como REM-<número>.
+  transactionType DeliveryType   @default(SALE)
+  issueDate       DateTime       @db.Date /// Fecha de elaboración
+  currency        String         @default("COP")
+  subtotal        Decimal        @db.Decimal(18, 2)
+  discountTotal   Decimal        @db.Decimal(18, 2)
+  taxTotal        Decimal        @db.Decimal(18, 2)
+  total           Decimal        @db.Decimal(18, 2)
+  notes           String?
+  status          DeliveryStatus @default(OPEN)
+  voidReason      String?
+  invoiceId       String?        @unique /// Factura en borrador creada desde la remisión
+  createdById     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer        Party          @relation("DeliveryCustomer", fields: [customerId], references: [id])
+  createdBy       User?          @relation("DeliveryCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  invoice         Invoice?       @relation(fields: [invoiceId], references: [id])
+  lines           DeliveryLine[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, issueDate])
+  @@index([organizationId, createdById])
+}
+
+/// Línea de una remisión (mismos campos que InvoiceLine).
+model DeliveryLine {
+  id           String   @id @default(uuid())
+  deliveryId   String
+  productId    String?
+  description  String
+  quantity     Decimal  @db.Decimal(18, 4)
+  unitPrice    Decimal  @db.Decimal(18, 2)
+  discountRate Decimal  @default(0) @db.Decimal(5, 2)
+  taxRate      Decimal  @default(19) @db.Decimal(5, 2)
+  lineTotal    Decimal  @db.Decimal(18, 2)
+  delivery     Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id])
+}
+
+/// Factura recurrente (FR-n): plantilla que genera una factura EN BORRADOR en cada período, con la fecha
+/// del día en que se genera (la DIAN exige que la fecha de elaboración coincida con la de envío).
+/// periodIndex = siguiente período a generar; nextRunDate = su fecha (null cuando ya terminó).
+model RecurringInvoice {
+  id             String                 @id @default(uuid())
+  organizationId String
+  customerId     String
+  number         Int /// Consecutivo por organización; se muestra como FR-<número>.
+  frequency      RecurrenceFrequency
+  startDate      DateTime               @db.Date
+  occurrences    Int? /// "Número de veces"; null = sin límite
+  generatedCount Int                    @default(0)
+  periodIndex    Int                    @default(0)
+  nextRunDate    DateTime?              @db.Date
+  lastRunAt      DateTime?
+  paymentTerm    PaymentTerm            @default(CASH)
+  dueDays        Int? /// Plazo en días para las facturas a crédito
+  currency       String                 @default("COP")
+  subtotal       Decimal                @db.Decimal(18, 2)
+  discountTotal  Decimal                @db.Decimal(18, 2)
+  taxTotal       Decimal                @db.Decimal(18, 2)
+  total          Decimal                @db.Decimal(18, 2)
+  notes          String?
+  active         Boolean                @default(true)
+  createdById    String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Party                  @relation("RecurringInvoiceCustomer", fields: [customerId], references: [id])
+  createdBy      User?                  @relation("RecurringInvoiceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lines          RecurringInvoiceLine[]
+  runs           RecurringInvoiceRun[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, startDate])
+  @@index([active, nextRunDate])
+}
+
+/// Línea de la plantilla (mismos campos que InvoiceLine).
+model RecurringInvoiceLine {
+  id                 String           @id @default(uuid())
+  recurringInvoiceId String
+  productId          String?
+  description        String
+  quantity           Decimal          @db.Decimal(18, 4)
+  unitPrice          Decimal          @db.Decimal(18, 2)
+  discountRate       Decimal          @default(0) @db.Decimal(5, 2)
+  taxRate            Decimal          @default(19) @db.Decimal(5, 2)
+  lineTotal          Decimal          @db.Decimal(18, 2)
+  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+  product            Product?         @relation(fields: [productId], references: [id])
+}
+
+/// Cada factura generada por una factura recurrente (la tabla Invoice no se modifica).
+model RecurringInvoiceRun {
+  id                 String           @id @default(uuid())
+  recurringInvoiceId String
+  invoiceId          String           @unique
+  periodDate         DateTime         @db.Date /// Fecha programada del período
+  createdAt          DateTime         @default(now())
+  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+  invoice            Invoice          @relation(fields: [invoiceId], references: [id])
+
+  @@index([recurringInvoiceId])
+}
+
+/// Tarea de seguimiento comercial (TC-n): una gestión pendiente con un contacto (tercero), con su
+/// responsable, fecha de compromiso y los datos de la oportunidad (etapa, avance, probabilidad, valor).
+model CommercialTask {
+  id             String               @id @default(uuid())
+  organizationId String
+  number         Int /// Consecutivo por organización; se muestra como TC-<número>.
+  partyId        String /// Contacto (cliente o prospecto)
+  description    String
+  commitment     CommitmentType
+  dueDate        DateTime?            @db.Date /// Fecha de compromiso
+  stage          SalesStage           @default(PROSPECT)
+  progress       NegotiationProgress  @default(NONE)
+  probability    Int                  @default(0) /// Probabilidad de cierre, 0 a 100 %
+  expectedValue  Decimal?             @db.Decimal(18, 2)
+  origin         LeadOrigin?
+  companyType    CompanySize?
+  status         CommercialTaskStatus @default(PENDING)
+  result         String? /// Resultado registrado al completar
+  completedAt    DateTime?
+  responsibleId  String
+  createdById    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  party          Party                @relation("CommercialTaskParty", fields: [partyId], references: [id])
+  responsible    User                 @relation("CommercialTaskResponsible", fields: [responsibleId], references: [id])
+  createdBy      User?                @relation("CommercialTaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, number])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status, responsibleId])
+}
+
+/// Documento de compra o gasto (CG-n) que registra la factura recibida de un proveedor. Se contabiliza al
+/// crearse: Débito inventario (compra) o gasto + IVA descontable / Crédito proveedores (crédito) o caja (contado).
+model PurchaseDocument {
+  id                    String                       @id @default(uuid())
+  organizationId        String
+  supplierId            String
+  number                Int /// Consecutivo por organización; se muestra como CG-<número>.
+  type                  PurchaseType
+  supplierInvoiceNumber String /// Número de la factura del proveedor
+  issueDate             DateTime                     @db.Date /// Fecha de elaboración
+  dueDate               DateTime?                    @db.Date
+  paymentTerm           PaymentTerm                  @default(CASH)
+  currency              String                       @default("COP")
+  subtotal              Decimal                      @db.Decimal(18, 2)
+  discountTotal         Decimal                      @db.Decimal(18, 2)
+  taxTotal              Decimal                      @db.Decimal(18, 2)
+  total                 Decimal                      @db.Decimal(18, 2)
+  notes                 String?
+  status                PurchaseStatus               @default(ACTIVE)
+  voidReason            String?
+  createdById           String?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier              Party                        @relation("PurchaseSupplier", fields: [supplierId], references: [id])
+  createdBy             User?                        @relation("PurchaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lines                 PurchaseLine[]
+  paymentApplications   SupplierPaymentApplication[]
+  purchaseImport        PurchaseImport?              @relation("PurchaseImportDocument")
+
+  @@unique([organizationId, number])
+  @@unique([organizationId, supplierId, supplierInvoiceNumber])
+  @@index([organizationId, issueDate])
+}
+
+/// Línea de un documento de compra o gasto (mismos campos que InvoiceLine).
+model PurchaseLine {
+  id                 String           @id @default(uuid())
+  purchaseDocumentId String
+  productId          String?
+  description        String
+  quantity           Decimal          @db.Decimal(18, 4)
+  unitPrice          Decimal          @db.Decimal(18, 2)
+  discountRate       Decimal          @default(0) @db.Decimal(5, 2)
+  taxRate            Decimal          @default(19) @db.Decimal(5, 2)
+  lineTotal          Decimal          @db.Decimal(18, 2)
+  purchaseDocument   PurchaseDocument @relation(fields: [purchaseDocumentId], references: [id], onDelete: Cascade)
+  product            Product?         @relation(fields: [productId], references: [id])
+}
+
+/// Evento de una factura electrónica recibida (Res. DIAN 000085 de 2022). Código DIAN entre paréntesis.
+enum ReceivedInvoiceEventType {
+  RECEIPT /// (030) Acuse de recibo de la factura
+  CLAIM /// (031) Reclamo de la factura
+  GOODS_RECEIPT /// (032) Recibo del bien o prestación del servicio
+  ACCEPTANCE /// (033) Aceptación expresa
+}
+
+/// Factura electrónica de venta emitida por un proveedor y registrada por su CUFE para enviar sus eventos a la DIAN.
+/// Las fechas de cada evento se repiten aquí para filtrar y ordenar; el detalle está en ReceivedInvoiceEvent.
+model ReceivedInvoice {
+  id               String                    @id @default(uuid())
+  organizationId   String
+  cufe             String /// Código único de la factura electrónica (96 caracteres hexadecimales)
+  supplierId       String? /// Tercero proveedor con la misma identificación, si existe
+  supplierNit      String
+  supplierName     String
+  number           String /// Comprobante: prefijo y número de la factura del proveedor
+  issueDate        DateTime                  @db.Date
+  total            Decimal?                  @db.Decimal(18, 2)
+  receiptAt        DateTime? /// (030) Recepción de factura
+  goodsReceiptAt   DateTime? /// (032) Recepción de mercancía o servicio
+  responseDeadline DateTime?                 @db.Date /// Último día hábil para aceptar o reclamar (3 días hábiles tras el 032)
+  outcome          ReceivedInvoiceEventType? /// ACCEPTANCE o CLAIM
+  outcomeAt        DateTime?
+  createdById      String?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier         Party?                    @relation("ReceivedInvoiceSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+  createdBy        User?                     @relation("ReceivedInvoiceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  events           ReceivedInvoiceEvent[]
+
+  @@unique([organizationId, cufe])
+  @@index([organizationId, createdAt])
+}
+
+/// Evento enviado a la DIAN sobre una factura recibida (uno por tipo).
+model ReceivedInvoiceEvent {
+  id                String                   @id @default(uuid())
+  organizationId    String
+  receivedInvoiceId String
+  type              ReceivedInvoiceEventType
+  dianStatus        String /// QUEUED, SENT, ACCEPTED o REJECTED según el proveedor DIAN
+  claimReason       String? /// 01–04 (solo reclamo)
+  notes             String?
+  receiverName      String? /// Persona que recibe (030 y 032)
+  receiverDocument  String?
+  receiverRole      String?
+  providerResponse  Json?
+  createdById       String?
+  createdAt         DateTime                 @default(now())
+  organization      Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  receivedInvoice   ReceivedInvoice          @relation(fields: [receivedInvoiceId], references: [id], onDelete: Cascade)
+  createdBy         User?                    @relation("ReceivedInvoiceEventCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([receivedInvoiceId, type])
+}
+
+/// Comprobante de egreso (CE-n): pago a un proveedor que abona a compras o gastos a crédito.
+/// Asiento: Débito 220505 Proveedores / Crédito 110505 Caja (efectivo) o 111005 Bancos (otros medios).
+model SupplierPayment {
+  id             String                       @id @default(uuid())
+  organizationId String
+  supplierId     String
+  number         Int /// Consecutivo por organización; se muestra como CE-<número>.
+  date           DateTime                     @db.Date
+  method         CollectionMethod
+  reference      String? /// Número de transferencia o cheque.
+  notes          String?
+  total          Decimal                      @db.Decimal(18, 2)
+  status         CashReceiptStatus            @default(ACTIVE)
+  voidReason     String?
+  voidedAt       DateTime?
+  createdById    String?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier       Party                        @relation("SupplierPaymentSupplier", fields: [supplierId], references: [id])
+  createdBy      User?                        @relation("SupplierPaymentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  applications   SupplierPaymentApplication[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, date])
+  @@index([organizationId, supplierId])
+}
+
+/// Valor de un comprobante de egreso aplicado a una compra o gasto a crédito.
+model SupplierPaymentApplication {
+  id                 String           @id @default(uuid())
+  paymentId          String
+  purchaseDocumentId String
+  amount             Decimal          @db.Decimal(18, 2)
+  payment            SupplierPayment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  purchaseDocument   PurchaseDocument @relation(fields: [purchaseDocumentId], references: [id])
+
+  @@unique([paymentId, purchaseDocumentId])
+  @@index([purchaseDocumentId])
+}
+
+enum PurchaseImportStatus {
+  PENDING /// Por legalizar
+  LEGALIZED /// Convertido en compra o gasto (CG-n)
+  REJECTED /// Descartado con motivo
+}
+
+/// Soporte de compra o gasto por legalizar: factura electrónica de un proveedor importada desde su XML (UBL 2.1).
+/// Al legalizarla se crea el PurchaseDocument (compra o gasto) con su asiento. Ver apps/api/src/purchase-imports.ts.
+model PurchaseImport {
+  id                 String               @id @default(uuid())
+  organizationId     String
+  cufe               String
+  fileName           String
+  supplierNit        String
+  supplierIdType     String /// NIT, CC, CE… (código DIAN 31, 13, 22…)
+  supplierName       String
+  number             String /// Prefijo y número de la factura del proveedor
+  issueDate          DateTime             @db.Date
+  dueDate            DateTime?            @db.Date
+  paymentTerm        PaymentTerm
+  currency           String
+  subtotal           Decimal              @db.Decimal(18, 2)
+  taxTotal           Decimal              @db.Decimal(18, 2)
+  total              Decimal              @db.Decimal(18, 2)
+  lines              Json /// Ítems leídos del XML (descripción, cantidad, precio, descuento, IVA)
+  warnings           Json /// Advertencias de la lectura; `blocking` impide legalizar
+  xml                String /// XML original, para trazabilidad
+  status             PurchaseImportStatus @default(PENDING)
+  rejectReason       String?
+  purchaseDocumentId String?              @unique
+  createdById        String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseDocument   PurchaseDocument?    @relation("PurchaseImportDocument", fields: [purchaseDocumentId], references: [id], onDelete: SetNull)
+  createdBy          User?                @relation("PurchaseImportCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, cufe])
+  @@index([organizationId, issueDate])
+}
+
+enum InventoryDocumentType {
+  INITIAL /// Saldo inicial (SI-n): solo entradas
+  ADJUSTMENT /// Ajuste de inventario (AJ-n): entradas (sobrantes) y salidas (faltantes, mermas)
+}
+
+enum InventoryDirection {
+  IN
+  OUT
+}
+
+/// Documento de inventario de "Productos y servicios › Documentos de productos / servicios". Mueve el stock y se
+/// contabiliza: saldo inicial 143505/370505; ajuste entrada 143505/429595; ajuste salida 519595/143505.
+model InventoryDocument {
+  id             String                @id @default(uuid())
+  organizationId String
+  type           InventoryDocumentType
+  number         Int /// Consecutivo por organización y tipo: SI-n o AJ-n
+  date           DateTime              @db.Date /// Fecha de elaboración
+  partyId        String? /// Tercero responsable (opcional)
+  notes          String?
+  total          Decimal               @db.Decimal(18, 2) /// Valor neto: entradas − salidas
+  status         PurchaseStatus        @default(ACTIVE)
+  voidReason     String?
+  createdById    String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  party          Party?                @relation("InventoryDocumentParty", fields: [partyId], references: [id], onDelete: SetNull)
+  createdBy      User?                 @relation("InventoryDocumentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lines          InventoryLine[]
+
+  @@unique([organizationId, type, number])
+  @@index([organizationId, date])
+}
+
+/// Renglón de un documento de inventario: producto, entrada o salida, cantidad y costo unitario.
+model InventoryLine {
+  id         String             @id @default(uuid())
+  documentId String
+  productId  String
+  direction  InventoryDirection
+  quantity   Decimal            @db.Decimal(18, 4)
+  unitCost   Decimal            @db.Decimal(18, 2)
+  total      Decimal            @db.Decimal(18, 2)
+  document   InventoryDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  product    Product            @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+}
+
+/// Costeo mensual (Productos y servicios › Costeo mensual): costo promedio ponderado por producto y mes y costo de
+/// lo vendido. Uno por organización y mes; recalcular lo reemplaza (version + 1) y reversa el asiento anterior.
+model CostingRun {
+  id             String        @id @default(uuid())
+  organizationId String
+  year           Int
+  month          Int /// 1–12
+  version        Int           @default(1)
+  executedAt     DateTime /// Última ejecución
+  executedById   String?
+  productCount   Int
+  costOfSales    Decimal       @db.Decimal(18, 2) /// Costo de lo vendido en el mes (asiento 613505/143505)
+  closingValue   Decimal       @db.Decimal(18, 2) /// Valor del inventario al cierre del mes
+  negativeCount  Int           @default(0) /// Productos con stock negativo en el mes (costo menos preciso)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  executedBy     User?         @relation("CostingRunExecutor", fields: [executedById], references: [id], onDelete: SetNull)
+  lines          CostingLine[]
+
+  @@unique([organizationId, year, month])
+}
+
+/// Resultado del costeo de un producto en un mes.
+model CostingLine {
+  id             String     @id @default(uuid())
+  runId          String
+  productId      String
+  openingQty     Decimal    @db.Decimal(18, 4)
+  openingValue   Decimal    @db.Decimal(18, 2)
+  inQty          Decimal    @db.Decimal(18, 4) /// Compras, saldo inicial y ajustes de entrada del mes
+  inValue        Decimal    @db.Decimal(18, 2)
+  salesQty       Decimal    @db.Decimal(18, 4) /// Facturas de venta emitidas del mes
+  salesCost      Decimal    @db.Decimal(18, 2) /// salesQty × costo promedio
+  adjustOutQty   Decimal    @db.Decimal(18, 4) /// Ajustes de salida del mes (a su costo registrado)
+  adjustOutValue Decimal    @db.Decimal(18, 2)
+  closingQty     Decimal    @db.Decimal(18, 4)
+  closingValue   Decimal    @db.Decimal(18, 2)
+  averageCost    Decimal    @db.Decimal(18, 4)
+  negative       Boolean    @default(false)
+  run            CostingRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  product        Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// ─── Nómina ───────────────────────────────────────────────────────────────────
+
+enum ContractType {
+  INDEFINITE /// Término indefinido
+  FIXED /// Término fijo
+  WORK /// Obra o labor
+}
+
+enum SalaryType {
+  ORDINARY /// Salario ordinario
+  INTEGRAL /// Salario integral (al menos 13 SMMLV; IBC 70 %, sin prima ni cesantías)
+}
+
+enum PayFrequency {
+  BIWEEKLY /// Quincenal
+  MONTHLY /// Mensual
+}
+
+enum PayrollStatus {
+  DRAFT /// En borrador: se editan novedades
+  APPROVED /// Aprobada y contabilizada (causación)
+  PAID /// Pagada (egreso de caja o bancos)
+  VOID /// Anulada
+}
+
+/// Parámetros legales de nómina por año. Deben confirmarse antes de liquidar ese año (los decreta el Gobierno).
+model PayrollSettings {
+  id                  String       @id @default(uuid())
+  organizationId      String
+  year                Int
+  minimumWage         Decimal      @db.Decimal(18, 2) /// SMMLV
+  transportAllowance  Decimal      @db.Decimal(18, 2) /// Auxilio de transporte mensual
+  monthlyHours        Int /// Horas mensuales para el valor de la hora (según la jornada máxima legal)
+  overtimeDayPct      Decimal      @db.Decimal(6, 2) /// Hora extra diurna (recargo %)
+  overtimeNightPct    Decimal      @db.Decimal(6, 2) /// Hora extra nocturna (recargo %)
+  nightSurchargePct   Decimal      @db.Decimal(6, 2) /// Recargo nocturno %
+  holidaySurchargePct Decimal      @db.Decimal(6, 2) /// Recargo dominical y festivo %
+  healthEmployeePct   Decimal      @db.Decimal(6, 2)
+  pensionEmployeePct  Decimal      @db.Decimal(6, 2)
+  healthEmployerPct   Decimal      @db.Decimal(6, 2)
+  pensionEmployerPct  Decimal      @db.Decimal(6, 2)
+  compensationFundPct Decimal      @db.Decimal(6, 2) /// Caja de compensación familiar
+  icbfPct             Decimal      @db.Decimal(6, 2)
+  senaPct             Decimal      @db.Decimal(6, 2)
+  exempt              Boolean      @default(true) /// Exonerado de salud, ICBF y SENA (art. 114-1 E.T.) para quien gana menos de 10 SMMLV
+  confirmed           Boolean      @default(false)
+  confirmedAt         DateTime?
+  confirmedById       String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, year])
+}
+
+/// Empleado de la organización (nómina).
+model Employee {
+  id                   String              @id @default(uuid())
+  organizationId       String
+  identificationType   String
+  identificationNumber String
+  firstName            String
+  lastName             String
+  email                String?
+  phone                String?
+  position             String /// Cargo
+  startDate            DateTime            @db.Date
+  endDate              DateTime?           @db.Date /// Fecha de retiro
+  contractType         ContractType
+  salaryType           SalaryType          @default(ORDINARY)
+  salary               Decimal             @db.Decimal(18, 2) /// Salario mensual
+  frequency            PayFrequency        @default(MONTHLY)
+  riskClass            Int                 @default(1) /// Clase de riesgo ARL (1 a 5)
+  healthFund           String /// EPS
+  pensionFund          String
+  severanceFund        String?
+  bankName             String?
+  bankAccount          String?
+  active               Boolean             @default(true)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payrollItems         PayrollItem[]
+  electronic           PayrollElectronic[]
+
+  @@unique([organizationId, identificationType, identificationNumber])
+}
+
+/// Liquidación de nómina de un período (NOM-n): un renglón por empleado.
+model PayrollRun {
+  id              String            @id @default(uuid())
+  organizationId  String
+  number          Int
+  frequency       PayFrequency
+  periodStart     DateTime          @db.Date
+  periodEnd       DateTime          @db.Date
+  status          PayrollStatus     @default(DRAFT)
+  totalEarnings   Decimal           @default(0) @db.Decimal(18, 2) /// Devengado
+  totalDeductions Decimal           @default(0) @db.Decimal(18, 2) /// Deducciones del empleado
+  netPay          Decimal           @default(0) @db.Decimal(18, 2) /// Neto a pagar
+  employerCost    Decimal           @default(0) @db.Decimal(18, 2) /// Aportes del empleador + provisiones
+  approvedAt      DateTime?
+  paidAt          DateTime?         @db.Date
+  paymentMethod   CollectionMethod?
+  voidReason      String?
+  createdById     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy       User?             @relation("PayrollRunCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items           PayrollItem[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, periodEnd])
+}
+
+/// Renglón de un empleado en una liquidación: novedades digitadas y resultado del cálculo.
+model PayrollItem {
+  id              String     @id @default(uuid())
+  runId           String
+  employeeId      String
+  days            Int /// Días laborados (mes comercial de 30)
+  overtimeDay     Decimal    @default(0) @db.Decimal(8, 2) /// Horas extra diurnas
+  overtimeNight   Decimal    @default(0) @db.Decimal(8, 2) /// Horas extra nocturnas
+  nightHours      Decimal    @default(0) @db.Decimal(8, 2) /// Horas con recargo nocturno
+  holidayHours    Decimal    @default(0) @db.Decimal(8, 2) /// Horas con recargo dominical o festivo
+  salaryBonus     Decimal    @default(0) @db.Decimal(18, 2) /// Otros devengos salariales (comisiones, bonificaciones salariales)
+  nonSalaryBonus  Decimal    @default(0) @db.Decimal(18, 2) /// Bonificaciones no salariales
+  withholding     Decimal    @default(0) @db.Decimal(18, 2) /// Retención en la fuente (digitada)
+  otherDeductions Decimal    @default(0) @db.Decimal(18, 2) /// Préstamos, libranzas y otros descuentos
+  notes           String?
+  earnings        Decimal    @default(0) @db.Decimal(18, 2)
+  deductions      Decimal    @default(0) @db.Decimal(18, 2)
+  netPay          Decimal    @default(0) @db.Decimal(18, 2)
+  employerCost    Decimal    @default(0) @db.Decimal(18, 2)
+  calculation     Json /// Detalle: básico, auxilio, extras, IBC, salud, pensión, FSP, aportes, provisiones
+  run             PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee        Employee   @relation(fields: [employeeId], references: [id])
+
+  @@unique([runId, employeeId])
+}
+
+/// Documento soporte de pago de nómina electrónica (mensual por empleado) enviado al proveedor DIAN.
+model PayrollElectronic {
+  id               String       @id @default(uuid())
+  organizationId   String
+  employeeId       String
+  year             Int
+  month            Int
+  number           Int /// Consecutivo NE-n por organización
+  earnings         Decimal      @db.Decimal(18, 2)
+  deductions       Decimal      @db.Decimal(18, 2)
+  netPay           Decimal      @db.Decimal(18, 2)
+  runCount         Int
+  dianStatus       String /// QUEUED, SENT, ACCEPTED o REJECTED
+  providerResponse Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee         Employee     @relation(fields: [employeeId], references: [id])
+
+  @@unique([organizationId, employeeId, year, month])
+  @@unique([organizationId, number])
+}
+
+/// Comprobante favorito (plantilla): cuentas, débitos, créditos y detalle para crear comprobantes manuales repetidos.
+model JournalTemplate {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  description    String
+  lines          Json /// [{ accountId, debit, credit, memo }]
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
 }
