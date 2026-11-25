@@ -152,6 +152,28 @@ async function cashFlow(tx: Tx, range: Range) {
   return { inflows: inflows.toFixed(2), outflows: outflows.toFixed(2), net: inflows.minus(outflows).toFixed(2) };
 }
 
+/** Saldo acumulado de una cuenta PUC, usando exclusivamente comprobantes contabilizados. */
+async function accountingBalance(
+  tx: Tx,
+  code: string,
+  name: string,
+  nature: "DEBIT" | "CREDIT"
+) {
+  const movements = await tx.journalLine.aggregate({
+    where: { account: { code }, journalEntry: { status: "POSTED" } },
+    _sum: { debit: true, credit: true },
+  });
+  const debits = movements._sum.debit ?? ZERO;
+  const credits = movements._sum.credit ?? ZERO;
+  return {
+    code,
+    name,
+    debits: debits.toFixed(2),
+    credits: credits.toFixed(2),
+    balance: (nature === "DEBIT" ? debits.minus(credits) : credits.minus(debits)).toFixed(2),
+  };
+}
+
 /** Sumas por día de ingresos y gastos en el rango, agrupadas luego por período. */
 async function series(tx: Tx, today: Date, granularity: Granularity) {
   const periods = buckets(today, granularity);
@@ -225,6 +247,10 @@ export function registerDashboardRoutes(app: FastifyInstance) {
           },
         },
         cashFlow: await cashFlow(tx, month),
+        accountBalances: {
+          receivable: await accountingBalance(tx, "130505", "Clientes nacionales", "DEBIT"),
+          payable: await accountingBalance(tx, "220505", "Proveedores nacionales", "CREDIT"),
+        },
         series: await series(tx, today, parsed.data.granularity),
       };
     });

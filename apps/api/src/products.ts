@@ -214,7 +214,13 @@ async function loadProducts(tx: Tx, query: ProductQuery, rows: { skip: number; t
   const where: Prisma.ProductWhereInput = { AND: conditions };
   const [count, products] = await Promise.all([
     tx.product.count({ where }),
-    tx.product.findMany({ where, orderBy: [{ name: "asc" }, { id: "asc" }], skip: rows.skip, take: rows.take }),
+    tx.product.findMany({
+      where,
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+      skip: rows.skip,
+      take: rows.take,
+      include: { inventoryConfig: true, accountingConfig: true },
+    }),
   ]);
   return {
     count,
@@ -230,6 +236,13 @@ async function loadProducts(tx: Tx, query: ProductQuery, rows: { skip: number; t
         unit: product.unit,
         unitPrice: product.unitPrice.toFixed(2),
         taxRate: product.taxRate.toFixed(2),
+        taxTreatment: product.taxTreatment,
+        inventoryControlled: product.inventoryConfig?.controlled ?? false,
+        configurationStatus:
+          !product.unit || !product.taxTreatment || product.unitPrice.isNegative() ||
+          (product.inventoryConfig?.controlled && (!product.accountingConfig?.inventoryAccountId || !product.accountingConfig?.costOfSalesAccountId))
+            ? "INCOMPLETE"
+            : "READY",
         priceWithTax: product.unitPrice.times(product.taxRate.dividedBy(100).plus(1)).toDecimalPlaces(2).toFixed(2),
         active: product.active,
         stock: service
@@ -246,6 +259,85 @@ async function loadProducts(tx: Tx, query: ProductQuery, rows: { skip: number; t
 }
 
 const httpError = (statusCode: number, message: string) => Object.assign(new Error(message), { statusCode });
+
+type ProductPayload = ReturnType<typeof productSchema.parse>;
+const accountKeys = [
+  "inventoryAccountId",
+  "incomeAccountId",
+  "costOfSalesAccountId",
+  "vatSalesAccountId",
+  "vatPurchaseAccountId",
+  "incAccountId",
+  "returnsAccountId",
+  "discountsAccountId",
+] as const;
+
+/** Separa el dato comercial de sus reglas. Cero sin clasificación explícita conserva compatibilidad como EXENTO. */
+function masterData(input: ProductPayload) {
+  const { taxConfig, inventoryConfig, accountingConfig, taxTreatment, ...product } = input;
+  return {
+    product: { ...product, taxTreatment: taxTreatment ?? (input.taxRate === 0 ? "EXEMPT" : "TAXED") },
+    taxConfig,
+    inventoryConfig,
+    accountingConfig,
+  };
+}
+
+async function validateConfiguredAccounts(tx: Tx, config: ProductPayload["accountingConfig"]) {
+  if (!config) return;
+  const ids = accountKeys.map(key => config[key]).filter((id): id is string => Boolean(id));
+  if (!ids.length) return;
+  const accounts = await tx.account.findMany({ where: { id: { in: ids }, active: true }, select: { id: true, code: true } });
+  if (accounts.length !== new Set(ids).size)
+    throw httpError(422, "Selecciona únicamente cuentas activas pertenecientes al plan contable de la empresa.");
+}
+
+async function saveConfiguration(tx: Tx, productId: string, input: ProductPayload, actorId: string, recordPrice = true) {
+  const { product, taxConfig, inventoryConfig, accountingConfig } = masterData(input);
+  await validateConfiguredAccounts(tx, accountingConfig);
+  // Siempre existe la regla de impuestos: conserva la diferencia fiscal entre exento y excluido.
+  await tx.productTaxConfig.upsert({
+    where: { productId },
+    create: {
+      productId,
+      taxTreatment: product.taxTreatment,
+      vatRate: product.taxRate,
+      appliesInc: taxConfig?.appliesInc ?? false,
+      incCode: taxConfig?.incCode,
+      incRate: taxConfig?.incRate,
+      withholdingHints: taxConfig?.withholdingHints ?? [],
+      standardCodeType: taxConfig?.standardCodeType,
+      standardCode: taxConfig?.standardCode,
+    },
+    update: {
+      taxTreatment: product.taxTreatment,
+      vatRate: product.taxRate,
+      ...(taxConfig && {
+        appliesInc: taxConfig.appliesInc,
+        incCode: taxConfig.incCode,
+        incRate: taxConfig.incRate,
+        withholdingHints: taxConfig.withholdingHints,
+        standardCodeType: taxConfig.standardCodeType,
+        standardCode: taxConfig.standardCode,
+      }),
+    },
+  });
+  if (inventoryConfig) {
+    await tx.productInventoryConfig.upsert({
+      where: { productId },
+      create: { productId, ...inventoryConfig, controlled: input.kind === "SERVICE" ? false : inventoryConfig.controlled },
+      update: { ...inventoryConfig, controlled: input.kind === "SERVICE" ? false : inventoryConfig.controlled },
+    });
+  }
+  if (accountingConfig)
+    await tx.productAccountingConfig.upsert({
+      where: { productId },
+      create: { productId, ...accountingConfig },
+      update: accountingConfig,
+    });
+  if (recordPrice)
+    await tx.productPrice.create({ data: { productId, amount: product.unitPrice, includesTaxes: product.priceIncludesTaxes, createdById: actorId } });
+}
 
 /** Código libre: si viene vacío se asigna el siguiente C-n; si ya existe en otro producto, 409. */
 async function resolveCode(tx: Tx, sku: string | undefined, exceptId?: string) {
@@ -321,6 +413,32 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
     }
   );
 
+  /** Configuración avanzada e historial: el formulario lo consulta al editar; nunca expone datos de otra empresa. */
+  app.get<{ Params: { id: string } }>("/v1/products/:id/configuration", canView, async (request, reply) => {
+    if (!validId(request.params.id)) return reply.code(404).send({ error: "Producto no encontrado." });
+    const data = await withOrganizationScope(request.actor!.organizationId, async tx => {
+      const product = await tx.product.findFirst({
+        where: { id: request.params.id },
+        include: {
+          taxConfig: true,
+          inventoryConfig: true,
+          accountingConfig: true,
+          prices: { orderBy: { validFrom: "desc" }, take: 20 },
+        },
+      });
+      if (!product) return null;
+      const history = await tx.auditLog.findMany({
+        where: { entity: "Product", entityId: product.id },
+        select: { action: true, before: true, after: true, createdAt: true, userId: true },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+      return { product, history };
+    });
+    if (!data) return reply.code(404).send({ error: "Producto no encontrado." });
+    return { data };
+  });
+
   /** POST /v1/products — Body: productSchema. */
   app.post("/v1/products", canEdit, async (request, reply) => {
     const parsed = productSchema.safeParse(request.body);
@@ -330,10 +448,12 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
     try {
       const product = await withOrganizationScope(actor.organizationId, async tx => {
         const sku = await resolveCode(tx, parsed.data.sku);
+        const { product: master } = masterData(parsed.data);
         const created = await tx.product.create({
-          data: { ...parsed.data, sku, organizationId: actor.organizationId },
+          data: { ...master, sku, organizationId: actor.organizationId },
         });
-        await audit(tx, request, created.id, "CREATE", { ...parsed.data, sku });
+        await saveConfiguration(tx, created.id, parsed.data, actor.sub);
+        await audit(tx, request, created.id, "CREATE", { ...master, sku, configuration: true });
         return created;
       });
       return reply.code(201).send({ data: product });
@@ -354,19 +474,27 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
         const current = await tx.product.findFirst({ where: { id: request.params.id } });
         if (!current) throw httpError(404, "Producto no encontrado.");
         const sku = await resolveCode(tx, parsed.data.sku ?? current.sku ?? undefined, current.id);
+        const { product: master } = masterData(parsed.data);
         // Un producto con movimientos no puede pasar a servicio: perdería su stock.
         if (current.kind === "PRODUCT" && parsed.data.kind === "SERVICE") {
           const moves = (await stockByProduct(tx, [current.id])).get(current.id);
           if (moves && (!moves.inflow.isZero() || !moves.outflow.isZero()))
             throw httpError(409, "Este producto ya tiene compras o ventas: no se puede convertir en servicio.");
         }
-        const updated = await tx.product.update({ where: { id: current.id }, data: { ...parsed.data, sku } });
+        const updated = await tx.product.update({ where: { id: current.id }, data: { ...master, sku } });
+        await saveConfiguration(
+          tx,
+          current.id,
+          parsed.data,
+          request.actor!.sub,
+          !current.unitPrice.equals(master.unitPrice) || current.priceIncludesTaxes !== master.priceIncludesTaxes
+        );
         await audit(
           tx,
           request,
           current.id,
           "UPDATE",
-          { ...parsed.data, sku },
+          { ...master, sku, configuration: true },
           {
             sku: current.sku,
             name: current.name,
@@ -485,7 +613,8 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
           sku = `C-${next++}`;
         }
         codes.add(sku.toLowerCase());
-        valid.push({ ...product, sku, organizationId: request.actor!.organizationId });
+        // La importación conserva el maestro comercial; las reglas avanzadas se completan desde el formulario.
+        valid.push({ ...masterData(product).product, sku, organizationId: request.actor!.organizationId });
       });
       const created = valid.length ? (await tx.product.createMany({ data: valid })).count : 0;
       await audit(tx, request, "import", "IMPORT", { rows: parsed.data.rows.length, created, errors: errors.length });

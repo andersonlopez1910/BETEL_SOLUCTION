@@ -11,8 +11,8 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { apiDelete, apiPost, apiPut } from "../lib/api";
+import { useEffect, useState } from "react";
+import { apiDelete, apiGet, apiPost, apiPut } from "../lib/api";
 import { downloadText, readSpreadsheet } from "../lib/spreadsheet";
 import type { ReportColumn } from "../lib/report-export";
 import { ActionMenu } from "./action-menu";
@@ -39,7 +39,8 @@ const productTabs = [
 ] as const;
 
 export function ProductsModule() {
-  const requested = useSearchParams().get("tab");
+  const params = useSearchParams();
+  const requested = params.get("tab");
   const [slug] = productTabs.find(([tab]) => tab === requested) ?? productTabs[0];
   return (
     <div className="page-content">
@@ -56,7 +57,7 @@ export function ProductsModule() {
           </Link>
         ))}
       </nav>
-      {slug === "gestion" && <ProductManagement />}
+      {slug === "gestion" && <ProductManagement openCreate={params.get("new") === "product"} />}
       {slug === "documentos" && <ProductDocuments />}
       {slug === "costeo" && <MonthlyCosting />}
     </div>
@@ -72,6 +73,9 @@ type ProductRow = {
   unit: string;
   unitPrice: string;
   taxRate: string;
+  taxTreatment?: "TAXED" | "EXEMPT" | "EXCLUDED" | "OTHER";
+  inventoryControlled?: boolean;
+  configurationStatus?: "READY" | "INCOMPLETE";
   priceWithTax: string;
   active: boolean;
   stock: { inflow: string; outflow: string; quantity: string; state: "NEGATIVE" | "ZERO" | "POSITIVE" } | null;
@@ -121,7 +125,7 @@ type Dialog =
   | { kind: "import" }
   | { kind: "top" };
 
-function ProductManagement() {
+function ProductManagement({ openCreate = false }: { openCreate?: boolean }) {
   const { company, canExport, canEmail: canEdit, canReceive: canDelete } = useSession();
   const [applied, setApplied] = useState<Filters>(noFilters);
   const [draft, setDraft] = useState<Filters>(noFilters);
@@ -130,7 +134,7 @@ function ProductManagement() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [dialog, setDialog] = useState<Dialog | null>(() => (openCreate ? { kind: "form", product: null, mode: "create" } : null));
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const report = useReport<ProductsResponse>("/v1/reports/products", { ...applied, page, pageSize });
   const rows = report.data?.data ?? [];
@@ -693,13 +697,64 @@ function ProductDialog({
     unit: product?.unit ?? "UND",
     unitPrice: product?.unitPrice ? String(Number(product.unitPrice)) : "",
     taxRate: product?.taxRate ? String(Number(product.taxRate)) : "19",
+    taxTreatment: product?.taxTreatment ?? (Number(product?.taxRate) === 0 ? "EXEMPT" : "TAXED"),
+    priceIncludesTaxes: false,
+    inventoryControlled: product?.inventoryControlled ?? false,
+    valuationMethod: "WEIGHTED_AVERAGE",
+    initialCost: "",
+    netRealizableValue: "",
+    inventoryAccountId: "",
+    costOfSalesAccountId: "",
   });
   const [state, setState] = useState<{ busy: boolean; error?: string }>({ busy: false });
+  const [accounts, setAccounts] = useState<{ id: string; code: string; name: string }[]>([]);
   const set =
     (field: keyof typeof form) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setForm({ ...form, [field]: event.target.value });
-  const withTax = Number(form.unitPrice || 0) * (1 + Number(form.taxRate || 0) / 100);
+  useEffect(() => {
+    apiGet<{ data: { data: { id: string | null; code: string; name: string; postable: boolean; active: boolean }[] } }>(
+      "/v1/accounting/chart"
+    ).then(
+      response => setAccounts(response.data.data.filter(item => item.id && item.postable && item.active) as { id: string; code: string; name: string }[]),
+      () => undefined
+    );
+  }, []);
+  useEffect(() => {
+    if (mode !== "edit" || !product?.id) return;
+    apiGet<{
+      data: {
+        product: {
+          taxTreatment: "TAXED" | "EXEMPT" | "EXCLUDED" | "OTHER";
+          priceIncludesTaxes: boolean;
+          inventoryConfig: { controlled: boolean; valuationMethod: string | null; initialCost: string | null; netRealizableValue: string | null } | null;
+          accountingConfig: { inventoryAccountId: string | null; costOfSalesAccountId: string | null } | null;
+        };
+      };
+    }>(`/v1/products/${product.id}/configuration`).then(
+      response => {
+        const saved = response.data.product;
+        setForm(current => ({
+          ...current,
+          taxTreatment: saved.taxTreatment,
+          priceIncludesTaxes: saved.priceIncludesTaxes,
+          inventoryControlled: saved.inventoryConfig?.controlled ?? false,
+          valuationMethod: saved.inventoryConfig?.valuationMethod ?? "WEIGHTED_AVERAGE",
+          initialCost: saved.inventoryConfig?.initialCost ?? "",
+          netRealizableValue: saved.inventoryConfig?.netRealizableValue ?? "",
+          inventoryAccountId: saved.accountingConfig?.inventoryAccountId ?? "",
+          costOfSalesAccountId: saved.accountingConfig?.costOfSalesAccountId ?? "",
+        }));
+      },
+      () => undefined
+    );
+  }, [mode, product?.id]);
+  const rate = form.taxTreatment === "TAXED" ? Number(form.taxRate || 0) : 0;
+  const enteredPrice = Number(form.unitPrice || 0);
+  const basePrice = form.priceIncludesTaxes ? enteredPrice / (1 + rate / 100) : enteredPrice;
+  const taxValue = basePrice * rate / 100;
+  const withTax = basePrice + taxValue;
+  const cost = Number(form.initialCost || 0);
   const noun = form.kind === "SERVICE" ? "servicio" : "producto";
 
   const submit = async (event: React.FormEvent) => {
@@ -711,8 +766,20 @@ function ProductDialog({
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       unit: form.unit,
-      unitPrice: Number(form.unitPrice),
-      taxRate: Number(form.taxRate),
+      unitPrice: Number(basePrice.toFixed(2)),
+      taxRate: rate,
+      taxTreatment: form.taxTreatment,
+      priceIncludesTaxes: form.priceIncludesTaxes,
+      inventoryConfig: {
+        controlled: form.kind === "PRODUCT" && form.inventoryControlled,
+        valuationMethod: form.kind === "PRODUCT" && form.inventoryControlled ? form.valuationMethod as "WEIGHTED_AVERAGE" | "FIFO" | "SPECIFIC_IDENTIFICATION" : undefined,
+        initialCost: form.initialCost ? Number(form.initialCost) : undefined,
+        netRealizableValue: form.netRealizableValue ? Number(form.netRealizableValue) : undefined,
+      },
+      accountingConfig: {
+        inventoryAccountId: form.inventoryAccountId || undefined,
+        costOfSalesAccountId: form.costOfSalesAccountId || undefined,
+      },
     };
     try {
       if (mode === "edit") await apiPut(`/v1/products/${product!.id}`, body);
@@ -725,11 +792,12 @@ function ProductDialog({
 
   return (
     <Modal
-      title={mode === "edit" ? `Editar ${noun}` : mode === "duplicate" ? `Duplicar ${noun}` : `Crear ${noun}`}
+      title={mode === "edit" ? `Editar ${noun}` : mode === "duplicate" ? `Duplicar ${noun}` : "Nuevo producto o servicio"}
       onClose={onClose}
       wide
     >
       <form onSubmit={submit} className="events-form">
+        <p className="product-form-intro events-form-full">Configura la información comercial, tributaria, contable y de inventario del concepto.</p>
         <div className="purchase-types events-form-full" role="radiogroup" aria-label="Tipo">
           {(["PRODUCT", "SERVICE"] as const).map(value => (
             <label key={value} className={form.kind === value ? "is-selected" : undefined}>
@@ -784,17 +852,53 @@ function ProductDialog({
           <input type="number" min="0" step="0.01" value={form.unitPrice} onChange={set("unitPrice")} required />
         </label>
         <label className="field">
-          IVA
-          <select value={form.taxRate} onChange={set("taxRate")}>
+          Tratamiento IVA
+          <select
+            value={form.taxTreatment}
+            onChange={event => {
+              const taxTreatment = event.target.value as typeof form.taxTreatment;
+              setForm({ ...form, taxTreatment, taxRate: taxTreatment === "TAXED" ? form.taxRate || "19" : "0" });
+            }}
+          >
+            <option value="TAXED">Gravado</option>
+            <option value="EXEMPT">Exento</option>
+            <option value="EXCLUDED">Excluido</option>
+            <option value="OTHER">No sujeto / otro</option>
+          </select>
+        </label>
+        <label className="field">
+          Tarifa IVA
+          <select value={form.taxRate} disabled={form.taxTreatment !== "TAXED"} onChange={set("taxRate")}>
             <option value="19">19 %</option>
             <option value="5">5 %</option>
-            <option value="0">0 % / Exento</option>
+            <option value="0">0 %</option>
             {!["19", "5", "0"].includes(form.taxRate) && <option value={form.taxRate}>{form.taxRate} %</option>}
           </select>
         </label>
         <p className="report-dialog-text events-form-full">
-          Precio con IVA: <b>{money(withTax)}</b>
+          Base: <b>{money(basePrice)}</b> · IVA: <b>{money(taxValue)}</b> · Precio final: <b>{money(withTax)}</b>
         </p>
+        <label className="field events-form-full checkbox-field">
+          <input type="checkbox" checked={form.priceIncludesTaxes} onChange={event => setForm({ ...form, priceIncludesTaxes: event.target.checked })} />
+          El precio digitado incluye impuestos
+        </label>
+        {form.kind === "PRODUCT" && (
+          <details className="product-section events-form-full">
+            <summary>Inventario y costos</summary>
+            <div className="product-section-grid">
+              <label className="field checkbox-field product-wide"><input type="checkbox" checked={form.inventoryControlled} onChange={event => setForm({ ...form, inventoryControlled: event.target.checked })} /> Controlar existencias</label>
+              {form.inventoryControlled && <>
+                <label className="field">Método de valoración<select value={form.valuationMethod} onChange={set("valuationMethod")}><option value="WEIGHTED_AVERAGE">Promedio ponderado</option><option value="FIFO">PEPS / FIFO</option><option value="SPECIFIC_IDENTIFICATION">Identificación específica</option></select></label>
+                <label className="field">Costo inicial<input type="number" min="0" step="0.01" value={form.initialCost} onChange={set("initialCost")} /></label>
+                <label className="field">Valor Neto Realizable <small title="Valor estimado de venta menos los costos necesarios para terminarlo y venderlo.">ⓘ</small><input type="number" min="0" step="0.01" value={form.netRealizableValue} onChange={set("netRealizableValue")} /></label>
+                <label className="field">Cuenta de inventario<select value={form.inventoryAccountId} onChange={set("inventoryAccountId")} required><option value="">Selecciona una cuenta</option>{accounts.map(account => <option value={account.id} key={account.id}>{account.code} — {account.name}</option>)}</select></label>
+                <label className="field">Cuenta costo de ventas<select value={form.costOfSalesAccountId} onChange={set("costOfSalesAccountId")} required><option value="">Selecciona una cuenta</option>{accounts.map(account => <option value={account.id} key={account.id}>{account.code} — {account.name}</option>)}</select></label>
+                {form.netRealizableValue && Number(form.netRealizableValue) < cost && <p className="product-warning product-wide">El Valor Neto Realizable es inferior al costo. Revise si procede reconocer deterioro; no se generará automáticamente.</p>}
+              </>}
+            </div>
+          </details>
+        )}
+        <aside className="product-live-summary events-form-full"><b>{form.kind === "PRODUCT" ? "Producto" : "Servicio"}: {form.name || "Sin nombre"}</b><span>Base {money(basePrice)} · IVA {money(taxValue)} · Final {money(withTax)}</span><span>Costo {money(cost)} · Margen estimado {money(basePrice - cost)} ({basePrice ? ((basePrice - cost) / basePrice * 100).toFixed(1) : "0"}%)</span><span>{form.taxTreatment === "TAXED" ? `Gravado ${rate}%` : form.taxTreatment === "EXEMPT" ? "Exento" : form.taxTreatment === "EXCLUDED" ? "Excluido" : "No sujeto"} · Inventariable: {form.kind === "PRODUCT" && form.inventoryControlled ? "Sí" : "No"}</span></aside>
         <label className="field events-form-full">
           Descripción (opcional)
           <textarea value={form.description} onChange={set("description")} rows={2} maxLength={1000} />

@@ -250,6 +250,32 @@ model Organization {
   phone                 String?
   address               String?
   municipalityCode      String?
+  departmentCode        String?
+  postalCode            String?
+  addressComplement     String?
+  personType            String                 @default("COMPANY")
+  identificationType    String                 @default("NIT")
+  societyType           String?
+  firstName             String?
+  middleName            String?
+  firstSurname          String?
+  secondSurname         String?
+  electronicInvoiceEmail String?
+  phoneCountryCode      String                 @default("+57")
+  website               String?
+  contactName           String?
+  contactRole           String?
+  logoData              String?
+  economicActivityCode  String?
+  economicActivityName  String?
+  secondaryActivities   Json?
+  vatResponsibility     String?
+  taxResponsibilities   Json?
+  associatedTaxes       Json?
+  taxFlags              Json?
+  legalRepresentative   Json?
+  foreignCurrencyEnabled Boolean                @default(false)
+  enabledCurrencies     Json?
   timezone              String                 @default("America/Bogota")
   currency              String                 @default("COP")
   dianEnabled           Boolean                @default(false)
@@ -287,6 +313,65 @@ model Organization {
   payrollElectronic     PayrollElectronic[]
   journalTemplates      JournalTemplate[]
   receivedInvoiceEvents ReceivedInvoiceEvent[]
+  taxConfigurations     OrganizationTaxConfiguration[]
+  customTaxCatalogItems TaxCatalogItem[]      @relation("OrganizationCustomTaxCatalog")
+}
+
+/// Catálogo tributario administrable. Los códigos, no los nombres visibles, gobiernan el motor tributario.
+model TaxCatalogItem {
+  id                    String                       @id @default(uuid())
+  organizationId        String?
+  code                  String                       @unique
+  fiscalCode            String?
+  name                  String
+  shortName             String?
+  category              String
+  description           String?
+  behavior              String                       @default("DOCUMENT_INCREASE")
+  increasesDocument     Boolean                      @default(true)
+  representsWithholding Boolean                      @default(false)
+  calculationType       String                       @default("PERCENTAGE")
+  requiresRate          Boolean                      @default(true)
+  requiresFixedValue    Boolean                      @default(false)
+  requiresMunicipality  Boolean                      @default(false)
+  requiresConfiguration Boolean                      @default(false)
+  configurationOptions  Json?
+  active                Boolean                      @default(true)
+  validFrom             DateTime?
+  validTo               DateTime?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  organization          Organization?                @relation("OrganizationCustomTaxCatalog", fields: [organizationId], references: [id], onDelete: Cascade)
+  configurations        OrganizationTaxConfiguration[]
+
+  @@index([organizationId, active])
+  @@index([category, active])
+}
+
+/// Tributos que una organización decide utilizar. Activar aquí no los aplica automáticamente a una factura.
+model OrganizationTaxConfiguration {
+  id                    String         @id @default(uuid())
+  organizationId        String
+  taxCatalogItemId      String
+  active                Boolean        @default(true)
+  rate                  Decimal?       @db.Decimal(8, 4)
+  fixedValue            Decimal?       @db.Decimal(18, 2)
+  base                  String?
+  municipalityCode      String?
+  accountReceivableId   String?
+  accountPayableId      String?
+  withholdingAccountId  String?
+  validFrom             DateTime?
+  validTo               DateTime?
+  status                String         @default("PENDING")
+  additionalConfig      Json?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  organization          Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  taxCatalogItem        TaxCatalogItem @relation(fields: [taxCatalogItemId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, taxCatalogItemId])
+  @@index([organizationId, active])
 }
 
 /// Persona que inicia sesión. Puede pertenecer a varias organizaciones mediante Membership.
@@ -342,6 +427,10 @@ model Party {
   identificationNumber String
   verificationDigit    String?
   legalName            String
+  firstName            String?
+  middleName           String?
+  firstSurname         String?
+  secondSurname        String?
   tradeName            String?
   email                String?
   phone                String?
@@ -349,6 +438,11 @@ model Party {
   municipalityCode     String?
   postalCode           String?
   taxResponsibilities  String[]
+  vatResponsibility    String?
+  chamberOfCommerce    String?
+  commercialRegistration String?
+  economicActivityCode String?
+  enrichmentMetadata   Json?
   isCustomer           Boolean             @default(false)
   isSupplier           Boolean             @default(false)
   isPayer              Boolean             @default(false)
@@ -398,6 +492,12 @@ model Product {
   unit           String                 @default("UND")
   unitPrice      Decimal                @db.Decimal(18, 2)
   taxRate        Decimal                @default(19) @db.Decimal(5, 2)
+  /// Datos maestros para DIAN/NIIF. Las reglas variables viven en las configuraciones relacionadas.
+  gtin           String?
+  niifNature     String?
+  serviceNature  String?
+  priceIncludesTaxes Boolean             @default(false)
+  taxTreatment   String                 @default("TAXED")
   active         Boolean                @default(true)
   organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoiceLines   InvoiceLine[]
@@ -407,8 +507,73 @@ model Product {
   purchaseLines  PurchaseLine[]
   inventoryLines InventoryLine[]
   costingLines   CostingLine[]
+  taxConfig      ProductTaxConfig?
+  accountingConfig ProductAccountingConfig?
+  inventoryConfig ProductInventoryConfig?
+  prices         ProductPrice[]
 
   @@unique([organizationId, sku])
+}
+
+/// Regla fiscal normalizada del ítem. No calcula retenciones: el motor tributario decide por tercero y operación.
+model ProductTaxConfig {
+  id             String   @id @default(uuid())
+  productId      String   @unique
+  taxTreatment   String
+  vatRate        Decimal  @default(0) @db.Decimal(5, 2)
+  appliesInc     Boolean  @default(false)
+  incCode        String?
+  incRate        Decimal? @db.Decimal(5, 2)
+  withholdingHints Json?
+  standardCodeType String?
+  standardCode   String?
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  updatedAt      DateTime @updatedAt
+}
+
+/// Cuentas sugeridas por el maestro; el motor contable, no el formulario, genera los asientos.
+model ProductAccountingConfig {
+  id                  String   @id @default(uuid())
+  productId           String   @unique
+  inventoryAccountId  String?
+  incomeAccountId     String?
+  costOfSalesAccountId String?
+  vatSalesAccountId   String?
+  vatPurchaseAccountId String?
+  incAccountId        String?
+  returnsAccountId    String?
+  discountsAccountId  String?
+  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  updatedAt           DateTime @updatedAt
+}
+
+/// Parámetros de existencias; los movimientos auditables permanecen en InventoryDocument/InventoryLine.
+model ProductInventoryConfig {
+  id                   String   @id @default(uuid())
+  productId            String   @unique
+  controlled           Boolean  @default(false)
+  minimumStock         Decimal? @db.Decimal(18, 4)
+  maximumStock         Decimal? @db.Decimal(18, 4)
+  allowNegativeStock   Boolean  @default(false)
+  valuationMethod      String?
+  initialCost          Decimal? @db.Decimal(18, 2)
+  netRealizableValue   Decimal? @db.Decimal(18, 2)
+  vnrEvaluatedAt       DateTime? @db.Date
+  product              Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  updatedAt            DateTime @updatedAt
+}
+
+/// Historial inmutable de cambios de precio, sin sustituir el precio actual usado por los documentos existentes.
+model ProductPrice {
+  id             String   @id @default(uuid())
+  productId      String
+  amount         Decimal  @db.Decimal(18, 2)
+  includesTaxes  Boolean  @default(false)
+  validFrom      DateTime @default(now())
+  createdById    String?
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, validFrom])
 }
 
 /// Factura de venta. DRAFT → ISSUED. Una vez emitida no se edita: se anula o ajusta con notas.
@@ -423,12 +588,23 @@ model Invoice {
   status              InvoiceStatus            @default(DRAFT)
   paymentTerm         PaymentTerm              @default(CASH)
   currency            String                   @default("COP")
+  exchangeRate        Decimal?                 @db.Decimal(18, 6)
+  paymentMethodCode   String?
   subtotal            Decimal                  @default(0) @db.Decimal(18, 2)
   discountTotal       Decimal                  @default(0) @db.Decimal(18, 2)
+  taxableBase         Decimal                  @default(0) @db.Decimal(18, 2)
   taxTotal            Decimal                  @default(0) @db.Decimal(18, 2)
+  incTotal            Decimal                  @default(0) @db.Decimal(18, 2)
+  withholdingTotal    Decimal                  @default(0) @db.Decimal(18, 2)
   total               Decimal                  @default(0) @db.Decimal(18, 2)
+  estimatedNetReceivable Decimal               @default(0) @db.Decimal(18, 2)
   notes               String?
+  internalNotes       String?
+  dianValidation      Json?
   dianStatus          DianTransmissionStatus   @default(PENDING)
+  pdfRepresentation   Bytes?
+  pdfGeneratedAt      DateTime?
+  pdfVersion          Int                      @default(1)
   cufe                String?                  @unique
   resolutionNumber    String?
   createdAt           DateTime                 @default(now())
@@ -513,14 +689,58 @@ model InvoiceLine {
   id           String   @id @default(uuid())
   invoiceId    String
   productId    String?
+  internalCode String?
+  unitCode     String?
+  unitName     String?
   description  String
   quantity     Decimal  @db.Decimal(18, 4)
   unitPrice    Decimal  @db.Decimal(18, 2)
   discountRate Decimal  @default(0) @db.Decimal(5, 2)
+  discountType String?
+  discountValue Decimal? @db.Decimal(18, 2)
+  discountAmount Decimal @default(0) @db.Decimal(18, 2)
+  discountReason String?
+  grossAmount  Decimal @default(0) @db.Decimal(18, 2)
+  taxableBase  Decimal @default(0) @db.Decimal(18, 2)
+  taxTreatment String @default("TAXED")
   taxRate      Decimal  @default(19) @db.Decimal(5, 2)
+  taxAmount    Decimal @default(0) @db.Decimal(18, 2)
+  incRate      Decimal @default(0) @db.Decimal(5, 2)
+  incAmount    Decimal @default(0) @db.Decimal(18, 2)
+  withholdingTotal Decimal @default(0) @db.Decimal(18, 2)
   lineTotal    Decimal  @db.Decimal(18, 2)
   invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product      Product? @relation(fields: [productId], references: [id])
+  taxes        InvoiceLineTax[]
+  withholdings InvoiceLineWithholding[]
+}
+
+/// Impuestos generados normalizados: IVA, INC y futuros gravámenes configurables.
+model InvoiceLineTax {
+  id            String      @id @default(uuid())
+  invoiceLineId String
+  taxType       String
+  taxCode       String
+  taxableBase   Decimal     @db.Decimal(18, 2)
+  rate          Decimal     @db.Decimal(8, 4)
+  amount        Decimal     @db.Decimal(18, 2)
+  invoiceLine   InvoiceLine @relation(fields: [invoiceLineId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceLineId])
+}
+
+/// Retenciones separadas de los impuestos generados; no incrementan el total facturado.
+model InvoiceLineWithholding {
+  id            String      @id @default(uuid())
+  invoiceLineId String
+  withholdingType String
+  conceptCode   String?
+  taxableBase   Decimal     @db.Decimal(18, 2)
+  rate          Decimal     @db.Decimal(8, 4)
+  amount        Decimal     @db.Decimal(18, 2)
+  invoiceLine   InvoiceLine @relation(fields: [invoiceLineId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceLineId])
 }
 
 /// Documento soporte de compras a no obligados a facturar (CUDS).

@@ -19,14 +19,14 @@ import { apiGet } from "../lib/api";
 import { BrandMark, Icon, type IconName } from "./brand";
 
 /** Desplegables de la barra superior. Solo uno puede estar abierto a la vez. */
-type TopMenu = "notifications" | "settings" | "profile";
+type TopMenu = "create" | "notifications" | "profile";
 
 /**
  * Menú lateral. `match`: prefijos de ruta que resaltan el ítem (incluye las pantallas que dependen de él); un
  * prefijo terminado en "$" debe coincidir exacto (p. ej. "/reportes$" es solo el centro de reportes).
  */
 const mainNav: { icon: IconName; label: string; href: string; match: string[] }[] = [
-  { icon: "home", label: "Resumen", href: "/resumen", match: ["/resumen"] },
+  { icon: "home", label: "Inicio", href: "/inicio", match: ["/inicio", "/resumen"] },
   {
     icon: "report",
     label: "Reporte de facturación",
@@ -54,6 +54,7 @@ const mainNav: { icon: IconName; label: string; href: string; match: string[] }[
   },
   { icon: "users", label: "Terceros", href: "/terceros/nuevo", match: ["/terceros"] },
   { icon: "calendar", label: "Calendario", href: "/calendario", match: ["/calendario"] },
+  { icon: "gear", label: "Configuración", href: "/configuracion", match: ["/configuracion"] },
   { icon: "account", label: "Cuenta", href: "/cuenta", match: ["/cuenta"] },
 ];
 
@@ -126,13 +127,14 @@ export function AppShell({
     <div className="app-shell">
       {/* ── Barra lateral ── */}
       <aside className="sidebar">
-        <Link className="brand" href="/resumen" aria-label="Betel Solution, ir al resumen">
+        <Link className="brand" href="/inicio" aria-label="Betel Solution, ir al inicio">
           {/* La B del logo es la inicial de "BETEL": se lee [B]ETEL Solution. */}
           <BrandMark size={40} />
           <span>
             <b>ETEL</b> Solution
           </span>
         </Link>
+        <p className="brand-caption">Gestión contable,<br />fiscal y financiera</p>
         <nav aria-label="Menú principal">
           {mainNav.map(item => {
             const active = item.match.some(prefix =>
@@ -169,13 +171,19 @@ export function AppShell({
               </small>
             </span>
           </div>
+          <button className="topbar-search" aria-label="Buscar en Betel">
+            <Icon name="search" size={19} />
+            <span>Buscar en Betel (facturas, impuestos, productos, reportes...)</span>
+            <kbd>Ctrl + K</kbd>
+          </button>
           <div className="top-actions" ref={actionsRef}>
-            <button className="icon-button" aria-label="Buscar">
-              <Icon name="search" />
-            </button>
-            <Link href="/facturacion/nueva" className="create-button">
-              <Icon name="plus" size={16} /> Crear
-            </Link>
+            <div className="popover-anchor">
+              <button className="create-button" onClick={() => toggle("create")} aria-expanded={openMenu === "create"} aria-controls="create-menu">
+                <Icon name="plus" size={16} /> Nueva operación
+              </button>
+              <NewOperationMenu open={openMenu === "create"} onClose={close} />
+            </div>
+            <span className="dian-status"><i /> DIAN conectada</span>
             <button className="help-button">Ayuda⌄</button>
             <div className="popover-anchor">
               <button
@@ -189,19 +197,6 @@ export function AppShell({
                 <b />
               </button>
               <Notifications open={openMenu === "notifications"} onClose={close} />
-            </div>
-            <div className="popover-anchor">
-              <button
-                onClick={() => toggle("settings")}
-                className="icon-button"
-                aria-label="Ajustes"
-                aria-haspopup="menu"
-                aria-expanded={openMenu === "settings"}
-                aria-controls="settings-menu"
-              >
-                <Icon name="gear" />
-              </button>
-              <SettingsMenu open={openMenu === "settings"} onClose={close} />
             </div>
             <div className="popover-anchor">
               <button
@@ -238,6 +233,33 @@ export function AppShell({
  * reciben foco ni los anuncian los lectores de pantalla.
  */
 const popoverClass = (open: boolean, extra: string) => `popover ${extra}${open ? " is-open" : ""}`;
+
+const newOperations: { icon: IconName; title: string; description: string; href: string }[] = [
+  { icon: "filePlus", title: "Factura de venta", description: "Crea y envía una factura electrónica", href: "/facturacion/nueva" },
+  { icon: "users", title: "Tercero", description: "Registra un cliente o proveedor", href: "/terceros/nuevo" },
+  { icon: "box", title: "Producto o servicio", description: "Crea un concepto para ventas o compras", href: "/productos?new=product" },
+  { icon: "document", title: "Comprobante", description: "Registra un movimiento contable", href: "/contabilidad?tab=procesos" },
+];
+
+function NewOperationMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const items = () => Array.from(menuRef.current?.querySelectorAll<HTMLAnchorElement>("a") ?? []);
+  useEffect(() => { if (open) items()[0]?.focus(); }, [open]);
+  const onKeyDown = (event: React.KeyboardEvent) => {
+    const options = items();
+    const index = options.indexOf(document.activeElement as HTMLAnchorElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      options[(index + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length]?.focus();
+    } else if (event.key === "Escape") onClose();
+  };
+  return <div id="create-menu" ref={menuRef} role="menu" aria-label="Nueva operación" className={popoverClass(open, "new-operation-menu")} onKeyDown={onKeyDown}>
+    <header><span>Nueva operación</span><small>Crea rápidamente</small></header>
+    {newOperations.map(operation => <Link role="menuitem" href={operation.href} key={operation.title} onClick={onClose}>
+      <i><Icon name={operation.icon} size={21} /></i><span><b>{operation.title}</b><small>{operation.description}</small></span><em>→</em>
+    </Link>)}
+  </div>;
+}
 
 /** Desplegable de notificaciones (datos de ejemplo). */
 function Notifications({ open, onClose }: { open: boolean; onClose: () => void }) {

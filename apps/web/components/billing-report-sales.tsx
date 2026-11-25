@@ -25,6 +25,8 @@ import {
   useSession,
 } from "./billing-report-common";
 import { BarChart, LineChart, type ChartPoint } from "./report-charts";
+import { openInvoicePdf } from "../lib/invoice-pdf";
+import { useToast } from "./toast-provider";
 
 export type InvoiceRow = {
   id: string;
@@ -266,6 +268,8 @@ export function SalesReport() {
 
 /** Tabla de facturas (también la usa el detalle de un cliente). */
 export function InvoiceTable({ rows }: { rows: InvoiceRow[] }) {
+  const toast = useToast();
+  const openDocument = (id: string) => void openInvoicePdf(id).catch(reason => toast.error({ title: "No pudimos abrir el documento", description: (reason as Error).message }));
   return (
     <div className="report-table-wrap">
       <table className="report-table">
@@ -276,6 +280,7 @@ export function InvoiceTable({ rows }: { rows: InvoiceRow[] }) {
                 {column.header}
               </th>
             ))}
+            <th>Acción</th>
           </tr>
         </thead>
         <tbody>
@@ -283,9 +288,10 @@ export function InvoiceTable({ rows }: { rows: InvoiceRow[] }) {
             <tr key={row.id} className={row.status === "VOID" || row.status === "REJECTED" ? "is-excluded" : undefined}>
               {invoiceColumns.map(column => (
                 <td key={column.header} className={column.money ? "num" : undefined}>
-                  {column.money ? money(column.value(row) as string) : column.value(row)}
+                  {column.header === "Factura" ? <button type="button" className="invoice-document-link" onClick={() => openDocument(row.id)}>{invoiceNumber(row)} ↗</button> : column.money ? money(column.value(row) as string) : column.value(row)}
                 </td>
               ))}
+              <td><button type="button" className="invoice-document-button" onClick={() => openDocument(row.id)} disabled={row.status === "DRAFT"}>◉ Ver documento</button></td>
             </tr>
           ))}
         </tbody>

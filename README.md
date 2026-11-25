@@ -65,7 +65,8 @@ En Windows, si PowerShell bloquea `pnpm.ps1`, use siempre `corepack pnpm` como l
    corepack pnpm dev
    ```
 
-   Web: `http://localhost:3000` · Salud de API: `http://localhost:4000/health`.
+   Abra únicamente `http://localhost:3000`. La web reenvía internamente las llamadas a la API;
+   para comprobar su estado use `http://localhost:3000/api/health`.
 
 Para el bootstrap de desarrollo se puede establecer `BETEL_ALLOW_INSECURE_DEV_AUTH=true`. Esta variable **nunca** debe habilitarse en producción; el endpoint correspondiente no se registra con `NODE_ENV=production`.
 

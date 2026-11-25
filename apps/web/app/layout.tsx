@@ -3,6 +3,7 @@
  * Envuelve TODAS las páginas.
  */
 import type { Metadata } from "next";
+import { ToastProvider } from "../components/toast-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     // suppressHydrationWarning: extensiones del navegador (p. ej. LanguageTool, Grammarly) inyectan
     // atributos en <html>/<body> antes de que React hidrate. Solo afecta a estos elementos, no a sus hijos.
     <html lang="es" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning><ToastProvider>{children}</ToastProvider></body>
     </html>
   );
 }

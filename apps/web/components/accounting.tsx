@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiDelete, apiPost, apiPut } from "../lib/api";
 import { exportReport, type ReportColumn } from "../lib/report-export";
 import { money, ReportStatus, useReport, useSession } from "./billing-report-common";
@@ -88,14 +88,20 @@ const exportColumns: ReportColumn<ChartNode>[] = [
 
 function ChartOfAccounts() {
   const { company, canExport, canReceive: canEdit } = useSession();
+  const linkedAccount = useSearchParams().get("account") ?? "";
   const report = useReport<{ data: ChartNode[] }>("/v1/accounting/chart");
   const nodes = report.data?.data ?? [];
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [codeSearch, setCodeSearch] = useState("");
+  const [codeSearch, setCodeSearch] = useState(linkedAccount);
   const [nameSearch, setNameSearch] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(linkedAccount || null);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const byCode = useMemo(() => new Map(nodes.map(node => [node.code, node])), [nodes]);
+  useEffect(() => {
+    if (!linkedAccount) return;
+    setCodeSearch(linkedAccount);
+    setSelected(linkedAccount);
+  }, [linkedAccount]);
   const filtering = Boolean(codeSearch.trim() || nameSearch.trim());
 
   // Con búsqueda: las coincidencias y sus ancestros, todo expandido. Sin búsqueda: según lo expandido.

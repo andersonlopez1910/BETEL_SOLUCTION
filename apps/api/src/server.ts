@@ -52,11 +52,21 @@ import { createHash } from "node:crypto";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import Fastify from "fastify";
-import { prisma, withOrganizationScope } from "@betel/db";
-import type { Prisma } from "@betel/db";
-import { calendarEventSchema, createInvoiceSchema, createSupportDocumentSchema, partySchema } from "@betel/contracts";
+import { Prisma, prisma, withOrganizationScope } from "@betel/db";
+import {
+  calendarEventSchema,
+  createInvoiceSchema,
+  createSupportDocumentSchema,
+  organizationProfileSchema,
+  partySchema,
+  thirdPartyEnrichmentSchema,
+} from "@betel/contracts";
 import { allowRoles, requireActor, type BetelJwt } from "./auth.js";
 import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "./accounting.js";
+import { calculateInvoiceTaxes } from "./tax-engine.js";
+import { calculateNitCheckDigit, getThirdPartyEnrichmentProvider } from "./third-party-enrichment.js";
+import { generateInvoicePdf } from "./invoice-pdf.js";
+import { normalizePartyIdentification } from "./party-identity.js";
 import { getDianProvider } from "./dian.js";
 import { registerCollectionRoutes } from "./collections.js";
 import { registerPaymentRoutes } from "./payments.js";
@@ -73,6 +83,7 @@ import { registerPayrollRoutes } from "./payroll.js";
 import { registerLedgerRoutes } from "./ledger.js";
 import { registerStatementRoutes } from "./statements.js";
 import { registerCatalogRoutes } from "./catalog/index.js";
+import { registerTaxCatalogRoutes } from "./tax-catalog.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 import { registerDeliveryRoutes } from "./deliveries.js";
@@ -80,6 +91,52 @@ import { registerMassSendRoutes } from "./mass-send.js";
 import { registerQuoteRoutes } from "./quotes.js";
 import { registerRecurringRoutes, startRecurringScheduler } from "./recurring.js";
 import { registerBillingReportRoutes } from "./reports.js";
+
+type DuplicateParty = {
+  id: string;
+  legalName: string;
+  identificationType: string;
+  identificationNumber: string;
+  verificationDigit: string | null;
+  isCustomer: boolean;
+  isSupplier: boolean;
+  isPayer: boolean;
+  active: boolean;
+};
+
+const duplicatePartySelect = {
+  id: true,
+  legalName: true,
+  identificationType: true,
+  identificationNumber: true,
+  verificationDigit: true,
+  isCustomer: true,
+  isSupplier: true,
+  isPayer: true,
+  active: true,
+} satisfies Prisma.PartySelect;
+
+async function findPartyByIdentification(
+  organizationId: string,
+  identificationType: string,
+  identificationNumber: string
+): Promise<DuplicateParty | null> {
+  return withOrganizationScope(organizationId, tx =>
+    tx.party.findFirst({
+      where: { identificationType, identificationNumber },
+      select: duplicatePartySelect,
+    })
+  );
+}
+
+function duplicatePartyResponse(party: DuplicateParty) {
+  return {
+    code: "THIRD_PARTY_ALREADY_EXISTS",
+    error: "El tercero ya se encuentra registrado en el sistema.",
+    message: "El tercero ya se encuentra registrado en el sistema.",
+    thirdParty: party,
+  };
+}
 
 // ─── Configuración ────────────────────────────────────────────────────────────
 
@@ -179,6 +236,119 @@ app.get("/v1/me", { preHandler: requireActor }, async request => {
   return { user: { id: actor.sub, email: actor.email, role: actor.role }, organization };
 });
 
+/** Perfil maestro del emisor. El id de organización procede exclusivamente de la sesión autenticada. */
+app.get("/v1/organization/profile", { preHandler: requireActor }, async request => {
+  const organization = await withOrganizationScope(request.actor!.organizationId, tx =>
+    tx.organization.findFirstOrThrow({ where: { id: request.actor!.organizationId } })
+  );
+  return { data: organization };
+});
+
+/** Actualiza información legal, tributaria y de contacto de la organización activa y deja trazabilidad. */
+app.put("/v1/organization/profile", { preHandler: allowRoles("OWNER", "ADMIN") }, async (request, reply) => {
+  const raw = request.body && typeof request.body === "object" ? (request.body as Record<string, unknown>) : {};
+  // Los formularios HTML representan los opcionales vacíos como cadena: se normalizan antes de validar.
+  const body = Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [key, typeof value === "string" && !value.trim() ? undefined : value])
+  );
+  const parsed = organizationProfileSchema.safeParse(body);
+  if (!parsed.success)
+    return reply
+      .code(422)
+      .send({
+        error: parsed.error.issues[0]?.message ?? "Datos del perfil inválidos.",
+        details: parsed.error.flatten(),
+      });
+
+  const actor = request.actor!;
+  if (parsed.data.personType === "PERSON" && (!parsed.data.firstName || !parsed.data.firstSurname))
+    return reply
+      .code(422)
+      .send({ error: "Para una persona natural registra al menos el primer nombre y primer apellido." });
+  try {
+    const data = await withOrganizationScope(actor.organizationId, async tx => {
+      const before = await tx.organization.findFirstOrThrow({ where: { id: actor.organizationId } });
+      const value = parsed.data;
+      const verificationDigit =
+        value.identificationType === "NIT" ? String(calculateNitCheckDigit(value.nit)) : value.verificationDigit;
+      const legalName =
+        value.personType === "PERSON"
+          ? [value.firstName, value.middleName, value.firstSurname, value.secondSurname].filter(Boolean).join(" ")
+          : value.legalName;
+      const updated = await tx.organization.update({
+        where: { id: actor.organizationId },
+        data: {
+          ...value,
+          legalName,
+          verificationDigit,
+          tradeName: value.tradeName || null,
+          societyType: value.societyType || null,
+          firstName: value.firstName || null,
+          middleName: value.middleName || null,
+          firstSurname: value.firstSurname || null,
+          secondSurname: value.secondSurname || null,
+          departmentCode: value.departmentCode || null,
+          municipalityCode: value.municipalityCode || null,
+          postalCode: value.postalCode || null,
+          address: value.address || null,
+          addressComplement: value.addressComplement || null,
+          email: value.email || null,
+          electronicInvoiceEmail: value.electronicInvoiceEmail || null,
+          phoneCountryCode: value.phoneCountryCode || "+57",
+          phone: value.phone || null,
+          website: value.website || null,
+          contactName: value.contactName || null,
+          contactRole: value.contactRole || null,
+          logoData: value.logoData || null,
+          economicActivityCode: value.economicActivityCode || null,
+          economicActivityName: value.economicActivityName || null,
+          vatResponsibility: value.vatResponsibility || null,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          organizationId: actor.organizationId,
+          userId: actor.sub,
+          entity: "Organization",
+          entityId: actor.organizationId,
+          action: "UPDATE_PROFILE",
+          before: {
+            nit: before.nit,
+            verificationDigit: before.verificationDigit,
+            legalName: before.legalName,
+            address: before.address,
+            municipalityCode: before.municipalityCode,
+            vatResponsibility: before.vatResponsibility,
+            hasLogo: Boolean(before.logoData),
+            taxResponsibilities: before.taxResponsibilities,
+            taxFlags: before.taxFlags,
+            legalRepresentative: before.legalRepresentative,
+          },
+          after: {
+            nit: updated.nit,
+            verificationDigit: updated.verificationDigit,
+            legalName: updated.legalName,
+            address: updated.address,
+            municipalityCode: updated.municipalityCode,
+            vatResponsibility: updated.vatResponsibility,
+            hasLogo: Boolean(updated.logoData),
+            taxResponsibilities: updated.taxResponsibilities,
+            taxFlags: updated.taxFlags,
+            legalRepresentative: updated.legalRepresentative,
+          },
+          ipHash: auditIp(request.ip),
+        },
+      });
+      return updated;
+    });
+    return { data };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+      return reply.code(409).send({ error: "Ya existe una organización registrada con esa identificación." });
+    throw error;
+  }
+});
+
 // ─── Terceros (clientes / proveedores) ────────────────────────────────────────
 
 /**
@@ -206,41 +376,123 @@ app.get<{ Querystring: { search?: string } }>("/v1/parties", { preHandler: requi
   return { data };
 });
 
+/** Consulta ligera para advertir duplicados mientras se diligencia el formulario. */
+app.get<{ Querystring: { identificationType?: string; identificationNumber?: string } }>(
+  "/v1/parties/duplicate-check",
+  { preHandler: requireActor },
+  async (request, reply) => {
+    const identificationType = request.query.identificationType?.trim().toUpperCase() ?? "";
+    const normalized = normalizePartyIdentification(
+      identificationType,
+      request.query.identificationNumber ?? ""
+    ).identificationNumber;
+    if (!identificationType || normalized.length < 3)
+      return reply.code(422).send({ error: "Indica un tipo y número de identificación válidos." });
+    const party = await findPartyByIdentification(request.actor!.organizationId, identificationType, normalized);
+    return { data: { exists: Boolean(party), ...(party && { party }) } };
+  }
+);
+
 /**
  * POST /v1/parties — Crea un tercero. Body: partySchema (@betel/contracts).
  * Roles: OWNER, ADMIN, ACCOUNTANT, SALES. Registra AuditLog "CREATE".
  */
+/** Consulta explícita al registro público RUES/Datos Abiertos; los resultados nunca se guardan automáticamente. */
+app.post(
+  "/v1/third-parties/enrich",
+  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "SALES") },
+  async (request, reply) => {
+    const parsed = thirdPartyEnrichmentSchema.safeParse(request.body);
+    if (!parsed.success)
+      return reply.code(422).send({ error: parsed.error.issues[0]?.message ?? "Consulta inválida." });
+    try {
+      const result = await getThirdPartyEnrichmentProvider().lookup(parsed.data.identificationNumber);
+      const verificationDigit =
+        parsed.data.identificationType === "NIT"
+          ? String(calculateNitCheckDigit(parsed.data.identificationNumber))
+          : undefined;
+      await withOrganizationScope(request.actor!.organizationId, tx =>
+        tx.auditLog.create({
+          data: {
+            organizationId: request.actor!.organizationId,
+            userId: request.actor!.sub,
+            entity: "PartyEnrichment",
+            entityId: "lookup",
+            action: "RUES_LOOKUP",
+            after: { source: result.source, found: result.found },
+            ipHash: auditIp(request.ip),
+          },
+        })
+      );
+      return { data: { ...result, verificationDigit } };
+    } catch (error) {
+      return reply
+        .code(503)
+        .send({
+          error:
+            error instanceof Error
+              ? `No se pudo consultar el registro público: ${error.message}`
+              : "No se pudo consultar el registro público.",
+        });
+    }
+  }
+);
+
 app.post("/v1/parties", { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "SALES") }, async (request, reply) => {
-  const parsed = partySchema.safeParse(request.body);
+  const body = request.body as {
+    identificationType?: string;
+    identificationNumber?: string;
+    verificationDigit?: string;
+  };
+  const normalized = normalizePartyIdentification(
+    body.identificationType ?? "",
+    body.identificationNumber ?? "",
+    body.verificationDigit
+  );
+  const parsed = partySchema.safeParse({
+    ...(request.body as object),
+    identificationType: body.identificationType?.trim().toUpperCase(),
+    identificationNumber: normalized.identificationNumber,
+    verificationDigit: normalized.verificationDigit,
+  });
   if (!parsed.success)
     return reply.code(422).send({ error: "Datos del tercero inválidos", details: parsed.error.flatten() });
   const actor = request.actor!;
-  const duplicate = await withOrganizationScope(actor.organizationId, tx =>
-    tx.party.findFirst({
-      where: {
-        identificationType: parsed.data.identificationType,
-        identificationNumber: parsed.data.identificationNumber,
-      },
-      select: { id: true },
-    })
+  const duplicate = await findPartyByIdentification(
+    actor.organizationId,
+    parsed.data.identificationType,
+    parsed.data.identificationNumber
   );
-  if (duplicate)
-    return reply.code(409).send({ error: "Ya existe un tercero con ese tipo y número de identificación." });
-  const party = await withOrganizationScope(actor.organizationId, async tx => {
-    const created = await tx.party.create({ data: { ...parsed.data, organizationId: actor.organizationId } });
-    await tx.auditLog.create({
-      data: {
-        organizationId: actor.organizationId,
-        userId: actor.sub,
-        entity: "Party",
-        entityId: created.id,
-        action: "CREATE",
-        after: parsed.data,
-        ipHash: auditIp(request.ip),
-      },
+  if (duplicate) return reply.code(409).send(duplicatePartyResponse(duplicate));
+  let party;
+  try {
+    party = await withOrganizationScope(actor.organizationId, async tx => {
+      const created = await tx.party.create({ data: { ...parsed.data, organizationId: actor.organizationId } });
+      await tx.auditLog.create({
+        data: {
+          organizationId: actor.organizationId,
+          userId: actor.sub,
+          entity: "Party",
+          entityId: created.id,
+          action: "CREATE",
+          after: parsed.data,
+          ipHash: auditIp(request.ip),
+        },
+      });
+      return created;
     });
-    return created;
-  });
+  } catch (error) {
+    // La restricción UNIQUE es la barrera final ante dos guardados simultáneos.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const existing = await findPartyByIdentification(
+        actor.organizationId,
+        parsed.data.identificationType,
+        parsed.data.identificationNumber
+      );
+      if (existing) return reply.code(409).send(duplicatePartyResponse(existing));
+    }
+    throw error;
+  }
   return reply.code(201).send({ data: party });
 });
 
@@ -293,6 +545,34 @@ app.post("/v1/calendar-events", { preHandler: allowRoles("OWNER", "ADMIN", "ACCO
  * Los totales se calculan en el servidor (no se confía en los que envíe el navegador).
  * No genera asiento contable ni se envía a la DIAN; eso ocurre en /issue.
  */
+/** Catálogo listo para facturar. El POST de la factura vuelve a resolver el maestro en el servidor. */
+app.get<{ Querystring: { search?: string } }>(
+  "/v1/invoice-catalog/products",
+  { preHandler: requireActor },
+  async request => {
+    const search = request.query.search?.trim().slice(0, 120);
+    const data = await withOrganizationScope(request.actor!.organizationId, tx =>
+      tx.product.findMany({
+        where: {
+          active: true,
+          ...(search && {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { sku: { contains: search, mode: "insensitive" } },
+              { gtin: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+            ],
+          }),
+        },
+        include: { taxConfig: true, inventoryConfig: true },
+        orderBy: { name: "asc" },
+        take: 50,
+      })
+    );
+    return { data };
+  }
+);
+
 app.post(
   "/v1/invoices",
   { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "SALES") },
@@ -312,16 +592,96 @@ app.post(
         error.statusCode = 404;
         throw error;
       }
-      const totals = calculateDocumentTotals(parsed.data.lines);
-      const lines = totals.lines.map(line => ({
-        productId: line.productId,
-        description: line.description,
-        quantity: line.quantity,
-        unitPrice: line.unitPrice,
-        discountRate: line.discountRate ?? 0,
-        taxRate: line.taxRate,
-        lineTotal: line.total,
-      }));
+      const productIds = parsed.data.lines.map(line => line.productId).filter((id): id is string => !!id);
+      const products = productIds.length
+        ? await tx.product.findMany({ where: { id: { in: productIds }, active: true }, include: { taxConfig: true } })
+        : [];
+      const productById = new Map(products.map(product => [product.id, product]));
+      if (productIds.some(id => !productById.has(id))) {
+        const error = new Error("Uno o más productos no están activos o no pertenecen a esta empresa.") as Error & {
+          statusCode: number;
+        };
+        error.statusCode = 422;
+        throw error;
+      }
+      // El maestro aporta unidad, impuesto e INC; precio y descripción se congelan como snapshot de la factura.
+      const materialized = parsed.data.lines.map(line => {
+        const product = line.productId ? productById.get(line.productId) : undefined;
+        const taxTreatment =
+          line.taxTreatment ??
+          ((product?.taxConfig?.taxTreatment ?? product?.taxTreatment ?? "TAXED") as
+            "TAXED" | "EXEMPT" | "EXCLUDED" | "OTHER");
+        return {
+          ...line,
+          product,
+          taxTreatment,
+          taxRate:
+            taxTreatment === "TAXED" ? Number(product?.taxConfig?.vatRate ?? product?.taxRate ?? line.taxRate) : 0,
+          incRate: line.incRate ?? Number(product?.taxConfig?.appliesInc ? (product.taxConfig.incRate ?? 0) : 0),
+        };
+      });
+      const totals = calculateInvoiceTaxes(materialized);
+      const lines = materialized.map((line, index) => {
+        const calculated = totals.lines[index]!;
+        return {
+          productId: line.productId,
+          internalCode: line.product?.sku,
+          unitCode: line.product?.unit,
+          unitName: line.product?.unit,
+          description: line.description || line.product?.description || line.product?.name || "Ítem",
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          discountRate: line.discountRate ?? 0,
+          discountType: line.discountType,
+          discountValue: line.discountValue,
+          discountReason: line.discountReason,
+          grossAmount: calculated.grossAmount,
+          discountAmount: calculated.discountAmount,
+          taxableBase: calculated.taxableBase,
+          taxTreatment: line.taxTreatment,
+          taxRate: calculated.taxRate,
+          taxAmount: calculated.taxAmount,
+          incRate: calculated.incRate,
+          incAmount: calculated.incAmount,
+          withholdingTotal: calculated.withholdingTotal,
+          lineTotal: calculated.lineTotal,
+          taxes: {
+            create: [
+              ...(calculated.taxRate.isPositive()
+                ? [
+                    {
+                      taxType: "VAT",
+                      taxCode: "01",
+                      taxableBase: calculated.taxableBase,
+                      rate: calculated.taxRate,
+                      amount: calculated.taxAmount,
+                    },
+                  ]
+                : []),
+              ...(calculated.incRate.isPositive()
+                ? [
+                    {
+                      taxType: "INC",
+                      taxCode: "04",
+                      taxableBase: calculated.taxableBase,
+                      rate: calculated.incRate,
+                      amount: calculated.incAmount,
+                    },
+                  ]
+                : []),
+            ],
+          },
+          withholdings: {
+            create: calculated.withholdings.map(item => ({
+              withholdingType: item.withholdingType,
+              conceptCode: item.conceptCode,
+              taxableBase: item.taxableBase,
+              rate: item.rate,
+              amount: item.amount,
+            })),
+          },
+        };
+      });
       const created = await tx.invoice.create({
         data: {
           organizationId: actor.organizationId,
@@ -329,11 +689,19 @@ app.post(
           issueDate: parsed.data.issueDate,
           dueDate: parsed.data.dueDate,
           paymentTerm: parsed.data.paymentMethod,
+          paymentMethodCode: parsed.data.paymentMethodCode,
+          currency: parsed.data.currency,
+          exchangeRate: parsed.data.exchangeRate,
           notes: parsed.data.notes,
+          internalNotes: parsed.data.internalNotes,
           subtotal: totals.subtotal,
           discountTotal: totals.discountTotal,
+          taxableBase: totals.taxableBase,
           taxTotal: totals.taxTotal,
+          incTotal: totals.incTotal,
+          withholdingTotal: totals.withholdingTotal,
           total: totals.total,
+          estimatedNetReceivable: totals.estimatedNetReceivable,
           lines: { create: lines },
         },
         include: { lines: true },
@@ -385,7 +753,21 @@ app.post<{ Params: { id: string } }>(
     const result = await withOrganizationScope(actor.organizationId, async tx => {
       const invoice = await tx.invoice.findFirst({
         where: { id: request.params.id, status: "DRAFT" },
-        include: { lines: true, customer: { select: { legalName: true } } },
+        include: {
+          organization: {
+            select: { legalName: true, nit: true, verificationDigit: true, address: true, email: true, logoData: true },
+          },
+          lines: true,
+          customer: {
+            select: {
+              legalName: true,
+              identificationType: true,
+              identificationNumber: true,
+              address: true,
+              email: true,
+            },
+          },
+        },
       });
       if (!invoice) return null; // No existe o ya fue emitida → 404 más abajo.
       const accounts = await ensureDefaultAccounts(tx, actor.organizationId);
@@ -412,9 +794,25 @@ app.post<{ Params: { id: string } }>(
           lines: { create: journalLines },
         },
       });
+      const nextNumber = String(
+        (await tx.invoice.count({ where: { organizationId: actor.organizationId, prefix: "FE-" } })) + 1
+      ).padStart(8, "0");
       const issued = await tx.invoice.update({
         where: { id: invoice.id },
-        data: { status: "ISSUED", dianStatus: providerResult.status },
+        data: {
+          status: "ISSUED",
+          dianStatus: providerResult.status,
+          prefix: "FE-",
+          number: nextNumber,
+          pdfRepresentation: generateInvoicePdf(invoice.organization, invoice.customer, {
+            ...invoice,
+            prefix: "FE-",
+            number: nextNumber,
+            dianStatus: providerResult.status,
+          }),
+          pdfGeneratedAt: new Date(),
+          pdfVersion: 4,
+        },
       });
       await tx.electronicEvent.create({
         data: {
@@ -454,6 +852,49 @@ app.post<{ Params: { id: string } }>(
 );
 
 /** GET /v1/invoices — Facturas más recientes con el cliente y el número de líneas (máx. 100). */
+/** PDF persistido y protegido por sesión y organización. */
+app.get<{ Params: { id: string } }>("/v1/invoices/:id/pdf", { preHandler: requireActor }, async (request, reply) => {
+  const invoice = await withOrganizationScope(request.actor!.organizationId, async tx => {
+    const found = await tx.invoice.findFirst({
+      where: { id: request.params.id },
+      include: {
+        organization: {
+          select: { legalName: true, nit: true, verificationDigit: true, address: true, email: true, logoData: true },
+        },
+        customer: {
+          select: { legalName: true, identificationType: true, identificationNumber: true, address: true, email: true },
+        },
+        lines: true,
+      },
+    });
+    if (!found || found.status === "DRAFT" || (found.pdfRepresentation && found.pdfVersion >= 4)) return found;
+    // Migración segura de facturas emitidas antes de la representación almacenada: se genera una sola vez.
+    const pdfRepresentation = generateInvoicePdf(found.organization, found.customer, found);
+    return tx.invoice.update({
+      where: { id: found.id },
+      data: { pdfRepresentation, pdfGeneratedAt: new Date(), pdfVersion: 4 },
+      include: {
+        organization: {
+          select: { legalName: true, nit: true, verificationDigit: true, address: true, email: true, logoData: true },
+        },
+        customer: {
+          select: { legalName: true, identificationType: true, identificationNumber: true, address: true, email: true },
+        },
+        lines: true,
+      },
+    });
+  });
+  if (!invoice) return reply.code(404).send({ error: "Factura no encontrada en esta empresa." });
+  if (invoice.status === "DRAFT" || !invoice.pdfRepresentation)
+    return reply.code(409).send({ error: "La representación PDF estará disponible después de enviar la factura." });
+  const name = `${invoice.prefix ?? "FE-"}${invoice.number ?? request.params.id}.pdf`.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return reply
+    .header("Content-Disposition", `inline; filename="${name}"`)
+    .header("Cache-Control", "no-store")
+    .type("application/pdf")
+    .send(invoice.pdfRepresentation);
+});
+
 app.get("/v1/invoices", { preHandler: requireActor }, async request => {
   const actor = request.actor!;
   const data = await withOrganizationScope(actor.organizationId, tx =>
@@ -698,11 +1139,13 @@ registerPayrollRoutes(app, { auditIp });
 registerLedgerRoutes(app, { auditIp });
 registerStatementRoutes(app);
 registerCatalogRoutes(app, { auditIp });
+registerTaxCatalogRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
-// host 0.0.0.0 permite acceder desde Docker u otros equipos de la red local.
+// La API se mantiene interna: Next la publica a través de localhost:3000 durante el desarrollo.
 const port = Number(process.env.BETEL_API_PORT ?? 4000);
-await app.listen({ port, host: "0.0.0.0" });
+const host = process.env.BETEL_API_HOST ?? "127.0.0.1";
+await app.listen({ port, host });
 // Generación automática de facturas recurrentes (al arrancar y cada hora).
 startRecurringScheduler(app.log);

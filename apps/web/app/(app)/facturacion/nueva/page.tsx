@@ -2,7 +2,7 @@
  * Ruta /facturacion/nueva — Crear factura electrónica de venta (usa DocumentForm).
  */
 import { AppShell } from "../../../../components/app-shell";
-import { DocumentForm } from "../../../../components/forms";
+import { ElectronicInvoiceForm } from "../../../../components/electronic-invoice-form";
 export default function NewInvoice() {
   return (
     <AppShell
@@ -16,7 +16,7 @@ export default function NewInvoice() {
             La transmisión electrónica exige una resolución de facturación activa y una integración DIAN configurada.
           </span>
         </div>
-        <DocumentForm />
+        <ElectronicInvoiceForm />
       </div>
     </AppShell>
   );

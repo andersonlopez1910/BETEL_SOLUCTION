@@ -14,7 +14,134 @@
 import { z } from "zod";
 
 /** Tipos de documento de identificación en Colombia: CC, CE, NIT, Pasaporte, TI, PPT. */
-export const colombianIdentificationTypes = ["CC", "CE", "NIT", "PA", "TI", "PPT"] as const;
+export const colombianIdentificationTypes = ["RC", "TI", "CC", "TE", "CE", "PA", "DIE", "PEP", "PPT", "NIT"] as const;
+
+/** Perfil maestro de la organización. La organización siempre se resuelve desde la sesión, nunca desde este cuerpo. */
+export const organizationProfileSchema = z.object({
+  personType: z.enum(["COMPANY", "PERSON"]),
+  identificationType: z.enum(colombianIdentificationTypes),
+  nit: z
+    .string()
+    .trim()
+    .regex(/^\d{3,30}$/, "Escribe solo el número de identificación."),
+  verificationDigit: z
+    .string()
+    .trim()
+    .regex(/^\d?$/, "El dígito de verificación debe tener un solo carácter.")
+    .optional(),
+  legalName: z.string().trim().min(2).max(200),
+  tradeName: z.string().trim().max(200).optional(),
+  societyType: z.string().trim().max(100).optional(),
+  firstName: z.string().trim().max(80).optional(),
+  middleName: z.string().trim().max(80).optional(),
+  firstSurname: z.string().trim().max(80).optional(),
+  secondSurname: z.string().trim().max(80).optional(),
+  departmentCode: z.string().trim().max(10).optional(),
+  municipalityCode: z.string().trim().max(10).optional(),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "El código postal debe tener seis dígitos.")
+    .optional(),
+  address: z.string().trim().max(250).optional(),
+  addressComplement: z.string().trim().max(120).optional(),
+  email: z.string().trim().email().optional(),
+  electronicInvoiceEmail: z.string().trim().email().optional(),
+  phoneCountryCode: z.string().trim().max(8).optional(),
+  phone: z.string().trim().max(30).optional(),
+  website: z.string().trim().url().optional(),
+  contactName: z.string().trim().max(160).optional(),
+  contactRole: z.string().trim().max(100).optional(),
+  // JPEG normalizado en el navegador: se limita para conservarlo de forma segura en el perfil.
+  logoData: z
+    .string()
+    .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/)
+    .max(250_000)
+    .optional(),
+  economicActivityCode: z.string().trim().max(20).optional(),
+  economicActivityName: z.string().trim().max(300).optional(),
+  secondaryActivities: z.array(z.string().trim().max(20)).max(10).default([]),
+  vatResponsibility: z.string().trim().max(100).optional(),
+  taxResponsibilities: z
+    .array(
+      z.object({
+        code: z.string().trim().max(30),
+        description: z.string().trim().max(160),
+        active: z.boolean().default(true),
+      })
+    )
+    .max(20)
+    .default([]),
+  associatedTaxes: z.array(z.string().trim().max(40)).max(10).default([]),
+  taxFlags: z
+    .object({
+      vatResponsible: z.boolean().default(false),
+      withholdingAgent: z.boolean().default(false),
+      selfWithholding: z.boolean().default(false),
+      vatWithholdingAgent: z.boolean().default(false),
+      largeTaxpayer: z.boolean().default(false),
+      simpleRegime: z.boolean().default(false),
+    })
+    .default({
+      vatResponsible: false,
+      withholdingAgent: false,
+      selfWithholding: false,
+      vatWithholdingAgent: false,
+      largeTaxpayer: false,
+      simpleRegime: false,
+    }),
+  legalRepresentative: z
+    .object({
+      firstName: z.string().trim().max(80).optional(),
+      middleName: z.string().trim().max(80).optional(),
+      firstSurname: z.string().trim().max(80).optional(),
+      secondSurname: z.string().trim().max(80).optional(),
+      identificationType: z.string().trim().max(20).optional(),
+      identificationNumber: z.string().trim().max(30).optional(),
+      email: z.string().trim().email().optional(),
+      phone: z.string().trim().max(30).optional(),
+      role: z.string().trim().max(100).optional(),
+      sameAsHolder: z.boolean().default(false),
+    })
+    .default({ sameAsHolder: false }),
+  currency: z.string().trim().min(3).max(3),
+  foreignCurrencyEnabled: z.boolean().default(false),
+  enabledCurrencies: z.array(z.string().trim().min(3).max(3)).max(10).default([]),
+});
+
+/** Activación y parámetros de un tributo para la organización activa. */
+export const organizationTaxConfigurationSchema = z.object({
+  taxCatalogItemId: z.string().uuid(),
+  active: z.boolean().default(true),
+  rate: z.coerce.number().min(0).max(100).optional(),
+  fixedValue: z.coerce.number().min(0).optional(),
+  base: z.string().trim().max(120).optional(),
+  municipalityCode: z.string().trim().max(10).optional(),
+  accountReceivableId: z.string().uuid().optional(),
+  accountPayableId: z.string().uuid().optional(),
+  withholdingAccountId: z.string().uuid().optional(),
+  validFrom: z.string().datetime().optional(),
+  validTo: z.string().datetime().optional(),
+  additionalConfig: z.record(z.string(), z.unknown()).optional(),
+});
+export const replaceOrganizationTaxConfigurationsSchema = z.object({
+  configurations: z.array(organizationTaxConfigurationSchema).max(40),
+});
+export const customTaxCatalogItemSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9_-]{3,40}$/),
+  name: z.string().trim().min(3).max(160),
+  shortName: z.string().trim().max(60).optional(),
+  description: z.string().trim().max(500).optional(),
+  category: z.enum(["TAX", "WITHHOLDING", "CONTRIBUTION", "SURCHARGE", "OTHER"]),
+  calculationType: z.enum(["PERCENTAGE", "FIXED", "CONFIGURABLE"]),
+  rate: z.coerce.number().min(0).max(100).optional(),
+  validFrom: z.string().datetime().optional(),
+  validTo: z.string().datetime().optional(),
+});
 
 /** Tercero: cliente, proveedor y/o pagador. Una misma persona puede tener varios roles. */
 export const partySchema = z.object({
@@ -23,6 +150,10 @@ export const partySchema = z.object({
   identificationNumber: z.string().min(3).max(30),
   verificationDigit: z.string().max(1).optional(), // Dígito de verificación (DV) del NIT
   legalName: z.string().min(2).max(200), // Razón social o nombre completo
+  firstName: z.string().trim().max(80).optional(),
+  middleName: z.string().trim().max(80).optional(),
+  firstSurname: z.string().trim().max(80).optional(),
+  secondSurname: z.string().trim().max(80).optional(),
   tradeName: z.string().max(200).optional(), // Nombre comercial
   email: z.string().email().optional(), // Correo para envío de factura electrónica
   phone: z.string().max(30).optional(),
@@ -33,9 +164,34 @@ export const partySchema = z.object({
     .optional(),
   address: z.string().max(250).optional(),
   taxResponsibilities: z.array(z.string()).default([]), // Responsabilidades fiscales del RUT (p. ej. "O-13")
+  vatResponsibility: z.string().trim().max(80).optional(),
+  chamberOfCommerce: z.string().trim().max(160).optional(),
+  commercialRegistration: z.string().trim().max(80).optional(),
+  economicActivityCode: z.string().trim().max(20).optional(),
+  enrichmentMetadata: z
+    .array(
+      z.object({
+        field: z.string().min(1).max(80),
+        value: z.string().max(500),
+        source: z.string().min(1).max(80),
+        retrievedAt: z.string().datetime(),
+        confidence: z.enum(["HIGH", "MEDIUM", "LOW"]),
+      })
+    )
+    .max(40)
+    .optional(),
   isCustomer: z.boolean().default(true),
   isSupplier: z.boolean().default(false),
   isPayer: z.boolean().default(false),
+});
+
+/** Consulta explícita a fuentes empresariales públicas; nunca consulta DIAN ni usa scraping. */
+export const thirdPartyEnrichmentSchema = z.object({
+  identificationType: z.string().trim().min(1).max(20),
+  identificationNumber: z
+    .string()
+    .trim()
+    .regex(/^\d{3,30}$/, "Escribe solo el número de identificación."),
 });
 
 /** Línea de factura. Tasas en porcentaje (19 = 19 %). IVA por defecto 19 %. */
@@ -46,36 +202,172 @@ export const invoiceLineSchema = z.object({
   unitPrice: z.coerce.number().nonnegative(),
   discountRate: z.coerce.number().min(0).max(100).default(0),
   taxRate: z.coerce.number().min(0).max(100).default(19),
+  discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
+  discountValue: z.coerce.number().nonnegative().optional(),
+  discountReason: z.string().trim().max(200).optional(),
+  taxTreatment: z.enum(["TAXED", "EXEMPT", "EXCLUDED", "OTHER"]).optional(),
+  incRate: z.coerce.number().min(0).max(100).optional(),
+  withholdings: z
+    .array(
+      z.object({
+        withholdingType: z.string().trim().min(1).max(40),
+        conceptCode: z.string().trim().max(40).optional(),
+        rate: z.coerce.number().min(0).max(100),
+      })
+    )
+    .max(10)
+    .optional(),
 });
 
 /** Factura de venta (se crea en borrador; la emisión DIAN es un paso aparte). */
-export const createInvoiceSchema = z.object({
-  customerId: z.string().uuid(), // Party con isCustomer = true
-  issueDate: z.coerce.date(),
-  dueDate: z.coerce.date().optional(), // Requerido en la práctica cuando paymentMethod = CREDIT
-  paymentMethod: z.enum(["CASH", "CREDIT"]),
-  notes: z.string().max(2000).optional(),
-  lines: z.array(invoiceLineSchema).min(1),
-});
+export const createInvoiceSchema = z
+  .object({
+    customerId: z.string().uuid(), // Party con isCustomer = true
+    issueDate: z.coerce.date(),
+    dueDate: z.coerce.date().optional(), // Requerido en la práctica cuando paymentMethod = CREDIT
+    paymentMethod: z.enum(["CASH", "CREDIT"]),
+    paymentMethodCode: z.string().trim().max(20).optional(),
+    currency: z.string().trim().length(3).default("COP"),
+    exchangeRate: z.coerce.number().positive().optional(),
+    notes: z.string().max(2000).optional(),
+    internalNotes: z.string().max(2000).optional(),
+    lines: z.array(invoiceLineSchema).min(1),
+  })
+  .superRefine((value, context) => {
+    if (value.paymentMethod === "CASH" && !value.paymentMethodCode)
+      context.addIssue({ code: "custom", path: ["paymentMethodCode"], message: "Selecciona el medio de pago." });
+    if (value.paymentMethod === "CREDIT" && !value.dueDate)
+      context.addIssue({ code: "custom", path: ["dueDate"], message: "Indica la fecha de vencimiento." });
+    if (value.dueDate && value.dueDate < value.issueDate)
+      context.addIssue({
+        code: "custom",
+        path: ["dueDate"],
+        message: "El vencimiento no puede ser anterior a la emisión.",
+      });
+    if (value.currency !== "COP" && !value.exchangeRate)
+      context.addIssue({ code: "custom", path: ["exchangeRate"], message: "Indica la tasa de cambio." });
+  });
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 export type PartyInput = z.infer<typeof partySchema>;
 
 /** Producto o servicio del catálogo de la organización. */
-export const productSchema = z.object({
-  sku: z
-    .string()
-    .trim()
-    .max(80)
-    .optional()
-    .transform(value => value || undefined), // Código interno; vacío = se asigna el siguiente C-n
-  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres.").max(200),
-  description: z.string().trim().max(1000).optional(),
-  kind: z.enum(["PRODUCT", "SERVICE"]).default("PRODUCT"),
-  unit: z.string().min(1).max(10).default("UND"), // Unidad de medida
-  unitPrice: z.coerce.number().nonnegative(),
-  taxRate: z.coerce.number().min(0).max(100).default(19),
-});
+export const productSchema = z
+  .object({
+    sku: z
+      .string()
+      .trim()
+      .max(80)
+      .optional()
+      .transform(value => value || undefined), // Código interno; vacío = se asigna el siguiente C-n
+    name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres.").max(200),
+    description: z.string().trim().max(1000).optional(),
+    kind: z.enum(["PRODUCT", "SERVICE"]).default("PRODUCT"),
+    unit: z.string().min(1).max(10).default("UND"), // Unidad de medida
+    unitPrice: z.coerce.number().nonnegative(),
+    taxRate: z.coerce.number().min(0).max(100).default(19),
+    gtin: z
+      .string()
+      .trim()
+      .max(40)
+      .optional()
+      .transform(value => value || undefined),
+    niifNature: z
+      .string()
+      .trim()
+      .max(100)
+      .optional()
+      .transform(value => value || undefined),
+    serviceNature: z
+      .string()
+      .trim()
+      .max(100)
+      .optional()
+      .transform(value => value || undefined),
+    priceIncludesTaxes: z.boolean().default(false),
+    taxTreatment: z.enum(["TAXED", "EXEMPT", "EXCLUDED", "OTHER"]).optional(),
+    taxConfig: z
+      .object({
+        appliesInc: z.boolean().default(false),
+        incCode: z
+          .string()
+          .trim()
+          .max(30)
+          .optional()
+          .transform(value => value || undefined),
+        incRate: z.coerce.number().min(0).max(100).optional(),
+        withholdingHints: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+        standardCodeType: z
+          .string()
+          .trim()
+          .max(30)
+          .optional()
+          .transform(value => value || undefined),
+        standardCode: z
+          .string()
+          .trim()
+          .max(80)
+          .optional()
+          .transform(value => value || undefined),
+      })
+      .optional(),
+    inventoryConfig: z
+      .object({
+        controlled: z.boolean().default(false),
+        minimumStock: z.coerce.number().nonnegative().optional(),
+        maximumStock: z.coerce.number().nonnegative().optional(),
+        allowNegativeStock: z.boolean().default(false),
+        valuationMethod: z.enum(["WEIGHTED_AVERAGE", "FIFO", "SPECIFIC_IDENTIFICATION"]).optional(),
+        initialCost: z.coerce.number().nonnegative().optional(),
+        netRealizableValue: z.coerce.number().nonnegative().optional(),
+        vnrEvaluatedAt: z.coerce.date().optional(),
+      })
+      .optional(),
+    accountingConfig: z
+      .object({
+        inventoryAccountId: z.string().uuid().optional(),
+        incomeAccountId: z.string().uuid().optional(),
+        costOfSalesAccountId: z.string().uuid().optional(),
+        vatSalesAccountId: z.string().uuid().optional(),
+        vatPurchaseAccountId: z.string().uuid().optional(),
+        incAccountId: z.string().uuid().optional(),
+        returnsAccountId: z.string().uuid().optional(),
+        discountsAccountId: z.string().uuid().optional(),
+      })
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.taxTreatment === "TAXED" && value.taxRate <= 0)
+      ctx.addIssue({
+        code: "custom",
+        path: ["taxRate"],
+        message: "Un ítem gravado requiere una tarifa de IVA válida.",
+      });
+    if ((value.taxTreatment === "EXEMPT" || value.taxTreatment === "EXCLUDED") && value.taxRate !== 0)
+      ctx.addIssue({ code: "custom", path: ["taxRate"], message: "Exento y excluido deben conservar IVA 0 %." });
+    if (value.kind === "SERVICE" && value.inventoryConfig?.controlled)
+      ctx.addIssue({
+        code: "custom",
+        path: ["inventoryConfig", "controlled"],
+        message: "Los servicios no manejan inventario físico.",
+      });
+    if (value.inventoryConfig?.controlled) {
+      if (!value.inventoryConfig.valuationMethod)
+        ctx.addIssue({
+          code: "custom",
+          path: ["inventoryConfig", "valuationMethod"],
+          message: "Selecciona el método de valoración.",
+        });
+      if (!value.accountingConfig?.inventoryAccountId || !value.accountingConfig?.costOfSalesAccountId)
+        ctx.addIssue({
+          code: "custom",
+          path: ["accountingConfig"],
+          message: "El inventario requiere cuentas de inventario y costo de ventas.",
+        });
+    }
+    if (value.taxConfig?.appliesInc && (value.taxConfig.incRate === undefined || !value.taxConfig.incCode))
+      ctx.addIssue({ code: "custom", path: ["taxConfig"], message: "El INC requiere código y tarifa parametrizados." });
+  });
 
 /**
  * Documento soporte: compras a personas NO obligadas a facturar.

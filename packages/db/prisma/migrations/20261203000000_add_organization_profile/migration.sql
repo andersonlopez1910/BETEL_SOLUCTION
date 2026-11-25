@@ -1,0 +1,27 @@
+-- Información maestra del emisor. Todas las columnas pertenecen a Organization para
+-- mantener una única fuente de datos entre facturación, PDFs, contabilidad e impuestos.
+ALTER TABLE "Organization"
+  ADD COLUMN IF NOT EXISTS "departmentCode" TEXT,
+  ADD COLUMN IF NOT EXISTS "postalCode" TEXT,
+  ADD COLUMN IF NOT EXISTS "addressComplement" TEXT,
+  ADD COLUMN IF NOT EXISTS "personType" TEXT NOT NULL DEFAULT 'COMPANY',
+  ADD COLUMN IF NOT EXISTS "identificationType" TEXT NOT NULL DEFAULT 'NIT',
+  ADD COLUMN IF NOT EXISTS "societyType" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstName" TEXT,
+  ADD COLUMN IF NOT EXISTS "middleName" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstSurname" TEXT,
+  ADD COLUMN IF NOT EXISTS "secondSurname" TEXT,
+  ADD COLUMN IF NOT EXISTS "electronicInvoiceEmail" TEXT,
+  ADD COLUMN IF NOT EXISTS "phoneCountryCode" TEXT NOT NULL DEFAULT '+57',
+  ADD COLUMN IF NOT EXISTS "website" TEXT,
+  ADD COLUMN IF NOT EXISTS "contactName" TEXT,
+  ADD COLUMN IF NOT EXISTS "contactRole" TEXT,
+  ADD COLUMN IF NOT EXISTS "economicActivityCode" TEXT,
+  ADD COLUMN IF NOT EXISTS "secondaryActivities" JSONB,
+  ADD COLUMN IF NOT EXISTS "vatResponsibility" TEXT,
+  ADD COLUMN IF NOT EXISTS "taxResponsibilities" JSONB,
+  ADD COLUMN IF NOT EXISTS "associatedTaxes" JSONB,
+  ADD COLUMN IF NOT EXISTS "taxFlags" JSONB,
+  ADD COLUMN IF NOT EXISTS "legalRepresentative" JSONB,
+  ADD COLUMN IF NOT EXISTS "foreignCurrencyEnabled" BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS "enabledCurrencies" JSONB;

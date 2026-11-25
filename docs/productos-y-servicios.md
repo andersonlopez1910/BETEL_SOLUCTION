@@ -1,5 +1,18 @@
 # Productos y servicios
 
+## Maestro ampliado (configuración comercial, tributaria y contable)
+
+El maestro conserva `Product` como dato comercial compatible con facturación y agrega configuraciones separadas:
+`ProductTaxConfig` (tratamiento IVA, INC, retenciones sugeridas y código estándar),
+`ProductAccountingConfig` (cuentas sugeridas) y `ProductInventoryConfig` (valoración, límites y VNR).
+`ProductPrice` mantiene el historial de cambios de precio. Las cuentas se validan activas dentro de la organización;
+ninguna de estas tablas recibe una empresa desde el navegador: heredan el alcance RLS de `Product`.
+
+`POST` y `PUT /v1/products` aceptan estas configuraciones de forma atómica y validan en backend que exento/excluido
+usen IVA 0 %, un gravado tenga tarifa positiva, los servicios no activen inventario y un inventariable tenga método
+de valoración y cuentas de inventario/costo. `GET /v1/products/:id/configuration` devuelve la configuración, el
+historial de precios y las auditorías para editar o consultar trazabilidad.
+
 Módulo del menú lateral **Productos y servicios** (`/productos`): catálogo de lo que la empresa compra y vende, con
 precios, impuestos y stock. Los productos activos son los que ofrecen los editores de ítems de facturas,
 cotizaciones, remisiones, facturas recurrentes y compras.

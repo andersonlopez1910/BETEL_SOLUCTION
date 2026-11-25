@@ -1,5 +1,6 @@
 /**
- * Cliente HTTP del frontend hacia la API (NEXT_PUBLIC_API_URL, por defecto http://localhost:4000).
+ * Cliente HTTP del frontend hacia la API. En desarrollo se consume desde el mismo
+ * origen de la web (localhost:3000), que la reenvía internamente a la API.
  *
  * Uso:
  *   const report = await apiGet<SalesReport>("/v1/reports/billing/sales", { from: "2026-11-01" });
@@ -12,7 +13,7 @@
  * guarda en sessionStorage; al vencer (401) se pide uno nuevo.
  * PENDIENTE: reemplazar por el login real (OIDC + MFA) antes de producción (ver docs/TAREAS.md).
  */
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window === "undefined" ? "http://localhost:3000" : window.location.origin);
 const TOKEN_KEY = "betel.accessToken";
 
 export class ApiError extends Error {
@@ -107,3 +108,23 @@ export const apiPut = <T>(path: string, body: unknown) => apiRequest<T>("PUT", p
 
 /** DELETE autenticado (eliminar un registro sin historial, p. ej. un producto que ningún documento usa). */
 export const apiDelete = <T>(path: string) => apiRequest<T>("DELETE", path);
+
+/** Descarga protegida para documentos que el navegador abrirá desde un Blob URL. */
+export async function apiGetBlob(path: string) {
+  const url = new URL(path, API_URL);
+  // Una representación de factura puede regenerarse al corregir la plantilla;
+  // nunca reutilizamos un Blob PDF en caché del navegador.
+  const send = (token: string) => fetch(url, { cache: "no-store", headers: { authorization: `Bearer ${token}` } });
+  let response: Response;
+  try {
+    response = await send(readToken() ?? (await requestDevSession()));
+    if (response.status === 401) response = await send(await requestDevSession());
+  } catch {
+    throw new ApiError("No se pudo conectar con la API.", 0);
+  }
+  if (!response.ok) {
+    const result = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new ApiError(result.error ?? "No se pudo abrir el documento.", response.status, result);
+  }
+  return response.blob();
+}
