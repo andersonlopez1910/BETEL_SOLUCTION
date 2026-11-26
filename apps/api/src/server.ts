@@ -86,6 +86,7 @@ import { registerStatementRoutes } from "./statements.js";
 import { rankParties } from "./party-search.js";
 import { registerCatalogRoutes } from "./catalog/index.js";
 import { registerUserRoutes } from "./users.js";
+import { registerInvoicePrintRoutes } from "./invoice-print.js";
 import { registerTaxCatalogRoutes } from "./tax-catalog.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
@@ -1162,6 +1163,7 @@ registerPayrollRoutes(app, { auditIp });
 registerLedgerRoutes(app, { auditIp });
 registerStatementRoutes(app);
 registerCatalogRoutes(app, { auditIp });
+registerInvoicePrintRoutes(app);
 registerUserRoutes(app, { auditIp, devLogin: !isProduction && process.env.BETEL_ALLOW_INSECURE_DEV_AUTH === "true" });
 registerTaxCatalogRoutes(app, { auditIp });
 

@@ -6,6 +6,7 @@ import { openInvoicePdf } from "../lib/invoice-pdf";
 import { money } from "./billing-report-common";
 import { CustomerPicker, type CustomerOption } from "./customer-picker";
 import { aiuAmounts, aiuFactor, InvoiceAiuToggle, type AiuConfig } from "./invoice-aiu";
+import { InvoicePrintDialog } from "./invoice-print";
 import { LineDiscount } from "./line-discount";
 import { useToast } from "./toast-provider";
 
@@ -33,6 +34,8 @@ export function ElectronicInvoiceForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issuedNumber, setIssuedNumber] = useState<string | null>(null);
+  // Después de la venta se elige cómo imprimir: tirilla POS o factura electrónica en carta.
+  const [printOpen, setPrintOpen] = useState(false);
 
   useEffect(() => { apiGet<{ data: Product[] }>("/v1/invoice-catalog/products").then(result => setProducts(result.data), () => setProducts([])); }, []);
 
@@ -70,6 +73,7 @@ export function ElectronicInvoiceForm() {
       const response = await apiPost<{ data: { dianStatus: string; prefix: string | null; number: string | null } }>(`/v1/invoices/${id}/issue`);
       const number = `${response.data.prefix ?? ""}${response.data.number ?? ""}`;
       setIssuedNumber(number || "Factura emitida");
+      setPrintOpen(true);
       setStatus(response.data.dianStatus === "ACCEPTED" ? "ACEPTADA DIAN" : "EN VALIDACIÓN");
       toast.success({ title: "Factura enviada correctamente", description: `${number || "La factura"} fue procesada correctamente.` });
     }
@@ -86,7 +90,8 @@ export function ElectronicInvoiceForm() {
       <section className="invoice-card payment-section"><h3>Forma de pago</h3><div className="payment-switch"><label><input type="radio" checked={paymentMethod === "CASH"} onChange={() => setPaymentMethod("CASH")} /> Contado</label><label><input type="radio" checked={paymentMethod === "CREDIT"} onChange={() => setPaymentMethod("CREDIT")} /> Crédito</label></div>{paymentMethod === "CASH" ? <label>Medio de pago<select value={paymentMethodCode} onChange={event => setPaymentMethodCode(event.target.value)}><option value="10">Efectivo</option><option value="42">Transferencia</option><option value="48">Tarjeta</option><option value="20">Cheque</option></select></label> : <label>Fecha de vencimiento<input type="date" min={today} value={dueDate} onChange={event => setDueDate(event.target.value)} required /></label>}<label>Observaciones<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Visible para el cliente" /></label><label>Notas internas<textarea value={internalNotes} onChange={event => setInternalNotes(event.target.value)} placeholder="No se transmiten a DIAN" /></label></section>
     </main><aside className="invoice-summary"><h3>Resumen</h3><p><span>Subtotal bruto</span><b>{money(totals.gross)}</b></p><p><span>Descuentos</span><b>−{money(totals.discount)}</b></p><p><span>Base gravable</span><b>{money(totals.base)}</b></p>{aiu && aiuValues && <div className="invoice-aiu-rows"><p><span>Administración {aiu.administrationRate}%</span><b>{money(aiuValues.administration)}</b></p><p><span>Imprevistos {aiu.contingencyRate}%</span><b>{money(aiuValues.contingency)}</b></p><p><span>Utilidad {aiu.profitRate}%</span><b>{money(aiuValues.profit)}</b></p><p><span>Base AIU {aiuValues.added ? "(sumada)" : "(no sumada)"}</span><b>{money(aiuValues.total)}</b></p></div>}<p><span>IVA</span><b>{money(totals.vat)}</b></p><p><span>INC</span><b>{money(totals.inc)}</b></p><div className="invoice-total"><span>TOTAL FACTURA</span><b>{money(invoiceTotal)}</b></div><p><span>Retenciones</span><b>−{money(0)}</b></p><div className="invoice-net"><span>NETO ESTIMADO A RECIBIR</span><b>{money(invoiceTotal)}</b></div><details><summary>Configuración DIAN</summary><p>La validación y transmisión se ejecutan en el servidor. Ambiente: habilitación/sandbox según la configuración de la empresa.</p></details></aside></div>
     {error && <p className="invoice-error" role="alert">{error}</p>}
-    {issuedNumber && invoiceId && <section className="invoice-issued-actions"><b>{issuedNumber}</b><span>Factura procesada. Puedes consultar su representación gráfica sin salir de esta pantalla.</span><button type="button" className="secondary" onClick={() => void openInvoicePdf(invoiceId).catch(reason => setError((reason as Error).message))}>↗ Ver factura</button><button type="button" className="secondary" onClick={() => location.reload()}>Nueva factura</button><a className="secondary" href="/reportes/facturacion?tab=ventas">Ir al reporte de facturación</a></section>}
+    {issuedNumber && invoiceId && <section className="invoice-issued-actions"><b>{issuedNumber}</b><span>Factura procesada. Puedes consultar su representación gráfica sin salir de esta pantalla.</span><button type="button" className="primary" onClick={() => setPrintOpen(true)}>🖨 Imprimir</button><button type="button" className="secondary" onClick={() => void openInvoicePdf(invoiceId).catch(reason => setError((reason as Error).message))}>↗ Ver factura</button><button type="button" className="secondary" onClick={() => location.reload()}>Nueva factura</button><a className="secondary" href="/reportes/facturacion?tab=ventas">Ir al reporte de facturación</a></section>}
+    {printOpen && invoiceId && <InvoicePrintDialog invoiceId={invoiceId} onClose={() => setPrintOpen(false)} />}
     <footer className="invoice-actions"><button type="button" className="secondary" onClick={() => history.back()}>Cancelar</button><button type="submit" className="secondary" disabled={busy}>{busy ? "Guardando…" : "Guardar borrador"}</button><button type="button" className="primary" onClick={() => void send()} disabled={busy || Boolean(issuedNumber)}>{busy ? "Enviando…" : "✈ Guardar y enviar"}</button></footer>
   </form>;
 }

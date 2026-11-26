@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Impresión de la factura: POS o carta.** Al enviar una factura electrónica se elige cómo imprimirla:
+  **factura POS** en tirilla para impresora térmica (80 o 58 mm) o **factura electrónica** en hoja carta. Ambas son
+  representaciones de la misma factura (número, CUFE y código QR real con los campos de la DIAN). Ruta
+  `GET /v1/invoices/:id/print-data`; el botón «Imprimir» permite reimprimir.
 - **Configuración › Usuarios y permisos** (`/configuracion/usuarios`): crear usuarios (nombre, correo, celular) con
   un rol (Propietario, Administrador, Contador, Ventas, Soporte o Solo lectura), editarlos, desactivarlos y
   reactivarlos, con la tabla de permisos por rol. Solo Propietario y Administrador gestionan usuarios; solo un

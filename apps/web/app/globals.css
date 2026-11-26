@@ -7944,3 +7944,88 @@ button.mass-button:disabled {
   font-weight: 700;
   cursor: pointer;
 }
+
+/* ── Impresión de la factura: tirilla POS o carta (components/invoice-print.tsx) ── */
+.print-summary {
+  margin: 0 0 14px;
+  color: #37516c;
+}
+.print-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 14px;
+}
+.print-choice {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-align: center;
+}
+.print-choice h3 {
+  margin: 4px 0 0;
+  font-size: 16px;
+}
+.print-choice p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.print-choice > button {
+  width: 100%;
+  height: 40px;
+  margin-top: 4px;
+}
+.print-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: #eef6ff;
+}
+.print-icon span {
+  display: block;
+  border: 2px solid #1655b0;
+  border-radius: 2px;
+  background: repeating-linear-gradient(#fff 0 5px, #c6d8f0 5px 6px);
+}
+.print-icon.is-pos span {
+  width: 18px;
+  height: 40px;
+}
+.print-icon.is-letter span {
+  width: 32px;
+  height: 40px;
+}
+.print-width {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border: 1px solid #d2dee8;
+  border-radius: 8px;
+  overflow: hidden;
+  color: #506176;
+  font-size: 12px;
+}
+.print-width span {
+  padding: 0 10px;
+}
+.print-width button {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  background: white;
+  color: #506176;
+  font-weight: 700;
+  cursor: pointer;
+}
+.print-width button + button {
+  border-left: 1px solid #d2dee8;
+}
+.print-width button.is-selected {
+  background: var(--teal-dark);
+  color: white;
+}
