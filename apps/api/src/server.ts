@@ -45,6 +45,7 @@
  *   Contabilidad ... /accounting/chart, /accounting/accounts, /accounting/trial-balance, /accounting/journal (ver src/ledger.ts)
  *   Estados ........ GET /reports/income-statement, GET /reports/balance-sheet (ver src/statements.ts)
  *   Catálogo ....... GET /reports/catalog, GET /reports/catalog/:id (ver src/catalog/index.ts)
+ *   Usuarios ....... GET/POST /organization/users, PUT /organization/users/:userId (ver src/users.ts)
  *
  * Cuando este archivo crezca, la idea es dividirlo en `src/routes/<modulo>.ts` (ver docs/TAREAS.md).
  */
@@ -84,6 +85,7 @@ import { registerLedgerRoutes } from "./ledger.js";
 import { registerStatementRoutes } from "./statements.js";
 import { rankParties } from "./party-search.js";
 import { registerCatalogRoutes } from "./catalog/index.js";
+import { registerUserRoutes } from "./users.js";
 import { registerTaxCatalogRoutes } from "./tax-catalog.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
@@ -193,7 +195,7 @@ app.get("/health", async () => ({ status: "ok", service: "betel-api", at: new Da
  * Body opcional: { email?: string, organizationNit?: string }
  */
 if (!isProduction && process.env.BETEL_ALLOW_INSECURE_DEV_AUTH === "true") {
-  app.post("/v1/auth/dev/session", async request => {
+  app.post("/v1/auth/dev/session", async (request, reply) => {
     const body = (request.body ?? {}) as { email?: string; organizationNit?: string };
     const email = body.email?.trim().toLowerCase() || "owner@betel.local";
     const nit = body.organizationNit?.replace(/\D/g, "") || "900999001";
@@ -207,11 +209,14 @@ if (!isProduction && process.env.BETEL_ALLOW_INSECURE_DEV_AUTH === "true") {
       update: {},
       create: { nit, verificationDigit: "1", legalName: "Organización de desarrollo Betel", dianEnabled: false },
     });
+    // Un usuario nuevo entra como OWNER; uno existente conserva el rol y el estado asignados en
+    // Configuración › Usuarios y permisos (así se prueba cada rol con «Probar como este usuario»).
     const membership = await prisma.membership.upsert({
       where: { organizationId_userId: { organizationId: organization.id, userId: user.id } },
-      update: { role: "OWNER" },
+      update: {},
       create: { organizationId: organization.id, userId: user.id, role: "OWNER" },
     });
+    if (!membership.active) return reply.code(403).send({ error: "El usuario está desactivado en esta organización." });
     const payload: BetelJwt = {
       sub: user.id,
       email: user.email,
@@ -1157,6 +1162,7 @@ registerPayrollRoutes(app, { auditIp });
 registerLedgerRoutes(app, { auditIp });
 registerStatementRoutes(app);
 registerCatalogRoutes(app, { auditIp });
+registerUserRoutes(app, { auditIp, devLogin: !isProduction && process.env.BETEL_ALLOW_INSECURE_DEV_AUTH === "true" });
 registerTaxCatalogRoutes(app, { auditIp });
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────

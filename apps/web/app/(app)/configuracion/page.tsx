@@ -10,7 +10,7 @@ type Section = { label: string; icon: IconName; intro: string; groups: { title: 
 const sections: Section[] = [
   { label: "Organización", icon: "building", intro: "Base legal, usuarios y permisos.", groups: [{ title: "Organización", items: [
     { title: "Perfil de la organización", description: "Datos legales y generales de tu empresa.", icon: "building", href: "/configuracion/organizacion", state: "Disponible" },
-    { title: "Usuarios y permisos", description: "Accesos, roles y responsabilidades.", icon: "users", state: "Próximamente" },
+    { title: "Usuarios y permisos", description: "Accesos, roles y responsabilidades.", icon: "users", href: "/configuracion/usuarios", state: "Disponible" },
   ] }] },
   { label: "DIAN y documentos", icon: "document", intro: "Configura la emisión y seguimiento de documentos electrónicos.", groups: [{ title: "Documentos electrónicos", items: [
     { title: "Facturación electrónica", description: "Ambiente y datos de transmisión.", icon: "filePlus", href: "/facturacion/nueva", state: "Requiere configuración" },

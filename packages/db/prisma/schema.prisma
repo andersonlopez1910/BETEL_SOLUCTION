@@ -411,6 +411,8 @@ model Membership {
   organizationId String
   userId         String
   role           MembershipRole @default(VIEWER)
+  /// Acceso a esta organización. false = desactivado por un administrador (conserva su historial).
+  active         Boolean        @default(true)
   createdAt      DateTime       @default(now())
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)

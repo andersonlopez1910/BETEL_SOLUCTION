@@ -56,9 +56,10 @@ export async function requireActor(request: FastifyRequest, reply: FastifyReply)
   // Rol vigente desde la BD: si un administrador cambia o quita el rol, aplica de inmediato.
   const membership = await prisma.membership.findUnique({
     where: { organizationId_userId: { organizationId: request.user.organizationId, userId: request.user.sub } },
-    select: { role: true, user: { select: { active: true } } },
+    select: { role: true, active: true, user: { select: { active: true } } },
   });
-  if (!membership || !membership.user.active)
+  // Usuario desactivado en el sistema o en esta organización (Configuración › Usuarios y permisos).
+  if (!membership || !membership.active || !membership.user.active)
     return reply.code(403).send({ error: "No tienes acceso a esta organización." });
 
   request.actor = { ...request.user, role: membership.role };

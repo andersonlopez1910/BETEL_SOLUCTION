@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Configuración › Usuarios y permisos** (`/configuracion/usuarios`): crear usuarios (nombre, correo, celular) con
+  un rol (Propietario, Administrador, Contador, Ventas, Soporte o Solo lectura), editarlos, desactivarlos y
+  reactivarlos, con la tabla de permisos por rol. Solo Propietario y Administrador gestionan usuarios; solo un
+  Propietario asigna ese rol; nadie cambia su rol ni se desactiva; siempre queda un Propietario activo. Desactivar
+  quita el acceso al instante (migración `20261210000000_add_membership_active`). En desarrollo, «Probar como» entra
+  con otro usuario y el acceso de desarrollo ya respeta el rol asignado.
 - **Factura electrónica › AIU** (Administración, Imprevistos y Utilidad): casilla «Incluye AIU» con la configuración
   de la referencia (base AIU sumada o no al total, porcentajes y base de IVA, retefuente y reteICA sobre subtotal,
   base AIU o utilidad). La API recalcula y guarda el AIU con la factura (migración `20261209000000_add_invoice_aiu`),

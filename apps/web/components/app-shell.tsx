@@ -17,6 +17,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { apiGet } from "../lib/api";
 import { BrandMark, Icon, type IconName } from "./brand";
+import { ImpersonationBanner } from "./users-admin";
 
 /** Desplegables de la barra superior. Solo uno puede estar abierto a la vez. */
 type TopMenu = "create" | "notifications" | "profile";
@@ -158,6 +159,7 @@ export function AppShell({
         </div>
       </aside>
       <main className="main-area">
+        <ImpersonationBanner />
         {/* ── Barra superior ── */}
         <header className="topbar">
           <div className="company">
