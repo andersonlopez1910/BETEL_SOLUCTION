@@ -20,14 +20,19 @@ const migrations = [
   ["20261125000000_add_monthly_costing", true],
   ["20261126000000_add_payroll", true],
   ["20261127000000_add_journal_templates", true],
+  ["20261128000000_add_product_master_configuration", true],
+  ["20261129000000_add_electronic_invoice_tax_engine", true],
+  ["20261208000000_isolate_organization_tax_configurations", true],
 ];
 const statements = [];
 for (const [name, onlyRls] of migrations) {
   const migrationUrl = new URL(`../prisma/migrations/${name}/migration.sql`, import.meta.url);
   statements.push(
     ...(await readFile(fileURLToPath(migrationUrl), "utf8"))
+      // Comentarios fuera antes de partir: un ";" dentro de un comentario no debe cortar la sentencia.
+      .replace(/--[^\n]*/g, "")
       .split(";")
-      .map(statement => statement.replace(/--[^\n]*/g, "").trim())
+      .map(statement => statement.trim())
       .filter(Boolean)
       .filter(statement => !onlyRls || /ROW LEVEL SECURITY|POLICY/.test(statement))
   );
