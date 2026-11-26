@@ -35,7 +35,7 @@ import {
   topProductsQuerySchema,
   type ProductQuery,
 } from "@betel/contracts";
-import { allowRoles, requireActor, type MembershipRole } from "./auth.js";
+import { allowPermission, requireActor, type MembershipRole } from "./auth.js";
 import { BILLED_STATUSES, EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod } from "./reports.js";
 
 type Tx = Prisma.TransactionClient;
@@ -356,10 +356,10 @@ async function resolveCode(tx: Tx, sku: string | undefined, exceptId?: string) {
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerProductRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canEdit = { preHandler: allowRoles(...PRODUCT_ROLES) };
-  const canDelete = { preHandler: allowRoles(...DELETE_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canEdit = { preHandler: allowPermission("parties.edit") };
+  const canDelete = { preHandler: allowPermission("products.delete") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
   const audit = (
     tx: Tx,

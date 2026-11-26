@@ -139,7 +139,7 @@ const columns: ReportColumn<PurchaseRow>[] = [
 ];
 
 function PurchaseDocuments() {
-  const { company, canExport, canReceive: canRegister } = useSession();
+  const { company, canExport, canPurchase: canRegister } = useSession();
   const [applied, setApplied] = useState<Filters>(emptyFilters);
   const [draft, setDraft] = useState<Filters>(applied);
   const [showFilters, setShowFilters] = useState(false);

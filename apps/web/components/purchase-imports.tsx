@@ -88,7 +88,7 @@ const exportColumns: ReportColumn<ImportRow>[] = [
 ];
 
 export function PurchaseImports() {
-  const { company, canExport, canReceive: canRegister } = useSession();
+  const { company, canExport, canPurchase: canRegister } = useSession();
   const [draft, setDraft] = useState<Criteria>(initialCriteria);
   const [applied, setApplied] = useState<Criteria>(draft);
   const [showCriteria, setShowCriteria] = useState(true);

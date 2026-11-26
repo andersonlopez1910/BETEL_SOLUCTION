@@ -41,7 +41,7 @@ const quantity = (value: string) =>
 export function InventoryDocumentView() {
   const params = useSearchParams();
   const id = params.get("id") ?? "";
-  const { company, canReceive: canEdit } = useSession();
+  const { company, canInventory: canEdit } = useSession();
   const detail = useReport<{ data: InventoryDetail }>(`/v1/inventory-documents/${id}`);
   const [voiding, setVoiding] = useState(false);
   const [notice, setNotice] = useState<string | null>(

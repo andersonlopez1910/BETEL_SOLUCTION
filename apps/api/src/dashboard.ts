@@ -22,7 +22,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
 import { z } from "zod";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { BILLED_STATUSES, REPORT_VIEW_ROLES, todayIn } from "./reports.js";
 
 type Tx = Prisma.TransactionClient;
@@ -220,7 +220,7 @@ async function series(tx: Tx, today: Date, granularity: Granularity) {
 
 export function registerDashboardRoutes(app: FastifyInstance) {
   /** GET /v1/dashboard — indicadores del mes, evolución y flujo de caja. */
-  app.get("/v1/dashboard", { preHandler: allowRoles(...REPORT_VIEW_ROLES) }, async (request, reply) => {
+  app.get("/v1/dashboard", { preHandler: allowPermission("reports.view") }, async (request, reply) => {
     const parsed = querySchema.safeParse(request.query);
     if (!parsed.success)
       return reply.code(422).send({ error: "Granularidad inválida", details: parsed.error.flatten() });

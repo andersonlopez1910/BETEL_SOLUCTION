@@ -399,7 +399,7 @@ const variation = (row: StatementRow) => {
 };
 
 export function IncomeStatement() {
-  const { company, canReceive } = useSession();
+  const { company, canAccounting } = useSession();
   const [preset, setPreset] = useState<Preset>("month");
   const [range, setRange] = useState(() => presetRange("month", defaultPeriod()));
   const report = useReport<IncomeResponse>("/v1/reports/income-statement", range);
@@ -437,7 +437,7 @@ export function IncomeStatement() {
       <div className="document-toolbar">
         {back}
         <div className="page-actions">
-          <DownloadMenu disabled={!canReceive || !data || !!empty} onDownload={download} />
+          <DownloadMenu disabled={!canAccounting || !data || !!empty} onDownload={download} />
         </div>
       </div>
       <section className="panel">
@@ -532,7 +532,7 @@ export function IncomeStatement() {
 }
 
 export function BalanceSheet() {
-  const { company, canReceive } = useSession();
+  const { company, canAccounting } = useSession();
   const [to, setTo] = useState(() => defaultPeriod().to);
   const report = useReport<BalanceResponse>("/v1/reports/balance-sheet", { to });
   const [error, setError] = useState<string | null>(null);
@@ -570,7 +570,7 @@ export function BalanceSheet() {
       <div className="document-toolbar">
         {back}
         <div className="page-actions">
-          <DownloadMenu disabled={!canReceive || !data || !!empty} onDownload={download} />
+          <DownloadMenu disabled={!canAccounting || !data || !!empty} onDownload={download} />
         </div>
       </div>
       <section className="panel">

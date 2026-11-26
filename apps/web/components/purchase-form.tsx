@@ -22,7 +22,7 @@ type Supplier = { id: string; legalName: string; identificationType: string; ide
 export function PurchaseForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { canReceive: canRegister } = useSession();
+  const { canPurchase: canRegister } = useSession();
   const today = defaultPeriod().to;
   const initialType = params.get("tipo");
   const [type, setType] = useState(initialType && initialType in purchaseTypeLabels ? initialType : "PURCHASE");

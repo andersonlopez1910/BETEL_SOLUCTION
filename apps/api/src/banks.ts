@@ -18,7 +18,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
 import { bankMovementsQuerySchema, banksQuerySchema, type BankMovementsQuery } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod, todayIn } from "./reports.js";
 
 type Tx = Prisma.TransactionClient;
@@ -165,8 +165,8 @@ async function loadMovements(tx: Tx, accountId: string, query: BankMovementsQuer
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerBankRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
   const audit = (
     tx: Tx,

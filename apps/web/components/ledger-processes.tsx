@@ -137,7 +137,7 @@ type YearClose = {
 };
 
 export function YearCloseView() {
-  const { canReceive: canEdit } = useSession();
+  const { canAccounting: canEdit } = useSession();
   const currentYear = Number(defaultPeriod().to.slice(0, 4));
   const [year, setYear] = useState(currentYear - 1);
   const report = useReport<{ data: YearClose }>("/v1/accounting/year-close", { year });
@@ -306,7 +306,7 @@ type Template = {
 };
 
 export function FavoriteEntries() {
-  const { canReceive: canEdit } = useSession();
+  const { canAccounting: canEdit } = useSession();
   const report = useReport<{ data: Template[] }>("/v1/accounting/templates");
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const remove = async (template: Template) => {
@@ -459,7 +459,7 @@ type JournalRow = {
 };
 
 export function BulkVoid() {
-  const { canReceive: canEdit } = useSession();
+  const { canAccounting: canEdit } = useSession();
   const [preset, setPreset] = useState<Preset>("month");
   const [range, setRange] = useState(() => presetRange("month", defaultPeriod()));
   const report = useReport<{ data: JournalRow[]; pagination: { total: number } }>("/v1/accounting/journal", {
@@ -659,7 +659,7 @@ type CertificatesResponse = {
 };
 
 export function IncomeCertificates() {
-  const { canReceive: allowed } = useSession();
+  const { canAccounting: allowed } = useSession();
   const currentYear = Number(defaultPeriod().to.slice(0, 4));
   const [year, setYear] = useState(currentYear - 1);
   const [employeeId, setEmployeeId] = useState("");

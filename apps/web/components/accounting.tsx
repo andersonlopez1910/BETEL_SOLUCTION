@@ -87,7 +87,7 @@ const exportColumns: ReportColumn<ChartNode>[] = [
 ];
 
 function ChartOfAccounts() {
-  const { company, canExport, canReceive: canEdit } = useSession();
+  const { company, canExport, canAccounting: canEdit } = useSession();
   const linkedAccount = useSearchParams().get("account") ?? "";
   const report = useReport<{ data: ChartNode[] }>("/v1/accounting/chart");
   const nodes = report.data?.data ?? [];

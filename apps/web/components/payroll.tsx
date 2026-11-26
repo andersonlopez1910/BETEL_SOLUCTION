@@ -41,7 +41,7 @@ export const runHref = (id: string) => `/nomina/liquidacion?id=${id}`;
 export function PayrollModule() {
   const requested = useSearchParams().get("tab");
   const [slug] = tabs.find(([tab]) => tab === requested) ?? tabs[0];
-  const { canReceive: allowed } = useSession();
+  const { canPayroll: allowed } = useSession();
   return (
     <div className="page-content">
       <nav className="report-tabs" aria-label="Nómina">

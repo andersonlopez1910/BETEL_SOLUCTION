@@ -72,7 +72,7 @@ export const slipHref = (runId: string, employeeId?: string) =>
 
 export function PayrollRunView() {
   const id = useSearchParams().get("id") ?? "";
-  const { canReceive: allowed } = useSession();
+  const { canPayroll: allowed } = useSession();
   const report = useReport<{ data: RunDetail }>(`/v1/payroll/runs/${id}`);
   const [dialog, setDialog] = useState<{ kind: "item"; item: RunItem } | { kind: "pay" } | { kind: "void" } | null>(
     null

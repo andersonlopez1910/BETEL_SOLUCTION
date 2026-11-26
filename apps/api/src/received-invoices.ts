@@ -27,7 +27,7 @@ import {
   registerReceivedInvoiceSchema,
   type ReceivedInvoiceQuery,
 } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { RECEIPT_ROLES } from "./collections.js";
 import { dianIsSandbox, getDianProvider } from "./dian.js";
 import { REPORT_VIEW_ROLES, todayIn } from "./reports.js";
@@ -247,8 +247,8 @@ function present(invoice: InvoiceRecord, today: Date) {
 const httpError = (statusCode: number, message: string) => Object.assign(new Error(message), { statusCode });
 
 export function registerReceivedInvoiceRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canRegister = { preHandler: allowRoles(...RECEIPT_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canRegister = { preHandler: allowPermission("purchases.manage") };
   const today = () => todayIn("America/Bogota");
   const audit = (
     tx: Tx,

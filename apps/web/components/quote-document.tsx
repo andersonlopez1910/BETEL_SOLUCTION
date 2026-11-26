@@ -60,7 +60,7 @@ function SalesDocumentView({ kind }: { kind: keyof typeof kinds }) {
   const Noun = config.noun.charAt(0).toUpperCase() + config.noun.slice(1);
   const params = useSearchParams();
   const id = params.get("id") ?? "";
-  const { company, canEmail: canQuote } = useSession();
+  const { company, canSalesDocs: canQuote } = useSession();
   const quote = useReport<{ data: QuoteDocument }>(`${config.api}/${id}`);
   const [dialog, setDialog] = useState<"email" | "void" | "convert" | null>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(

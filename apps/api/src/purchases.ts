@@ -27,7 +27,7 @@ import {
   type CreatePurchaseInput,
   type PurchaseQuery,
 } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "./accounting.js";
 import { RECEIPT_ROLES } from "./collections.js";
 import { EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod } from "./reports.js";
@@ -352,9 +352,9 @@ async function loadDocument(tx: Tx, kind: string, id: string) {
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerPurchaseRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canRegister = { preHandler: allowRoles(...RECEIPT_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canRegister = { preHandler: allowPermission("purchases.manage") };
   const audit = (
     tx: Tx,
     request: { ip: string; actor?: { organizationId: string; sub: string } },

@@ -27,7 +27,7 @@ import {
   type DeliveryQuery,
 } from "@betel/contracts";
 import { z } from "zod";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { calculateDocumentTotals } from "./accounting.js";
 import { documentEmail } from "./collections.js";
 import { createDraftInvoiceFrom } from "./draft-invoice.js";
@@ -187,9 +187,9 @@ async function loadDelivery(tx: Tx, id: string) {
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerDeliveryRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canEdit = { preHandler: allowRoles(...QUOTE_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canEdit = { preHandler: allowPermission("sales.documents") };
   const audit = (
     tx: Tx,
     request: { ip: string; actor?: { organizationId: string; sub: string } },

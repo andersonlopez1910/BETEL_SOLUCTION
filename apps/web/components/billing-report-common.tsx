@@ -34,25 +34,32 @@ export function useReport<T>(path: string | null, params: QueryParams = {}) {
   return { ...state, reload: () => setAttempt(value => value + 1) };
 }
 
-type Me = { user: { role: string }; organization: { legalName: string } };
-/** Roles que pueden exportar (espejo de REPORT_EXPORT_ROLES en la API, que es quien lo hace cumplir). */
-const exportRoles = ["OWNER", "ADMIN", "ACCOUNTANT"];
+type Me = { user: { role: string }; permissions?: string[]; organization: { legalName: string } };
 
-/** Espejo de RECEIPT_ROLES y EMAIL_ROLES (apps/api/src/collections.ts); la API los hace cumplir. */
-const receiptRoles = ["OWNER", "ADMIN", "ACCOUNTANT"];
-const emailRoles = ["OWNER", "ADMIN", "ACCOUNTANT", "SALES"];
-
-/** Usuario actual: nombre de la empresa (encabezado de exportaciones) y qué acciones puede hacer. */
+/**
+ * Usuario actual: nombre de la empresa (encabezado de exportaciones) y qué acciones puede hacer, según sus
+ * permisos efectivos (GET /v1/me; tabla editable de Configuración › Usuarios y permisos, claves en
+ * apps/api/src/permissions.ts). Solo oculta o desactiva botones: la API valida cada permiso igual.
+ */
 export function useSession() {
   const { data } = useReport<Me>("/v1/me");
-  const role = data?.user.role ?? "";
+  const permissions = data?.permissions ?? [];
+  const can = (key: string) => permissions.includes(key);
   return {
     company: data?.organization.legalName ?? "",
-    canExport: exportRoles.includes(role),
-    canReceive: receiptRoles.includes(role),
-    canEmail: emailRoles.includes(role),
-    // Generar, enviar y anular links de pago (LINK_ROLES en apps/api/src/payments.ts: mismos roles que correo).
-    canLink: emailRoles.includes(role),
+    role: data?.user.role ?? "",
+    can,
+    canExport: can("reports.export"),
+    canReceive: can("receipts.manage"),
+    canEmail: can("sales.send"),
+    canLink: can("sales.send"),
+    canSalesDocs: can("sales.documents"),
+    canEditCatalog: can("parties.edit"),
+    canDeleteProducts: can("products.delete"),
+    canPurchase: can("purchases.manage"),
+    canInventory: can("inventory.manage"),
+    canPayroll: can("payroll.manage"),
+    canAccounting: can("accounting.manage"),
   };
 }
 

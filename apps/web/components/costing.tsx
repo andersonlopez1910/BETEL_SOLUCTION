@@ -62,7 +62,7 @@ const dateTime = (value: string) =>
 export const costingDetailHref = (year: number, month: number) => `/productos/costeo/mes?anio=${year}&mes=${month}`;
 
 export function MonthlyCosting() {
-  const { canReceive: canCalculate } = useSession();
+  const { canInventory: canCalculate } = useSession();
   const [year, setYear] = useState<number | undefined>(undefined);
   const report = useReport<CostingResponse>("/v1/costing", { year });
   const [busy, setBusy] = useState<number | null>(null);
@@ -278,7 +278,7 @@ export function CostingDetail() {
   const params = useSearchParams();
   const year = Number(params.get("anio"));
   const month = Number(params.get("mes"));
-  const { company, canExport, canReceive: canCalculate } = useSession();
+  const { company, canExport, canInventory: canCalculate } = useSession();
   const valid = Number.isInteger(year) && month >= 1 && month <= 12;
   const report = useReport<DetailResponse>(valid ? `/v1/costing/${year}/${month}` : null);
   const [search, setSearch] = useState("");

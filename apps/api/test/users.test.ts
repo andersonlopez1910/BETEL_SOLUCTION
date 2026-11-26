@@ -6,13 +6,9 @@ const owner = { userId: "o1", role: "OWNER" as const };
 const admin = { userId: "a1", role: "ADMIN" as const };
 const seller = { userId: "s1", role: "SALES" as const, active: true };
 
-test("solo propietario y administrador gestionan usuarios", () => {
+test("propietario y administrador gestionan usuarios (el permiso users.manage se valida antes)", () => {
   assert.equal(canManage(owner, null, { role: "SALES" }, 1), null);
   assert.equal(canManage(admin, null, { role: "ACCOUNTANT" }, 1), null);
-  assert.match(
-    canManage({ userId: "x", role: "ACCOUNTANT" }, null, { role: "SALES" }, 1)!,
-    /propietario o un administrador/
-  );
 });
 
 test("solo un propietario asigna o modifica el rol Propietario", () => {

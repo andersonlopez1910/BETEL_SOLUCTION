@@ -75,7 +75,7 @@ const columns: ReportColumn<InventoryRow>[] = [
 ];
 
 export function ProductDocuments() {
-  const { company, canExport, canReceive: canEdit } = useSession();
+  const { company, canExport, canInventory: canEdit } = useSession();
   const [applied, setApplied] = useState<Filters>(initialFilters);
   const [draft, setDraft] = useState<Filters>(applied);
   const [search, setSearch] = useState("");

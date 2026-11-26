@@ -8029,3 +8029,57 @@ button.mass-button:disabled {
   background: var(--teal-dark);
   color: white;
 }
+
+/* ── Permisos editables (PermissionsEditor en components/users-admin.tsx) ── */
+.permissions-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.permissions-heading .users-title {
+  margin: 0;
+}
+.permissions-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.permissions-actions button {
+  height: 36px;
+  padding: 0 14px;
+}
+.permissions-help {
+  margin: 6px 0 12px;
+}
+.permissions-table input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--teal-dark);
+  cursor: pointer;
+}
+.permissions-table input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.permissions-table td.is-changed {
+  background: #fff7e6;
+}
+.permissions-table .permission-name {
+  min-width: 220px;
+  white-space: normal;
+}
+.permissions-table .permission-name b,
+.permissions-table .permission-name small {
+  display: block;
+}
+.permissions-table .permission-name small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.permissions-table th:nth-child(n + 2),
+.permissions-table td:nth-child(n + 2) {
+  width: 92px;
+  text-align: center;
+}

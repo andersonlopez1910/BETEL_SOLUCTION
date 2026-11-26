@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma, prisma, withOrganizationScope } from "@betel/db";
 import { customTaxCatalogItemSchema, replaceOrganizationTaxConfigurationsSchema } from "@betel/contracts";
-import { allowRoles, requireActor } from "./auth.js";
+import { allowPermission, requireActor } from "./auth.js";
 
 /** Valores iniciales administrables: se guardan en BD y nunca se declaran en la interfaz. */
 const DEFAULT_TAX_CATALOG = [
@@ -188,7 +188,7 @@ export function registerTaxCatalogRoutes(app: FastifyInstance, options: { auditI
 
   app.put(
     "/v1/organization/tax-configurations",
-    { preHandler: allowRoles("OWNER", "ADMIN") },
+    { preHandler: allowPermission("settings.manage") },
     async (request, reply) => {
       const parsed = replaceOrganizationTaxConfigurationsSchema.safeParse(request.body);
       if (!parsed.success)
@@ -278,7 +278,7 @@ export function registerTaxCatalogRoutes(app: FastifyInstance, options: { auditI
     }
   );
 
-  app.post("/v1/tax-catalog/custom", { preHandler: allowRoles("OWNER", "ADMIN") }, async (request, reply) => {
+  app.post("/v1/tax-catalog/custom", { preHandler: allowPermission("settings.manage") }, async (request, reply) => {
     const parsed = customTaxCatalogItemSchema.safeParse(request.body);
     if (!parsed.success)
       return reply.code(422).send({

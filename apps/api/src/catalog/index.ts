@@ -13,8 +13,8 @@
 import type { FastifyInstance } from "fastify";
 import { withOrganizationScope } from "@betel/db";
 import { z } from "zod";
-import { requireActor } from "../auth.js";
-import { REPORT_EXPORT_ROLES, resolvePeriod, todayIn } from "../reports.js";
+import { actorCan, requireActor } from "../auth.js";
+import { resolvePeriod, todayIn } from "../reports.js";
 import { accountingReports, auditReports, taxReports } from "./accounting.js";
 import { type CatalogReport, columnTotals, iso, type Params } from "./common.js";
 import { payrollReports, productReports } from "./inventory.js";
@@ -32,6 +32,12 @@ export const catalogReports: CatalogReport[] = [
   ...auditReports,
 ];
 const byId = new Map(catalogReports.map(report => [report.id, report]));
+/**
+ * Permiso de cada reporte: los que por defecto ven también Ventas y Solo lectura usan «reports.view»; los
+ * contables, de cartera, compras, nómina y auditoría, «reports.financial» (editables en Usuarios y permisos).
+ */
+export const permissionOf = (report: CatalogReport) =>
+  report.roles.includes("SALES") ? ("reports.view" as const) : ("reports.financial" as const);
 const ROW_LIMIT = 5000;
 
 const querySchema = z.object({
@@ -71,7 +77,7 @@ export function registerCatalogRoutes(app: FastifyInstance, options: { auditIp: 
 
   app.get("/v1/reports/catalog", auth, async request => ({
     data: catalogReports
-      .filter(report => report.roles.includes(request.actor!.role))
+      .filter(report => actorCan(request, permissionOf(report)))
       .map(({ id, title, params }) => ({ id, title, params })),
   }));
 
@@ -90,12 +96,12 @@ export function registerCatalogRoutes(app: FastifyInstance, options: { auditIp: 
     const report = byId.get(request.params.id);
     if (!report) return reply.code(404).send({ error: "El reporte no existe." });
     const actor = request.actor!;
-    if (!report.roles.includes(actor.role))
+    if (!actorCan(request, permissionOf(report)))
       return reply.code(403).send({ error: "Tu rol no tiene acceso a este reporte." });
     const parsed = querySchema.safeParse(request.query);
     if (!parsed.success) return reply.code(422).send({ error: "Filtros inválidos.", details: parsed.error.flatten() });
     const exporting = parsed.data.export === "1";
-    if (exporting && !REPORT_EXPORT_ROLES.includes(actor.role))
+    if (exporting && !actorCan(request, "reports.export"))
       return reply.code(403).send({ error: "Tu rol no puede descargar reportes." });
     const params = resolveParams(parsed.data);
     if (report.params.includes("period") && params.from > params.to)

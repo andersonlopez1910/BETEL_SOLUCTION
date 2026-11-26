@@ -54,7 +54,7 @@ type Statement = {
 export function SupplierStatement() {
   const params = useSearchParams();
   const id = params.get("id") ?? "";
-  const { company, canReceive: canPay } = useSession();
+  const { company, canPurchase: canPay } = useSession();
   const statement = useReport<{ data: Statement }>(`/v1/suppliers/${id}/statement`);
   const [voiding, setVoiding] = useState<Statement["payments"][number] | null>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(

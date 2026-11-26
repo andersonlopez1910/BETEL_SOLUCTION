@@ -28,7 +28,7 @@ import {
   toggleRecurringInvoiceSchema,
   type RecurringInvoiceQuery,
 } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { calculateDocumentTotals } from "./accounting.js";
 import { createDraftInvoiceFrom } from "./draft-invoice.js";
 import { invoiceNumber } from "./collections.js";
@@ -256,9 +256,9 @@ async function loadRecurring(tx: Tx, query: RecurringInvoiceQuery, rows: { skip:
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerRecurringRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canEdit = { preHandler: allowRoles(...QUOTE_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canEdit = { preHandler: allowPermission("sales.documents") };
   const audit = (
     tx: Tx,
     request: { ip: string; actor?: { organizationId: string; sub: string } },

@@ -122,7 +122,7 @@ const quoteColumns: ReportColumn<QuoteRow>[] = [
 export const quoteHref = (id: string) => `/cotizaciones/documento?id=${id}`;
 
 export function QuotesReport() {
-  const { company, canExport, canEmail: canQuote } = useSession();
+  const { company, canExport, canSalesDocs: canQuote } = useSession();
   const users = useReport<{ data: { id: string; displayName: string }[] }>("/v1/reports/billing/users");
   const [applied, setApplied] = useState<Filters>(emptyFilters);
   const [draft, setDraft] = useState<Filters>(applied);

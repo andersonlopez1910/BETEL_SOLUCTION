@@ -36,7 +36,7 @@ import {
   type OnlinePaymentQuery,
 } from "@betel/contracts";
 import { z } from "zod";
-import { allowRoles, type MembershipRole } from "./auth.js";
+import { allowPermission, type MembershipRole } from "./auth.js";
 import { assertBalanced, ensureDefaultAccounts } from "./accounting.js";
 import { invoiceNumber, nextReceiptNumber, pendingInvoices, RECEIPT_ROLES } from "./collections.js";
 import { mailerConfigured, sendMail } from "./mailer.js";
@@ -297,10 +297,10 @@ async function applyResult(
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerPaymentRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canLink = { preHandler: allowRoles(...LINK_ROLES) };
-  const canDisburse = { preHandler: allowRoles(...RECEIPT_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canLink = { preHandler: allowPermission("sales.send") };
+  const canDisburse = { preHandler: allowPermission("receipts.manage") };
   const audit = (
     tx: Tx,
     request: { ip: string; actor?: { organizationId: string; sub: string } },

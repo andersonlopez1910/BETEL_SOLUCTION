@@ -14,6 +14,7 @@
  */
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "@betel/db";
+import { hasPermission, type PermissionKey, type PermissionOverrides } from "./permissions.js";
 
 /** Roles posibles de un usuario dentro de una organización (ver enum MembershipRole en schema.prisma). */
 export type MembershipRole = "OWNER" | "ADMIN" | "ACCOUNTANT" | "SALES" | "SUPPORT" | "VIEWER";
@@ -38,6 +39,8 @@ declare module "@fastify/jwt" {
 declare module "fastify" {
   interface FastifyRequest {
     actor?: BetelJwt;
+    /** Permisos editados de la organización (null = valores por defecto). Ver permissions.ts. */
+    permissionOverrides?: PermissionOverrides | null;
   }
 }
 
@@ -56,13 +59,19 @@ export async function requireActor(request: FastifyRequest, reply: FastifyReply)
   // Rol vigente desde la BD: si un administrador cambia o quita el rol, aplica de inmediato.
   const membership = await prisma.membership.findUnique({
     where: { organizationId_userId: { organizationId: request.user.organizationId, userId: request.user.sub } },
-    select: { role: true, active: true, user: { select: { active: true } } },
+    select: {
+      role: true,
+      active: true,
+      user: { select: { active: true } },
+      organization: { select: { rolePermissions: true } },
+    },
   });
   // Usuario desactivado en el sistema o en esta organización (Configuración › Usuarios y permisos).
   if (!membership || !membership.active || !membership.user.active)
     return reply.code(403).send({ error: "No tienes acceso a esta organización." });
 
   request.actor = { ...request.user, role: membership.role };
+  request.permissionOverrides = membership.organization.rolePermissions as PermissionOverrides | null;
 }
 
 /**
@@ -77,3 +86,20 @@ export function allowRoles(...roles: MembershipRole[]) {
       return reply.code(403).send({ error: "No tienes permiso para realizar esta acción." });
   };
 }
+
+/**
+ * preHandler: exige sesión y el permiso indicado según la tabla de permisos de la organización
+ * (Configuración › Usuarios y permisos; valores por defecto en permissions.ts). OWNER siempre pasa.
+ */
+export function allowPermission(key: PermissionKey) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    await requireActor(request, reply);
+    if (reply.sent) return;
+    if (!request.actor || !hasPermission(request.actor.role, key, request.permissionOverrides))
+      return reply.code(403).send({ error: "No tienes permiso para realizar esta acción." });
+  };
+}
+
+/** Para comprobaciones dentro de una ruta (p. ej. reportes del catálogo con permisos distintos). */
+export const actorCan = (request: FastifyRequest, key: PermissionKey) =>
+  !!request.actor && hasPermission(request.actor.role, key, request.permissionOverrides);

@@ -5,6 +5,8 @@
  *   GET  /v1/organization/users ............ usuarios de la organización con su rol y estado
  *   POST /v1/organization/users ............ crea el usuario (o vincula uno existente por correo) con un rol
  *   PUT  /v1/organization/users/:userId .... cambia nombre, celular, rol o estado (activo / desactivado)
+ *   GET  /v1/organization/permissions ...... tabla rol × permiso (lectura: quien gestiona usuarios)
+ *   PUT  /v1/organization/permissions ...... guarda la tabla editada (solo OWNER; OWNER siempre tiene todo)
  *
  * Reglas (canManage, en pruebas unitarias):
  *   - Solo un OWNER asigna el rol OWNER o modifica a otro OWNER.
@@ -17,9 +19,16 @@
  * usuario» usa POST /v1/auth/dev/session con su correo.
  */
 import type { FastifyInstance } from "fastify";
-import { prisma, withOrganizationScope, type Prisma } from "@betel/db";
+import { Prisma, prisma, withOrganizationScope } from "@betel/db";
 import { z } from "zod";
-import { allowRoles, type MembershipRole } from "./auth.js";
+import {
+  overridesFromMatrix,
+  PERMISSIONS,
+  permissionMatrix,
+  ROLES_WITH_EDITABLE_PERMISSIONS,
+  type PermissionOverrides,
+} from "./permissions.js";
+import { allowPermission, type MembershipRole } from "./auth.js";
 
 export const ROLES = [
   "OWNER",
@@ -29,7 +38,6 @@ export const ROLES = [
   "SUPPORT",
   "VIEWER",
 ] as const satisfies readonly MembershipRole[];
-const USER_ADMIN_ROLES: MembershipRole[] = ["OWNER", "ADMIN"];
 
 const phone = z
   .string()
@@ -65,7 +73,7 @@ export function canManage(
   change: Change,
   activeOwners: number
 ): string | null {
-  if (!USER_ADMIN_ROLES.includes(actor.role)) return "Solo el propietario o un administrador gestiona usuarios.";
+  // Quién puede gestionar usuarios lo decide el permiso «users.manage» (preHandler); aquí, las reglas fijas.
   if (target && target.userId === actor.userId) {
     if (change.role && change.role !== target.role) return "No puedes cambiar tu propio rol.";
     if (change.active === false) return "No puedes desactivar tu propio usuario.";
@@ -101,7 +109,7 @@ export function registerUserRoutes(
   app: FastifyInstance,
   options: { auditIp: (ip: string) => string; devLogin: boolean }
 ) {
-  const can = { preHandler: allowRoles(...USER_ADMIN_ROLES) };
+  const can = { preHandler: allowPermission("users.manage") };
   const httpError = (statusCode: number, message: string) => Object.assign(new Error(message), { statusCode });
   const audit = (
     tx: Prisma.TransactionClient,
@@ -209,5 +217,51 @@ export function registerUserRoutes(
       return present(updated);
     });
     return { data };
+  });
+
+  const permissionsResponse = (overrides: PermissionOverrides | null, actorRole: MembershipRole) => ({
+    data: {
+      permissions: PERMISSIONS.map(({ key, area, action, defaults }) => ({ key, area, action, defaults })),
+      matrix: permissionMatrix(overrides),
+      customized: !!overrides && Object.keys(overrides).length > 0,
+      canEdit: actorRole === "OWNER",
+    },
+  });
+
+  app.get("/v1/organization/permissions", can, async request =>
+    permissionsResponse(request.permissionOverrides ?? null, request.actor!.role)
+  );
+
+  const matrixSchema = z.object({
+    matrix: z.record(z.string(), z.record(z.string(), z.boolean())),
+  });
+  app.put("/v1/organization/permissions", can, async (request, reply) => {
+    const actor = request.actor!;
+    if (actor.role !== "OWNER")
+      return reply.code(403).send({ error: "Solo un propietario puede editar los permisos." });
+    const parsed = matrixSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(422).send({ error: "Tabla de permisos inválida." });
+    const unknownRole = Object.keys(parsed.data.matrix).find(
+      role => !(ROLES_WITH_EDITABLE_PERMISSIONS as string[]).includes(role)
+    );
+    if (unknownRole && unknownRole !== "OWNER")
+      return reply.code(422).send({ error: `Rol desconocido: ${unknownRole}.` });
+    const overrides = overridesFromMatrix(parsed.data.matrix);
+    const before = request.permissionOverrides ?? null;
+    await withOrganizationScope(actor.organizationId, async tx => {
+      await tx.organization.update({
+        where: { id: actor.organizationId },
+        data: { rolePermissions: Object.keys(overrides).length ? (overrides as Prisma.InputJsonValue) : Prisma.DbNull },
+      });
+      await audit(
+        tx,
+        request,
+        actor.organizationId,
+        "PERMISSIONS",
+        overrides as Prisma.InputJsonValue,
+        (before ?? {}) as Prisma.InputJsonValue
+      );
+    });
+    return permissionsResponse(Object.keys(overrides).length ? overrides : null, actor.role);
   });
 }

@@ -28,7 +28,7 @@ import {
   type CreateInventoryDocumentInput,
   type InventoryDocumentQuery,
 } from "@betel/contracts";
-import { allowRoles, type MembershipRole } from "./auth.js";
+import { allowPermission, type MembershipRole } from "./auth.js";
 import { assertBalanced, ensureDefaultAccounts } from "./accounting.js";
 import { EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, todayIn } from "./reports.js";
 
@@ -294,9 +294,9 @@ async function createDocument(
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerInventoryRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canEdit = { preHandler: allowRoles(...INVENTORY_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canEdit = { preHandler: allowPermission("inventory.manage") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
   const audit = (
     tx: Tx,

@@ -425,7 +425,7 @@ type EntryDetail = {
 export function JournalEntryView() {
   const params = useSearchParams();
   const id = params.get("id") ?? "";
-  const { company, canReceive: canEdit } = useSession();
+  const { company, canAccounting: canEdit } = useSession();
   const report = useReport<{ data: EntryDetail }>(`/v1/accounting/journal/${id}`);
   const [voiding, setVoiding] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -554,7 +554,7 @@ const cents = (value: string) => Math.round(Number(value || 0) * 100);
 export function ManualEntryForm({ kind = "MANUAL" }: { kind?: "MANUAL" | "OPENING" }) {
   const router = useRouter();
   const templateId = useSearchParams().get("plantilla");
-  const { canReceive: canEdit } = useSession();
+  const { canAccounting: canEdit } = useSession();
   const chart = useReport<{ data: Postable[] }>("/v1/accounting/chart");
   const templates = useReport<{
     data: {

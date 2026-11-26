@@ -25,7 +25,7 @@ export function InventoryForm() {
   const router = useRouter();
   const requested = useSearchParams().get("tipo");
   const type = requested === "INITIAL" ? "INITIAL" : "ADJUSTMENT";
-  const { canReceive: canEdit } = useSession();
+  const { canInventory: canEdit } = useSession();
   const today = defaultPeriod().to;
   const [form, setForm] = useState({ date: today, notes: "" });
   const [party, setParty] = useState<Party | null>(null);

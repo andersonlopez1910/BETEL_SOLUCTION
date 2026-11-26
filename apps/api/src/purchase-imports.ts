@@ -29,7 +29,7 @@ import {
   voidCashReceiptSchema,
   type PurchaseImportQuery,
 } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { calculateDocumentTotals } from "./accounting.js";
 import { RECEIPT_ROLES } from "./collections.js";
 import { createPurchaseDocument, purchaseNumber, purchaseTypeLabels } from "./purchases.js";
@@ -142,9 +142,9 @@ function present(row: Prisma.PurchaseImportGetPayload<{ select: typeof rowSelect
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerPurchaseImportRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canRegister = { preHandler: allowRoles(...RECEIPT_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canRegister = { preHandler: allowPermission("purchases.manage") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
   const audit = (
     tx: Tx,

@@ -47,7 +47,7 @@ type RecurringDocument = {
 export function RecurringDocumentView() {
   const params = useSearchParams();
   const id = params.get("id") ?? "";
-  const { company, canEmail: canEdit } = useSession();
+  const { company, canSalesDocs: canEdit } = useSession();
   const template = useReport<{ data: RecurringDocument }>(`/v1/recurring-invoices/${id}`);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(
     params.get("creada") ? { kind: "ok", text: "Factura recurrente guardada." } : null

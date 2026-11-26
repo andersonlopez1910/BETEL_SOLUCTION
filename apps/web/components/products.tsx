@@ -126,7 +126,7 @@ type Dialog =
   | { kind: "top" };
 
 function ProductManagement({ openCreate = false }: { openCreate?: boolean }) {
-  const { company, canExport, canEmail: canEdit, canReceive: canDelete } = useSession();
+  const { company, canExport, canEditCatalog: canEdit, canDeleteProducts: canDelete } = useSession();
   const [applied, setApplied] = useState<Filters>(noFilters);
   const [draft, setDraft] = useState<Filters>(noFilters);
   const [search, setSearch] = useState("");

@@ -41,57 +41,6 @@ export const roleInfo: Record<Role, { label: string; description: string }> = {
 };
 const roles = Object.keys(roleInfo) as Role[];
 
-/** Resumen de los permisos que la API aplica en cada ruta (allowRoles en apps/api/src). */
-const FULL = "✓";
-const matrix: { area: string; detail: string; allowed: Partial<Record<Role, string>> }[] = [
-  {
-    area: "Facturas de venta",
-    detail: "Crear borradores",
-    allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL, SALES: FULL },
-  },
-  { area: "Facturas de venta", detail: "Emitir y anular", allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL } },
-  {
-    area: "Cotizaciones, remisiones y recurrentes",
-    detail: "Crear y gestionar",
-    allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL, SALES: FULL },
-  },
-  { area: "Recibos de caja", detail: "Registrar y anular", allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL } },
-  {
-    area: "Correos y links de pago",
-    detail: "Enviar",
-    allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL, SALES: FULL },
-  },
-  {
-    area: "Terceros y productos",
-    detail: "Crear y editar",
-    allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL, SALES: FULL },
-  },
-  {
-    area: "Compras, inventario, costeo y bancos",
-    detail: "Registrar",
-    allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL },
-  },
-  { area: "Nómina", detail: "Liquidar, aprobar y pagar", allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL } },
-  {
-    area: "Plan de cuentas",
-    detail: "Consultar (con saldos)",
-    allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL, SALES: FULL, VIEWER: FULL },
-  },
-  {
-    area: "Contabilidad y estados financieros",
-    detail: "Libros, comprobantes y estados",
-    allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL },
-  },
-  {
-    area: "Reportes",
-    detail: "Consultar facturación, compras, bancos y productos",
-    allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL, SALES: FULL, VIEWER: FULL },
-  },
-  { area: "Reportes", detail: "Descargar (PDF, Excel, CSV)", allowed: { OWNER: FULL, ADMIN: FULL, ACCOUNTANT: FULL } },
-  { area: "Configuración de la empresa e impuestos", detail: "Editar", allowed: { OWNER: FULL, ADMIN: FULL } },
-  { area: "Usuarios y permisos", detail: "Gestionar", allowed: { OWNER: FULL, ADMIN: "Sin propietarios" } },
-];
-
 type Draft = { id?: string; displayName: string; email: string; phone: string; role: Role };
 const emptyDraft: Draft = { displayName: "", email: "", phone: "", role: "SALES" };
 
@@ -256,46 +205,7 @@ export function UsersAdmin() {
         </p>
       </section>
 
-      <section className="panel">
-        <h2 className="users-title">Permisos por rol</h2>
-        <div className="role-cards">
-          {roles.map(role => (
-            <div key={role} className="role-card">
-              <span className={`role-badge role-${role.toLowerCase()}`}>{roleInfo[role].label}</span>
-              <p>{roleInfo[role].description}</p>
-            </div>
-          ))}
-        </div>
-        <div className="report-table-wrap">
-          <table className="report-table permissions-table">
-            <thead>
-              <tr>
-                <th>Módulo</th>
-                <th>Acción</th>
-                {roles.map(role => (
-                  <th key={role}>{roleInfo[role].label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.map(row => (
-                <tr key={`${row.area}-${row.detail}`}>
-                  <td>{row.area}</td>
-                  <td>{row.detail}</td>
-                  {roles.map(role => (
-                    <td key={role} className={row.allowed[role] ? "is-allowed" : "is-denied"}>
-                      {row.allowed[role] ?? "—"}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="report-footnote">
-          La API valida estos permisos en cada acción, aunque alguien intente entrar directo a una dirección.
-        </p>
-      </section>
+      <PermissionsEditor isOwner={isOwner} />
 
       {draft && (
         <UserDialog
@@ -440,5 +350,168 @@ export function ImpersonationBanner() {
         Volver a mi usuario
       </button>
     </div>
+  );
+}
+
+type PermissionsResponse = {
+  data: {
+    permissions: { key: string; area: string; action: string; defaults: Role[] }[];
+    matrix: Record<Role, Record<string, boolean>>;
+    customized: boolean;
+    canEdit: boolean;
+  };
+};
+
+/**
+ * Tabla de permisos por rol. El propietario la edita (casillas) y guarda; la columna Propietario es fija (siempre
+ * todo). Los demás la ven de solo lectura. API: GET/PUT /v1/organization/permissions; la API aplica estos permisos
+ * en cada ruta (allowPermission en apps/api/src/auth.ts).
+ */
+function PermissionsEditor({ isOwner }: { isOwner: boolean }) {
+  const permissions = useReport<PermissionsResponse>("/v1/organization/permissions");
+  const [draft, setDraft] = useState<Record<Role, Record<string, boolean>> | null>(null);
+  const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const data = permissions.data?.data;
+  const matrix = draft ?? data?.matrix;
+  const editable = !!data?.canEdit && isOwner;
+  const dirty = !!draft && !!data && JSON.stringify(draft) !== JSON.stringify(data.matrix);
+
+  const toggle = (role: Role, key: string) => {
+    if (!matrix || role === "OWNER") return;
+    setNotice(null);
+    setDraft({ ...matrix, [role]: { ...matrix[role], [key]: !matrix[role][key] } });
+  };
+  const save = async (next: Record<Role, Record<string, boolean>>, message: string) => {
+    setSaving(true);
+    setNotice(null);
+    try {
+      await apiPut("/v1/organization/permissions", { matrix: next });
+      setDraft(null);
+      setNotice({ text: message });
+      permissions.reload();
+    } catch (error) {
+      setNotice({ text: (error as Error).message, error: true });
+    } finally {
+      setSaving(false);
+    }
+  };
+  const defaults = () =>
+    Object.fromEntries(
+      roles.map(role => [
+        role,
+        Object.fromEntries(
+          (data?.permissions ?? []).map(item => [item.key, role === "OWNER" || item.defaults.includes(role)])
+        ),
+      ])
+    ) as Record<Role, Record<string, boolean>>;
+
+  return (
+    <section className="panel">
+      <div className="permissions-heading">
+        <h2 className="users-title">Permisos por rol</h2>
+        {editable && (
+          <div className="permissions-actions">
+            {data?.customized && (
+              <button
+                type="button"
+                className="secondary"
+                disabled={saving}
+                onClick={() => save(defaults(), "Se restablecieron los permisos predeterminados.")}
+              >
+                Restablecer predeterminados
+              </button>
+            )}
+            <button type="button" className="secondary" disabled={!dirty || saving} onClick={() => setDraft(null)}>
+              Descartar
+            </button>
+            <button
+              type="button"
+              className="primary"
+              disabled={!dirty || saving}
+              onClick={() =>
+                draft && save(draft, "Permisos guardados. Aplican de inmediato a todos los usuarios de cada rol.")
+              }
+            >
+              {saving ? "Guardando…" : "Guardar cambios"}
+            </button>
+          </div>
+        )}
+      </div>
+      <p className="report-footnote permissions-help">
+        {editable
+          ? "Marca o desmarca qué puede hacer cada rol y guarda. El propietario siempre tiene todos los permisos."
+          : "Solo el propietario puede editar los permisos."}
+        {data?.customized ? " Esta empresa tiene permisos personalizados." : ""}
+      </p>
+      {notice && (
+        <p className={notice.error ? "collections-notice is-error" : "collections-notice"} role="status">
+          {notice.text}
+        </p>
+      )}
+      <div className="role-cards">
+        {roles.map(role => (
+          <div key={role} className="role-card">
+            <span className={`role-badge role-${role.toLowerCase()}`}>{roleInfo[role].label}</span>
+            <p>{roleInfo[role].description}</p>
+          </div>
+        ))}
+      </div>
+      <ReportStatus loading={permissions.loading && !data} error={permissions.error} />
+      {data && matrix && (
+        <div className="report-table-wrap">
+          <table className="report-table permissions-table">
+            <thead>
+              <tr>
+                <th>Permiso</th>
+                {roles.map(role => (
+                  <th key={role}>{roleInfo[role].label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.permissions.map(item => (
+                <tr key={item.key}>
+                  <td className="permission-name">
+                    <b>{item.area}</b>
+                    <small>{item.action}</small>
+                  </td>
+                  {roles.map(role => {
+                    const allowed = !!matrix[role]?.[item.key];
+                    const changed = !!draft && allowed !== !!data.matrix[role]?.[item.key];
+                    return (
+                      <td
+                        key={role}
+                        className={`${allowed ? "is-allowed" : "is-denied"}${changed ? " is-changed" : ""}`}
+                      >
+                        {editable ? (
+                          <input
+                            type="checkbox"
+                            checked={allowed}
+                            disabled={role === "OWNER" || saving}
+                            title={role === "OWNER" ? "El propietario siempre tiene todos los permisos." : undefined}
+                            aria-label={`${roleInfo[role].label}: ${item.area} · ${item.action}`}
+                            onChange={() => toggle(role, item.key)}
+                          />
+                        ) : allowed ? (
+                          "✓"
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="report-footnote">
+        La API valida estos permisos en cada acción, aunque alguien intente entrar directo a una dirección. Las reglas
+        de usuarios son fijas: solo un propietario asigna ese rol, nadie cambia su propio rol y siempre queda un
+        propietario.
+      </p>
+    </section>
   );
 }

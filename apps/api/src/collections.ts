@@ -30,7 +30,7 @@ import {
   voidCashReceiptSchema,
   type CollectionReportQuery,
 } from "@betel/contracts";
-import { allowRoles, type MembershipRole } from "./auth.js";
+import { allowPermission, type MembershipRole } from "./auth.js";
 import { assertBalanced, ensureDefaultAccounts } from "./accounting.js";
 import { invoiceEmailBlocked } from "./dian.js";
 import { mailerConfigured, sendMail } from "./mailer.js";
@@ -480,10 +480,10 @@ function httpError(statusCode: number, message: string) {
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerCollectionRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canReceive = { preHandler: allowRoles(...RECEIPT_ROLES) };
-  const canEmail = { preHandler: allowRoles(...EMAIL_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canReceive = { preHandler: allowPermission("receipts.manage") };
+  const canEmail = { preHandler: allowPermission("sales.send") };
   const invalid = (reply: FastifyReply, error: string, details: unknown) => reply.code(422).send({ error, details });
 
   /** GET /v1/reports/billing/collections — Recaudos. Query: collectionReportQuerySchema. */

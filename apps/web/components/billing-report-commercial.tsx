@@ -204,7 +204,7 @@ const columns: ReportColumn<Task>[] = [
 ];
 
 export function CommercialReport() {
-  const { company, canExport, canEmail: canEdit } = useSession();
+  const { company, canExport, canSalesDocs: canEdit } = useSession();
   const me = useReport<{ user: { id: string } }>("/v1/me");
   const users = useReport<{ data: User[] }>("/v1/reports/billing/users");
   const [criteria, setCriteria] = useState<Criteria>(emptyCriteria);

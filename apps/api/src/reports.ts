@@ -31,7 +31,7 @@ import {
   type CustomerReportQuery,
   type SalesReportQuery,
 } from "@betel/contracts";
-import { allowRoles, type MembershipRole } from "./auth.js";
+import { allowPermission, type MembershipRole } from "./auth.js";
 
 /** Pueden consultar el reporte (información financiera). */
 export const REPORT_VIEW_ROLES: MembershipRole[] = ["OWNER", "ADMIN", "ACCOUNTANT", "SALES", "VIEWER"];
@@ -353,8 +353,8 @@ async function loadCustomerDetail(tx: Tx, customerId: string, query: CustomerRep
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerBillingReportRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
   const invalid = "Filtros del reporte inválidos";
   const tooMany = `La consulta supera ${EXPORT_LIMIT} filas. Acota el período o los filtros para exportar.`;
 

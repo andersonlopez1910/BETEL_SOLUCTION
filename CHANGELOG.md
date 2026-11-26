@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Permisos editables por rol** (Configuración › Usuarios y permisos): el propietario marca o desmarca qué puede
+  hacer cada rol (19 permisos: facturas, cotizaciones, recibos, compras, inventario, nómina, contabilidad, reportes,
+  descargas, configuración, usuarios…), guarda o restablece los predeterminados. La API valida cada ruta con
+  `allowPermission` según la tabla de la empresa (`Organization.rolePermissions`, migración
+  `20261211000000_add_role_permissions`); sin cambios, los permisos son los de siempre. El propietario siempre tiene
+  todo. `/v1/me` devuelve los permisos efectivos y la web oculta las acciones no permitidas.
 - **Impresión de la factura: POS o carta.** Al enviar una factura electrónica se elige cómo imprimirla:
   **factura POS** en tirilla para impresora térmica (80 o 58 mm) o **factura electrónica** en hoja carta. Ambas son
   representaciones de la misma factura (número, CUFE y código QR real con los campos de la DIAN). Ruta

@@ -26,7 +26,7 @@ import {
   completeCommercialTaskSchema,
   type CommercialTaskQuery,
 } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { QUOTE_ROLES } from "./quotes.js";
 import { EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, todayIn } from "./reports.js";
 
@@ -157,9 +157,9 @@ async function validateRefs(tx: Tx, organizationId: string, partyId: string, res
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerCommercialRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canEdit = { preHandler: allowRoles(...QUOTE_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canEdit = { preHandler: allowPermission("sales.documents") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
   const audit = (
     tx: Tx,

@@ -80,7 +80,7 @@ const columns: ReportColumn<RecurringRow>[] = [
 ];
 
 export function RecurringReport() {
-  const { company, canExport, canEmail: canEdit } = useSession();
+  const { company, canExport, canSalesDocs: canEdit } = useSession();
   const [applied, setApplied] = useState<Filters>(emptyFilters);
   const [draft, setDraft] = useState<Filters>(applied);
   const [showFilters, setShowFilters] = useState(false);

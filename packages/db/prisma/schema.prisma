@@ -266,6 +266,8 @@ model Organization {
   contactName           String?
   contactRole           String?
   logoData              String?
+  /// Permisos editados por rol (Configuración › Usuarios y permisos): { ROL: { permiso: true|false } }. null = valores por defecto (apps/api/src/permissions.ts).
+  rolePermissions       Json?
   economicActivityCode  String?
   economicActivityName  String?
   secondaryActivities   Json?

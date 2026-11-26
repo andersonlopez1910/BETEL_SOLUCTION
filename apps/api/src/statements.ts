@@ -19,7 +19,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
 import { z } from "zod";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { LEDGER_ROLES } from "./ledger.js";
 import { catalogName } from "./puc.js";
 import { previousPeriod, resolvePeriod, todayIn } from "./reports.js";
@@ -227,7 +227,7 @@ const iso = (date: Date) => date.toISOString().slice(0, 10);
 const periodSchema = z.object({ from: z.coerce.date().optional(), to: z.coerce.date().optional() });
 
 export function registerStatementRoutes(app: FastifyInstance) {
-  const can = { preHandler: allowRoles(...LEDGER_ROLES) };
+  const can = { preHandler: allowPermission("accounting.manage") };
 
   /** GET /v1/reports/income-statement?from&to — por defecto, el mes en curso. */
   app.get("/v1/reports/income-statement", can, async (request, reply) => {

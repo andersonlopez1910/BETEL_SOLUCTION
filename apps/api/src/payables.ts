@@ -31,7 +31,7 @@ import {
   voidCashReceiptSchema,
   type PayablesQuery,
 } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { assertBalanced, ensureDefaultAccounts } from "./accounting.js";
 import { methodAccount, methodLabels, RECEIPT_ROLES } from "./collections.js";
 import { balanceFilter, balancesByCustomer, daysOverdue, isOverdue } from "./portfolio.js";
@@ -300,9 +300,9 @@ async function loadStatement(tx: Tx, supplierId: string) {
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerPayableRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canPay = { preHandler: allowRoles(...RECEIPT_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canPay = { preHandler: allowPermission("purchases.manage") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
   const audit = (
     tx: Tx,

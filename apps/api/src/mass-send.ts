@@ -21,7 +21,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
 import { massSendQuerySchema, type MassSendQuery } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { invoiceNumber, receiptNumber } from "./collections.js";
 import { deliveryNumber } from "./deliveries.js";
 import { dianIsSandbox, invoiceEmailBlocked } from "./dian.js";
@@ -283,7 +283,7 @@ async function loadMassSend(tx: Tx, query: MassSendQuery, rows: { skip: number; 
 
 export function registerMassSendRoutes(app: FastifyInstance) {
   /** GET /v1/reports/billing/mass-send — Query: massSendQuerySchema. */
-  app.get("/v1/reports/billing/mass-send", { preHandler: allowRoles(...REPORT_VIEW_ROLES) }, async (request, reply) => {
+  app.get("/v1/reports/billing/mass-send", { preHandler: allowPermission("reports.view") }, async (request, reply) => {
     const parsed = massSendQuerySchema.safeParse(request.query);
     if (!parsed.success) return reply.code(422).send({ error: "Filtros inválidos", details: parsed.error.flatten() });
     const { page, pageSize } = parsed.data;

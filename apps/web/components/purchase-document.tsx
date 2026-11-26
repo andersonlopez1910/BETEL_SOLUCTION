@@ -43,7 +43,7 @@ export function PurchaseDocumentView() {
   const params = useSearchParams();
   const kind = params.get("kind") ?? "";
   const id = params.get("id") ?? "";
-  const { company, canReceive: canRegister } = useSession();
+  const { company, canPurchase: canRegister } = useSession();
   const document = useReport<{ data: PurchaseDocument }>("/v1/purchases/document", { kind, id });
   const [voiding, setVoiding] = useState(false);
   const [busy, setBusy] = useState(false);

@@ -62,7 +62,7 @@ import {
   partySchema,
   thirdPartyEnrichmentSchema,
 } from "@betel/contracts";
-import { allowRoles, requireActor, type BetelJwt } from "./auth.js";
+import { allowPermission, requireActor, type BetelJwt } from "./auth.js";
 import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "./accounting.js";
 import { calculateInvoiceTaxes } from "./tax-engine.js";
 import { calculateNitCheckDigit, getThirdPartyEnrichmentProvider } from "./third-party-enrichment.js";
@@ -86,6 +86,7 @@ import { registerStatementRoutes } from "./statements.js";
 import { rankParties } from "./party-search.js";
 import { registerCatalogRoutes } from "./catalog/index.js";
 import { registerUserRoutes } from "./users.js";
+import { permissionsOf } from "./permissions.js";
 import { registerInvoicePrintRoutes } from "./invoice-print.js";
 import { registerTaxCatalogRoutes } from "./tax-catalog.js";
 import { registerCommercialRoutes } from "./commercial.js";
@@ -240,7 +241,12 @@ app.get("/v1/me", { preHandler: requireActor }, async request => {
     where: { id: actor.organizationId },
     select: { id: true, legalName: true, nit: true, dianEnabled: true },
   });
-  return { user: { id: actor.sub, email: actor.email, role: actor.role }, organization };
+  // Permisos efectivos (tabla editable de Usuarios y permisos): la web muestra u oculta acciones con ellos.
+  return {
+    user: { id: actor.sub, email: actor.email, role: actor.role },
+    permissions: permissionsOf(actor.role, request.permissionOverrides),
+    organization,
+  };
 });
 
 /** Perfil maestro del emisor. El id de organización procede exclusivamente de la sesión autenticada. */
@@ -252,7 +258,7 @@ app.get("/v1/organization/profile", { preHandler: requireActor }, async request 
 });
 
 /** Actualiza información legal, tributaria y de contacto de la organización activa y deja trazabilidad. */
-app.put("/v1/organization/profile", { preHandler: allowRoles("OWNER", "ADMIN") }, async (request, reply) => {
+app.put("/v1/organization/profile", { preHandler: allowPermission("settings.manage") }, async (request, reply) => {
   const raw = request.body && typeof request.body === "object" ? (request.body as Record<string, unknown>) : {};
   // Los formularios HTML representan los opcionales vacíos como cadena: se normalizan antes de validar.
   const body = Object.fromEntries(
@@ -411,7 +417,7 @@ app.get<{ Querystring: { identificationType?: string; identificationNumber?: str
 /** Consulta explícita al registro público RUES/Datos Abiertos; los resultados nunca se guardan automáticamente. */
 app.post(
   "/v1/third-parties/enrich",
-  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "SALES") },
+  { preHandler: allowPermission("parties.edit") },
   async (request, reply) => {
     const parsed = thirdPartyEnrichmentSchema.safeParse(request.body);
     if (!parsed.success)
@@ -447,7 +453,7 @@ app.post(
   }
 );
 
-app.post("/v1/parties", { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "SALES") }, async (request, reply) => {
+app.post("/v1/parties", { preHandler: allowPermission("parties.edit") }, async (request, reply) => {
   const body = request.body as {
     identificationType?: string;
     identificationNumber?: string;
@@ -520,7 +526,7 @@ app.get("/v1/calendar-events", { preHandler: requireActor }, async request => {
 });
 
 /** POST /v1/calendar-events — Crea un evento; el creador queda como dueño (ownerId). Body: calendarEventSchema. */
-app.post("/v1/calendar-events", { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT") }, async (request, reply) => {
+app.post("/v1/calendar-events", { preHandler: allowPermission("calendar.manage") }, async (request, reply) => {
   const parsed = calendarEventSchema.safeParse(request.body);
   if (!parsed.success) return reply.code(422).send({ error: "Evento inválido", details: parsed.error.flatten() });
   const actor = request.actor!;
@@ -584,7 +590,7 @@ app.get<{ Querystring: { search?: string } }>(
 
 app.post(
   "/v1/invoices",
-  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "SALES") },
+  { preHandler: allowPermission("invoices.create") },
   async (request, reply) => {
     const parsed = createInvoiceSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(422).send({ error: "Factura inválida", details: parsed.error.flatten() });
@@ -767,7 +773,7 @@ app.post(
  */
 app.post<{ Params: { id: string } }>(
   "/v1/invoices/:id/issue",
-  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT") },
+  { preHandler: allowPermission("invoices.issue") },
   async (request, reply) => {
     const actor = request.actor!;
     const providerResult = await getDianProvider().submitSalesInvoice({
@@ -942,7 +948,7 @@ app.get("/v1/invoices", { preHandler: requireActor }, async request => {
  */
 app.post(
   "/v1/support-documents",
-  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT") },
+  { preHandler: allowPermission("purchases.manage") },
   async (request, reply) => {
     const parsed = createSupportDocumentSchema.safeParse(request.body);
     if (!parsed.success)
@@ -1008,7 +1014,7 @@ app.post(
  */
 app.post<{ Params: { id: string } }>(
   "/v1/support-documents/:id/issue",
-  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT") },
+  { preHandler: allowPermission("purchases.manage") },
   async (request, reply) => {
     const actor = request.actor!;
     const result = await withOrganizationScope(actor.organizationId, async tx => {
@@ -1096,7 +1102,7 @@ app.get("/v1/support-documents", { preHandler: requireActor }, async request => 
 /** GET /v1/accounting/journal-entries — Comprobantes contables con sus líneas y cuentas (consulta). */
 app.get(
   "/v1/accounting/journal-entries",
-  { preHandler: allowRoles("OWNER", "ADMIN", "ACCOUNTANT", "VIEWER") },
+  { preHandler: allowPermission("accounting.entries") },
   async request => {
     const actor = request.actor!;
     const data = await withOrganizationScope(actor.organizationId, tx =>

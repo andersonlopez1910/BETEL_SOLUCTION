@@ -37,7 +37,7 @@ import {
   updateAccountSchema,
   voidCashReceiptSchema,
 } from "@betel/contracts";
-import { allowRoles, type MembershipRole } from "./auth.js";
+import { allowPermission, type MembershipRole } from "./auth.js";
 import { assertBalanced, DEFAULT_ACCOUNTS } from "./accounting.js";
 import { PAYROLL_ACCOUNTS } from "./payroll.js";
 import {
@@ -252,8 +252,8 @@ async function nextManualNumber(tx: Tx, sourceType: "Manual" | "Opening") {
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerLedgerRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canEdit = { preHandler: allowRoles(...LEDGER_ROLES) };
+  const canView = { preHandler: allowPermission("chart.view") };
+  const canEdit = { preHandler: allowPermission("accounting.manage") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
   const audit = (
     tx: Tx,

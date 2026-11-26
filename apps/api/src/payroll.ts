@@ -42,7 +42,7 @@ import {
   toggleCustomerSchema,
   voidCashReceiptSchema,
 } from "@betel/contracts";
-import { allowRoles, type MembershipRole } from "./auth.js";
+import { allowPermission, type MembershipRole } from "./auth.js";
 import { assertBalanced, ensureDefaultAccounts } from "./accounting.js";
 import { methodAccount, methodLabels } from "./collections.js";
 import { getDianProvider } from "./dian.js";
@@ -427,7 +427,7 @@ function presentRun(run: Prisma.PayrollRunGetPayload<{ include: { _count: { sele
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerPayrollRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const can = { preHandler: allowRoles(...PAYROLL_ROLES) };
+  const can = { preHandler: allowPermission("payroll.manage") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
   const audit = (
     tx: Tx,

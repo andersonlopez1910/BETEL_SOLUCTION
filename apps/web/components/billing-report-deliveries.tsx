@@ -94,7 +94,7 @@ const deliveryColumns: ReportColumn<DeliveryRow>[] = [
 const deliveryHref = (id: string) => `/remisiones/documento?id=${id}`;
 
 export function DeliveriesReport() {
-  const { company, canExport, canEmail: canEdit } = useSession();
+  const { company, canExport, canSalesDocs: canEdit } = useSession();
   const users = useReport<{ data: { id: string; displayName: string }[] }>("/v1/reports/billing/users");
   const [applied, setApplied] = useState<Filters>(emptyFilters);
   const [draft, setDraft] = useState<Filters>(applied);

@@ -79,7 +79,7 @@ export const supplierStatementHref = (id: string) => `/compras/proveedor?id=${id
 export const supplierPaymentHref = (id?: string) => `/compras/pago/nuevo${id ? `?proveedor=${id}` : ""}`;
 
 export function PurchaseSuppliers() {
-  const { company, canExport, canReceive: canEdit } = useSession();
+  const { company, canExport, canPurchase: canEdit } = useSession();
   const [applied, setApplied] = useState<Filters>(defaultFilters);
   const [draft, setDraft] = useState<Filters>(applied);
   const [search, setSearch] = useState("");

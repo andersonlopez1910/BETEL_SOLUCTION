@@ -112,7 +112,7 @@ type Filters = { from: string; to: string; supplier: string; number: string };
 const noFilters: Filters = { from: "", to: "", supplier: "", number: "" };
 
 export function PurchaseEvents() {
-  const { canReceive: canRegister } = useSession();
+  const { canPurchase: canRegister } = useSession();
   const [status, setStatus] = useState<"processing" | "finalized">("processing");
   const [cufeInput, setCufeInput] = useState("");
   const [cufe, setCufe] = useState("");

@@ -78,7 +78,7 @@ const exportColumns: ReportColumn<PortfolioRow>[] = [
 export const statementHref = (id: string) => `/clientes/estado-de-cuenta?id=${id}`;
 
 export function PortfolioReport() {
-  const { company, canExport, canEmail: canEdit, canReceive } = useSession();
+  const { company, canExport, canSalesDocs: canEdit, canReceive } = useSession();
   const [applied, setApplied] = useState<Filters>(defaultFilters);
   const [draft, setDraft] = useState<Filters>(applied);
   const [search, setSearch] = useState("");

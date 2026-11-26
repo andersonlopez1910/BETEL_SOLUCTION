@@ -27,7 +27,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
 import { costingMonthParamsSchema, costingYearQuerySchema } from "@betel/contracts";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { assertBalanced, ensureDefaultAccounts } from "./accounting.js";
 import { INVENTORY_ROLES } from "./inventory.js";
 import { BILLED_STATUSES, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, todayIn } from "./reports.js";
@@ -247,9 +247,9 @@ const httpError = (statusCode: number, message: string) => Object.assign(new Err
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerCostingRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canCalculate = { preHandler: allowRoles(...INVENTORY_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canCalculate = { preHandler: allowPermission("inventory.manage") };
 
   /** GET /v1/costing?year= — meses del año con estado. */
   app.get("/v1/costing", canView, async (request, reply) => {

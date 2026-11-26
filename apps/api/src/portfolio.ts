@@ -21,7 +21,7 @@ import type { FastifyInstance } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
 import { portfolioQuerySchema, toggleCustomerSchema, type PortfolioQuery } from "@betel/contracts";
 import { z } from "zod";
-import { allowRoles } from "./auth.js";
+import { allowPermission } from "./auth.js";
 import { invoiceNumber, pendingInvoices, receiptNumber } from "./collections.js";
 import { mailerConfigured, sendMail } from "./mailer.js";
 import { QUOTE_ROLES } from "./quotes.js";
@@ -226,9 +226,9 @@ ${statement.invoices.length ? `<table style="width:100%;border-collapse:collapse
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 export function registerPortfolioRoutes(app: FastifyInstance, options: { auditIp: (ip: string) => string }) {
-  const canView = { preHandler: allowRoles(...REPORT_VIEW_ROLES) };
-  const canExport = { preHandler: allowRoles(...REPORT_EXPORT_ROLES) };
-  const canEdit = { preHandler: allowRoles(...QUOTE_ROLES) };
+  const canView = { preHandler: allowPermission("reports.view") };
+  const canExport = { preHandler: allowPermission("reports.export") };
+  const canEdit = { preHandler: allowPermission("sales.documents") };
   const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 
   /** GET /v1/reports/billing/portfolio — Query: portfolioQuerySchema. */
