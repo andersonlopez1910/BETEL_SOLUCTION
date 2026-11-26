@@ -8053,15 +8053,64 @@ button.mass-button:disabled {
 .permissions-help {
   margin: 6px 0 12px;
 }
+/* Casillas propias: cuadro redondeado, visto blanco sobre turquesa y candado en la columna fija del propietario. */
 .permissions-table input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
-  accent-color: var(--teal-dark);
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 1.5px solid #c3cfdc;
+  border-radius: 6px;
+  background: #fff;
   cursor: pointer;
+  vertical-align: middle;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
+.permissions-table input[type="checkbox"]::after {
+  content: "";
+  width: 11px;
+  height: 11px;
+  background: #fff;
+  clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 26%, 86% 12%, 38% 70%);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+}
+.permissions-table input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--teal-dark);
+  box-shadow: 0 0 0 3px #12a2a01f;
+}
+.permissions-table input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #12a2a040;
+}
+.permissions-table input[type="checkbox"]:checked {
+  border-color: var(--teal-dark);
+  background: var(--teal-dark);
+}
+.permissions-table input[type="checkbox"]:checked::after {
+  transform: scale(1);
+}
+/* Propietario: siempre todo, sin edición (candado gris). */
 .permissions-table input[type="checkbox"]:disabled {
+  border-color: #d5dde6;
+  background: #eef2f6;
   cursor: not-allowed;
-  opacity: 0.6;
+}
+.permissions-table input[type="checkbox"]:disabled::after {
+  width: 10px;
+  height: 11px;
+  background: #8a9bb0;
+  clip-path: path("M2 5V3.5a3 3 0 0 1 6 0V5h1v6H1V5h1zm1.5 0h3V3.5a1.5 1.5 0 0 0-3 0V5z");
+  transform: scale(1);
+}
+.permissions-table td.is-changed input[type="checkbox"] {
+  box-shadow: 0 0 0 3px #f5b54733;
 }
 .permissions-table td.is-changed {
   background: #fff7e6;
