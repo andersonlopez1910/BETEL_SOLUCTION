@@ -171,11 +171,6 @@ export function AppShell({
               </small>
             </span>
           </div>
-          <button className="topbar-search" aria-label="Buscar en Betel">
-            <Icon name="search" size={19} />
-            <span>Buscar en Betel (facturas, impuestos, productos, reportes...)</span>
-            <kbd>Ctrl + K</kbd>
-          </button>
           <div className="top-actions" ref={actionsRef}>
             <div className="popover-anchor">
               <button className="create-button" onClick={() => toggle("create")} aria-expanded={openMenu === "create"} aria-controls="create-menu">

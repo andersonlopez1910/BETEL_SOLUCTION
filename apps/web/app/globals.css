@@ -2575,35 +2575,6 @@ button {
   background: #eef3ff;
   color: #1043a4;
 }
-.topbar-search {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex: 1;
-  max-width: 450px;
-  min-width: 180px;
-  height: 40px;
-  padding: 0 13px;
-  border: 1px solid #e4eaf2;
-  border-radius: 24px;
-  background: #f7faff;
-  color: #37516c;
-  text-align: left;
-  font-size: 11px;
-  font-weight: 600;
-}
-.topbar-search svg {
-  color: #142760;
-}
-.topbar-search kbd {
-  margin-left: auto;
-  padding: 4px 7px;
-  border-radius: 7px;
-  background: #e6edf9;
-  color: #172d65;
-  font: 700 10px Inter;
-  white-space: nowrap;
-}
 .top-actions {
   gap: 8px;
 }
@@ -3379,9 +3350,6 @@ button {
   line-height: 9px;
 }
 @media (max-width: 1250px) {
-  .topbar-search {
-    display: none;
-  }
   .financial-main-grid,
   .financial-lower-grid {
     grid-template-columns: 1fr;
