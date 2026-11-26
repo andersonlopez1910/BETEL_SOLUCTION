@@ -7552,44 +7552,51 @@ button.mass-button:disabled {
   font-size: 12px;
 }
 
-/* ── Descuento por renglón (components/line-discount.tsx) ── */
+/* ── Descuento por renglón (components/line-discount.tsx): una sola línea, a la altura de los demás campos ── */
 .line-discount {
-  display: grid;
-  gap: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 .line-discount-check {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  flex: none;
   color: #506176;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
   cursor: pointer;
 }
 .invoice-line .line-discount-check input {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   margin: 0;
   padding: 0;
   accent-color: var(--teal-dark);
 }
 .line-discount-fields {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
 }
 .line-discount-type {
   display: inline-flex;
+  flex: none;
   border: 1px solid #d2dee8;
   border-radius: 5px;
   overflow: hidden;
 }
 .line-discount-type button {
-  width: 26px;
-  padding: 6px 0;
+  width: 20px;
+  height: 28px;
+  padding: 0;
   border: 0;
   background: white;
   color: #506176;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -7599,4 +7606,9 @@ button.mass-button:disabled {
 .line-discount-type button.is-selected {
   background: var(--teal-dark);
   color: white;
+}
+.invoice-line .line-discount-fields input {
+  height: 30px;
+  padding: 4px 5px;
+  font-size: 12px;
 }

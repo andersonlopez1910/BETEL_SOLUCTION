@@ -19,15 +19,16 @@ export function LineDiscount({
 }) {
   return (
     <div className={enabled ? "line-discount is-on" : "line-discount"}>
-      <label className="line-discount-check">
+      <label className="line-discount-check" title="Aplicar descuento">
         <input
           type="checkbox"
+          aria-label="Aplicar descuento"
           checked={enabled}
           onChange={event =>
             onChange({ discountEnabled: event.target.checked, ...(!event.target.checked && { discountValue: "0" }) })
           }
         />
-        Descuento
+        {!enabled && <span>Aplicar</span>}
       </label>
       {enabled && (
         <div className="line-discount-fields">
