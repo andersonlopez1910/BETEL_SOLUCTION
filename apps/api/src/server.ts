@@ -82,6 +82,7 @@ import { registerBankRoutes } from "./banks.js";
 import { registerPayrollRoutes } from "./payroll.js";
 import { registerLedgerRoutes } from "./ledger.js";
 import { registerStatementRoutes } from "./statements.js";
+import { rankParties } from "./party-search.js";
 import { registerCatalogRoutes } from "./catalog/index.js";
 import { registerTaxCatalogRoutes } from "./tax-catalog.js";
 import { registerCommercialRoutes } from "./commercial.js";
@@ -253,12 +254,10 @@ app.put("/v1/organization/profile", { preHandler: allowRoles("OWNER", "ADMIN") }
   );
   const parsed = organizationProfileSchema.safeParse(body);
   if (!parsed.success)
-    return reply
-      .code(422)
-      .send({
-        error: parsed.error.issues[0]?.message ?? "Datos del perfil inválidos.",
-        details: parsed.error.flatten(),
-      });
+    return reply.code(422).send({
+      error: parsed.error.issues[0]?.message ?? "Datos del perfil inválidos.",
+      details: parsed.error.flatten(),
+    });
 
   const actor = request.actor!;
   if (parsed.data.personType === "PERSON" && (!parsed.data.firstName || !parsed.data.firstSurname))
@@ -352,29 +351,35 @@ app.put("/v1/organization/profile", { preHandler: allowRoles("OWNER", "ADMIN") }
 // ─── Terceros (clientes / proveedores) ────────────────────────────────────────
 
 /**
- * GET /v1/parties — Lista los terceros de la organización ordenados por nombre.
- * Query opcional ?search= (nombre o identificación). PENDIENTE: paginación (hoy devuelve máximo 50).
+ * GET /v1/parties — Lista los terceros de la organización.
+ * Query opcional:
+ *   ?search= ... búsqueda por parecido en razón social, nombre comercial, identificación, correo y teléfono
+ *                (sin tildes, tolera errores de tipeo; ver src/party-search.ts). Devuelve los 20 más parecidos.
+ *   ?role=customer|supplier ... solo clientes (o proveedores) activos, para crear documentos.
+ * Sin búsqueda: los primeros 50 por nombre. PENDIENTE: paginación.
  */
-app.get<{ Querystring: { search?: string } }>("/v1/parties", { preHandler: requireActor }, async request => {
-  const actor = request.actor!;
-  // ?search= busca por nombre o identificación (contiene); sin búsqueda, los primeros 50 por nombre.
-  const search = request.query.search?.trim().slice(0, 120);
-  const data = await withOrganizationScope(actor.organizationId, tx =>
-    tx.party.findMany({
-      where: search
-        ? {
-            OR: [
-              { legalName: { contains: search, mode: "insensitive" } },
-              { identificationNumber: { contains: search } },
-            ],
-          }
-        : undefined,
-      orderBy: { legalName: "asc" },
-      take: 50,
-    })
-  );
-  return { data };
-});
+app.get<{ Querystring: { search?: string; role?: string } }>(
+  "/v1/parties",
+  { preHandler: requireActor },
+  async request => {
+    const actor = request.actor!;
+    const search = request.query.search?.trim().slice(0, 120);
+    const role = request.query.role;
+    const roleFilter =
+      role === "customer"
+        ? { isCustomer: true, active: true }
+        : role === "supplier"
+          ? { isSupplier: true, active: true }
+          : {};
+    const data = await withOrganizationScope(actor.organizationId, async tx => {
+      if (!search) return tx.party.findMany({ where: roleFilter, orderBy: { legalName: "asc" }, take: 50 });
+      // El parecido se calcula en memoria sobre los terceros de la empresa (hasta 5.000).
+      const candidates = await tx.party.findMany({ where: roleFilter, orderBy: { legalName: "asc" }, take: 5000 });
+      return rankParties(candidates, search, 20);
+    });
+    return { data };
+  }
+);
 
 /** Consulta ligera para advertir duplicados mientras se diligencia el formulario. */
 app.get<{ Querystring: { identificationType?: string; identificationNumber?: string } }>(
@@ -426,14 +431,12 @@ app.post(
       );
       return { data: { ...result, verificationDigit } };
     } catch (error) {
-      return reply
-        .code(503)
-        .send({
-          error:
-            error instanceof Error
-              ? `No se pudo consultar el registro público: ${error.message}`
-              : "No se pudo consultar el registro público.",
-        });
+      return reply.code(503).send({
+        error:
+          error instanceof Error
+            ? `No se pudo consultar el registro público: ${error.message}`
+            : "No se pudo consultar el registro público.",
+      });
     }
   }
 );

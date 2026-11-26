@@ -7529,3 +7529,30 @@ button.mass-button:disabled {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* ── Buscador de clientes (components/customer-picker.tsx) ── */
+.customer-picker {
+  position: relative;
+}
+.customer-picker-list {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  background: white;
+  box-shadow: 0 12px 28px #12365422;
+}
+.customer-picker-list button {
+  border-width: 0 0 1px;
+  cursor: pointer;
+}
+.customer-picker-list button.is-active {
+  background: #e8f7f9;
+}
+.customer-picker-status {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
