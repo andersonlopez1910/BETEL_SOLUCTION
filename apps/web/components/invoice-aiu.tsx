@@ -138,7 +138,7 @@ function AiuDialog({
         ? "La suma de los porcentajes no puede superar el 100 %."
         : null;
   return (
-    <Modal title="Configuración AIU" onClose={onCancel} wide>
+    <Modal title="Configuración AIU" onClose={onCancel} wide closeButton>
       <div className="aiu-dialog">
         <h3>Modelo de contabilización</h3>
         <label className="aiu-radio">

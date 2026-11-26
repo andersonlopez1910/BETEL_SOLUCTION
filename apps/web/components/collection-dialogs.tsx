@@ -22,12 +22,15 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  closeButton = false,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   /** Formularios largos (p. ej. tarea comercial). */
   wide?: boolean;
+  /** Muestra una X para cerrar en la esquina superior derecha. */
+  closeButton?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -35,6 +38,11 @@ export function Modal({
   }, []);
   return (
     <dialog ref={ref} className={wide ? "report-dialog is-wide" : "report-dialog"} aria-label={title} onClose={onClose}>
+      {closeButton && (
+        <button type="button" className="report-dialog-close" aria-label="Cerrar" title="Cerrar" onClick={onClose}>
+          ×
+        </button>
+      )}
       <h2>{title}</h2>
       {children}
     </dialog>

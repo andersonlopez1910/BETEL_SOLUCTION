@@ -7717,3 +7717,26 @@ button.mass-button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* X para cerrar una ventana (Modal con closeButton, components/collection-dialogs.tsx) */
+.report-dialog {
+  position: relative;
+}
+.report-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #172d65;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+.report-dialog-close:hover {
+  background: #eef3f8;
+}
