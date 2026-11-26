@@ -138,7 +138,7 @@ export function posReceiptHtml(data: PrintData, width: PaperWidth) {
   const lines = data.lines
     .map(
       line =>
-        `<div class="item"><div class="desc">${esc(line.description)}</div><div class="row"><span>${qty(line.quantity)} × ${money(line.unitPrice)}${Number(line.discountAmount) ? ` −${money(line.discountAmount)}` : ""}${Number(line.taxRate) ? ` · IVA ${line.taxRate}%` : ""}</span><b>${money(line.lineTotal)}</b></div></div>`
+        `<div class="item"><div class="desc">${esc(line.description)}</div><div class="row"><span>${qty(line.quantity)} × ${money(line.unitPrice)}</span><b>${money(line.lineTotal)}</b></div><div class="note">${[Number(line.discountAmount) ? `Desc. −${money(line.discountAmount)}` : "", Number(line.taxRate) ? `IVA ${line.taxRate}%` : "Sin IVA"].filter(Boolean).join(" · ")}</div></div>`
     )
     .join("");
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Factura ${esc(invoice.number)}</title><style>
@@ -150,6 +150,7 @@ h1 { font-size: ${small ? 12 : 13}px; margin: 0; } h2 { font-size: ${small ? 11 
 hr { border: 0; border-top: 1px dashed #000; margin: 2mm 0; }
 .row { display: flex; justify-content: space-between; gap: 2mm; } .row b { white-space: nowrap; }
 .item { margin: 1mm 0; } .desc { font-weight: bold; word-break: break-word; }
+.note { font-size: ${small ? 8 : 9}px; }
 .total { font-size: ${small ? 13 : 15}px; font-weight: bold; margin-top: 1mm; }
 .qr { width: ${small ? 30 : 36}mm; margin: 2mm auto; } .qr svg { width: 100%; height: auto; display: block; }
 .cufe { font-size: ${small ? 7 : 8}px; word-break: break-all; } .muted { font-size: ${small ? 8 : 9}px; }
