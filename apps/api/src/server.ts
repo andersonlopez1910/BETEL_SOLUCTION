@@ -623,7 +623,8 @@ app.post(
           incRate: line.incRate ?? Number(product?.taxConfig?.appliesInc ? (product.taxConfig.incRate ?? 0) : 0),
         };
       });
-      const totals = calculateInvoiceTaxes(materialized);
+      const aiu = parsed.data.aiu;
+      const totals = calculateInvoiceTaxes(materialized, aiu);
       const lines = materialized.map((line, index) => {
         const calculated = totals.lines[index]!;
         return {
@@ -655,7 +656,8 @@ app.post(
                     {
                       taxType: "VAT",
                       taxCode: "01",
-                      taxableBase: calculated.taxableBase,
+                      // Con AIU, la base del IVA puede ser la base AIU o la utilidad (ver tax-engine.ts).
+                      taxableBase: calculated.vatBase,
                       rate: calculated.taxRate,
                       amount: calculated.taxAmount,
                     },
@@ -705,6 +707,19 @@ app.post(
           withholdingTotal: totals.withholdingTotal,
           total: totals.total,
           estimatedNetReceivable: totals.estimatedNetReceivable,
+          ...(aiu &&
+            totals.aiu && {
+              aiuModel: aiu.model,
+              aiuAdministrationRate: aiu.administrationRate,
+              aiuContingencyRate: aiu.contingencyRate,
+              aiuProfitRate: aiu.profitRate,
+              aiuAdministration: totals.aiu.administration,
+              aiuContingency: totals.aiu.contingency,
+              aiuProfit: totals.aiu.profit,
+              aiuVatBase: aiu.vatBase,
+              aiuWithholdingBase: aiu.withholdingBase,
+              aiuIcaBase: aiu.icaBase,
+            }),
           lines: { create: lines },
         },
         include: { lines: true },

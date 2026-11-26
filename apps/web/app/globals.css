@@ -7612,3 +7612,108 @@ button.mass-button:disabled {
   padding: 4px 5px;
   font-size: 12px;
 }
+
+/* ── AIU de la factura (components/invoice-aiu.tsx) ── */
+.invoice-aiu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 14px;
+}
+.invoice-aiu-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #506176;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.invoice-aiu-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--teal-dark);
+}
+.invoice-aiu-summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.invoice-aiu-rows {
+  margin: 2px 0 4px;
+  padding: 2px 0 2px 10px;
+  border-left: 3px solid var(--cyan);
+}
+.aiu-dialog h3 {
+  margin: 18px 0 10px;
+  font-size: 16px;
+}
+.aiu-dialog h3:first-child {
+  margin-top: 0;
+}
+.aiu-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+.aiu-rates {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.aiu-rates label {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.aiu-rates input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px;
+  border: 1px solid #cfdde8;
+  border-radius: 6px;
+  text-align: right;
+  font: inherit;
+}
+.aiu-bases {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.aiu-bases th,
+.aiu-bases td {
+  padding: 6px 4px;
+  text-align: center;
+  font-weight: 500;
+}
+.aiu-bases thead th {
+  color: #506176;
+  font-size: 12px;
+}
+.aiu-bases th small {
+  display: block;
+  color: var(--muted);
+}
+.aiu-bases tbody th {
+  text-align: left;
+}
+.aiu-bases input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--blue);
+}
+@media (max-width: 560px) {
+  .aiu-rates {
+    grid-template-columns: 1fr;
+  }
+}

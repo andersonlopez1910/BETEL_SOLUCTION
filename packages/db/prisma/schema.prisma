@@ -598,6 +598,18 @@ model Invoice {
   withholdingTotal    Decimal                  @default(0) @db.Decimal(18, 2)
   total               Decimal                  @default(0) @db.Decimal(18, 2)
   estimatedNetReceivable Decimal               @default(0) @db.Decimal(18, 2)
+  /// AIU (Administración, Imprevistos, Utilidad); null = la factura no incluye AIU. ADDED: la base AIU se suma al
+  /// total; INCLUDED: no se suma (informativa). Bases: SUBTOTAL, AIU o PROFIT (ver apps/api/src/tax-engine.ts).
+  aiuModel            String?
+  aiuAdministrationRate Decimal?               @db.Decimal(5, 2)
+  aiuContingencyRate  Decimal?                 @db.Decimal(5, 2)
+  aiuProfitRate       Decimal?                 @db.Decimal(5, 2)
+  aiuAdministration   Decimal                  @default(0) @db.Decimal(18, 2)
+  aiuContingency      Decimal                  @default(0) @db.Decimal(18, 2)
+  aiuProfit           Decimal                  @default(0) @db.Decimal(18, 2)
+  aiuVatBase          String?
+  aiuWithholdingBase  String?
+  aiuIcaBase          String?
   notes               String?
   internalNotes       String?
   dianValidation      Json?

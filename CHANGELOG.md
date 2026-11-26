@@ -6,6 +6,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Factura electrónica › AIU** (Administración, Imprevistos y Utilidad): casilla «Incluye AIU» con la configuración
+  de la referencia (base AIU sumada o no al total, porcentajes y base de IVA, retefuente y reteICA sobre subtotal,
+  base AIU o utilidad). La API recalcula y guarda el AIU con la factura (migración `20261209000000_add_invoice_aiu`),
+  el asiento lo incluye en el ingreso y el PDF lo muestra.
 - **Reportes › catálogo** con las áreas y secciones de la referencia: 45 reportes nuevos sobre los datos reales
   (ventas por cliente, producto y vendedor, comparativos, obsequios, facturación electrónica, cuentas por cobrar y por
   pagar con corte y por edades, terceros y contactos, compras por proveedor y producto, libros oficiales de compras y

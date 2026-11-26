@@ -219,6 +219,28 @@ export const invoiceLineSchema = z.object({
     .optional(),
 });
 
+/** AIU de una factura (contratos de obra, aseo, vigilancia…). Ver apps/api/src/tax-engine.ts. */
+const aiuBaseSchema = z.enum(["SUBTOTAL", "AIU", "PROFIT"]);
+export const invoiceAiuSchema = z
+  .object({
+    model: z.enum(["ADDED", "INCLUDED"]), // ADDED = base AIU sumada al total; INCLUDED = no sumada
+    administrationRate: z.coerce.number().min(0).max(100),
+    contingencyRate: z.coerce.number().min(0).max(100),
+    profitRate: z.coerce.number().min(0).max(100),
+    vatBase: aiuBaseSchema,
+    withholdingBase: aiuBaseSchema,
+    icaBase: aiuBaseSchema,
+  })
+  .refine(value => value.administrationRate + value.contingencyRate + value.profitRate > 0, {
+    message: "Indica al menos un porcentaje de administración, imprevistos o utilidad.",
+    path: ["administrationRate"],
+  })
+  .refine(value => value.administrationRate + value.contingencyRate + value.profitRate <= 100, {
+    message: "La suma de administración, imprevistos y utilidad no puede superar el 100 %.",
+    path: ["profitRate"],
+  });
+export type InvoiceAiuInput = z.infer<typeof invoiceAiuSchema>;
+
 /** Factura de venta (se crea en borrador; la emisión DIAN es un paso aparte). */
 export const createInvoiceSchema = z
   .object({
@@ -232,6 +254,7 @@ export const createInvoiceSchema = z
     notes: z.string().max(2000).optional(),
     internalNotes: z.string().max(2000).optional(),
     lines: z.array(invoiceLineSchema).min(1),
+    aiu: invoiceAiuSchema.optional(), // Solo si la factura incluye AIU
   })
   .superRefine((value, context) => {
     if (value.paymentMethod === "CASH" && !value.paymentMethodCode)

@@ -12,6 +12,14 @@ type InvoicePdf = {
   taxTotal: Decimal;
   incTotal: Decimal;
   total: Decimal;
+  /** AIU: null si la factura no lo incluye. */
+  aiuModel?: string | null;
+  aiuAdministrationRate?: Decimal | null;
+  aiuContingencyRate?: Decimal | null;
+  aiuProfitRate?: Decimal | null;
+  aiuAdministration?: Decimal;
+  aiuContingency?: Decimal;
+  aiuProfit?: Decimal;
   notes: string | null;
   dianStatus: string;
   cufe: string | null;
@@ -166,6 +174,19 @@ export function generateInvoicePdf(organization: OrganizationPdf, customer: Cust
   const totalRows = [
     ["Subtotal", money(invoice.subtotal)],
     ["Descuentos", money(invoice.discountTotal)],
+    // AIU: en el modelo "no sumado" los valores son informativos (ya están en los precios).
+    ...(invoice.aiuModel
+      ? (
+          [
+            ["Administración", invoice.aiuAdministrationRate, invoice.aiuAdministration],
+            ["Imprevistos", invoice.aiuContingencyRate, invoice.aiuContingency],
+            ["Utilidad", invoice.aiuProfitRate, invoice.aiuProfit],
+          ] as const
+        ).map(([label, rate, value]) => [
+          `${label} ${rate ? Number(rate.toFixed(2)) : 0}%${invoice.aiuModel === "INCLUDED" ? " (incl.)" : ""}`,
+          money(value ?? { toFixed: () => "0" }),
+        ])
+      : []),
     ["IVA", money(invoice.taxTotal)],
     ...(Number(invoice.incTotal.toFixed(2)) > 0 ? [["INC", money(invoice.incTotal)]] : []),
   ];
