@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { PhoneField } from "./phone-field";
 import { apiGet, apiPut } from "../lib/api";
 import ciiuCatalog from "../data/colombia-ciiu.json";
 import ciiuRev4Catalog from "../data/colombia-ciiu-rev4.json";
@@ -626,14 +627,12 @@ export function OrganizationProfile() {
                 <div className="organization-fields two">
                   {field("Correo principal", "email", form, set, { type: "email" })}
                   {field("Correo para facturación electrónica", "electronicInvoiceEmail", form, set, { type: "email" })}
-                  <label className="organization-field">
-                    <span>Indicativo</span>
-                    <input
-                      value={form.phoneCountryCode}
-                      onChange={event => set("phoneCountryCode", event.target.value)}
-                    />
-                  </label>
-                  {field("Teléfono", "phone", form, set)}
+                  <PhoneField
+                    label="Celular"
+                    className="organization-field"
+                    value={form.phone ?? ""}
+                    onChange={value => update({ phone: value, phoneCountryCode: "+57" })}
+                  />
                   {field("Sitio web", "website", form, set, { type: "url", placeholder: "https://" })}
                   {field("Persona de contacto", "contactName", form, set)}
                   {field("Cargo", "contactRole", form, set)}
