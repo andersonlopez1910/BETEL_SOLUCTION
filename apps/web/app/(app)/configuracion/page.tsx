@@ -8,9 +8,8 @@ import { Icon, type IconName } from "../../../components/brand";
 type Setting = { title: string; description: string; icon: IconName; href?: string; state: "Disponible" | "Requiere configuración" | "Próximamente" };
 type Section = { label: string; icon: IconName; intro: string; groups: { title: string; items: Setting[] }[] };
 const sections: Section[] = [
-  { label: "Organización", icon: "building", intro: "Base legal, usuarios y apariencia documental.", groups: [{ title: "Organización", items: [
+  { label: "Organización", icon: "building", intro: "Base legal, usuarios y regionalización.", groups: [{ title: "Organización", items: [
     { title: "Perfil de la organización", description: "Datos legales y generales de tu empresa.", icon: "building", href: "/configuracion/organizacion", state: "Disponible" },
-    { title: "Identidad documental", description: "Logo y apariencia para documentos.", icon: "document", state: "Próximamente" },
     { title: "Usuarios y permisos", description: "Accesos, roles y responsabilidades.", icon: "users", state: "Próximamente" },
     { title: "Ubicación y regionalización", description: "Municipios y datos regionales.", icon: "calendar", state: "Próximamente" },
   ] }] },
