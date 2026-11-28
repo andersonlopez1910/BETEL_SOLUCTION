@@ -13,6 +13,8 @@
  */
 import { z } from "zod";
 
+export * from "./tax-engine.js";
+
 /** Tipos de documento de identificación en Colombia: CC, CE, NIT, Pasaporte, TI, PPT. */
 export const colombianIdentificationTypes = ["RC", "TI", "CC", "TE", "CE", "PA", "DIE", "PEP", "PPT", "NIT"] as const;
 
