@@ -11,6 +11,7 @@
 import type { FastifyInstance } from "fastify";
 import { withOrganizationScope } from "@betel/db";
 import { requireActor } from "./auth.js";
+import { FINAL_CONSUMER_ID, posResolutionText } from "./pos.js";
 
 const DIAN_QR_URL = "https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=";
 const fixed = (value: { toFixed: (digits: number) => string }) => value.toFixed(2);
@@ -86,13 +87,26 @@ export function registerInvoicePrintRoutes(app: FastifyInstance) {
             nit: organization.nit,
             verificationDigit: organization.verificationDigit,
             address: [organization.address, organization.addressComplement].filter(Boolean).join(" "),
-            phone: organization.phone ? `${organization.phoneCountryCode ?? "+57"} ${organization.phone}` : null,
+            phone: organization.phone ?? null,
             email: organization.electronicInvoiceEmail ?? organization.email,
             vatResponsibility: organization.vatResponsibility,
+          // Régimen para la tirilla: banderas tributarias del perfil (Responsable de IVA o Régimen SIMPLE).
+          regime: (() => {
+            const flags = (organization.taxFlags ?? {}) as Record<string, unknown>;
+            if (flags.simpleRegime === true) return "Régimen SIMPLE";
+            if (flags.vatResponsible === true) return "Responsable de IVA";
+            return organization.vatResponsibility || null;
+          })(),
+          municipalityCode: organization.municipalityCode,
+          whatsapp: organization.whatsapp,
+          receiptFooter: organization.receiptFooter,
+          // Resolución DIAN de la numeración POS (solo documento equivalente POS).
+          posResolutionText: invoice.documentType === "POS" ? posResolutionText(organization) : null,
             logoData: organization.logoData,
           },
           customer: {
             legalName: invoice.customer.legalName,
+          finalConsumer: invoice.customer.identificationNumber === FINAL_CONSUMER_ID,
             identificationType: invoice.customer.identificationType,
             identificationNumber: invoice.customer.identificationNumber,
             verificationDigit: invoice.customer.verificationDigit,
@@ -104,6 +118,7 @@ export function registerInvoicePrintRoutes(app: FastifyInstance) {
             id: invoice.id,
             number,
             documentType: invoice.documentType,
+          orderReference: invoice.orderReference,
             status: invoice.status,
             dianStatus: invoice.dianStatus,
             cufe: invoice.cufe,
@@ -141,6 +156,9 @@ export function registerInvoicePrintRoutes(app: FastifyInstance) {
             discountAmount: fixed(line.discountAmount),
             taxRate: line.taxRate.toFixed(0),
             lineTotal: fixed(line.lineTotal),
+            vatAmount: fixed(line.taxAmount),
+            incRate: line.incRate.toFixed(0),
+            incAmount: fixed(line.incAmount),
           })),
           qrText: invoiceQrText({
             number,

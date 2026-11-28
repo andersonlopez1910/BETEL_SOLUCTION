@@ -8513,3 +8513,115 @@ button.mass-button:disabled {
   border-color: #1d6fe0;
   box-shadow: 0 8px 22px #1d6fe01f;
 }
+
+/* ── Configuración › Documento equivalente POS (components/pos-settings.tsx) ── */
+.pos-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+  margin-top: 12px;
+}
+.pos-settings-form h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.pos-settings-form h3 {
+  margin: 18px 0 8px;
+  font-size: 15px;
+}
+.pos-settings-form fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.pos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 10px 14px;
+}
+.pos-wide {
+  grid-column: span 2;
+}
+.pos-status h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.pos-status dl {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.pos-status dl div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.pos-status dt {
+  color: var(--muted);
+}
+.pos-status dd {
+  margin: 0;
+  font-weight: 700;
+}
+.pos-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pos-badge.is-ready {
+  background: #e4f6ee;
+  color: #12754a;
+}
+.pos-badge.is-pending {
+  background: #fff1e0;
+  color: #a2510b;
+}
+.pos-badge.is-error {
+  background: #fde8e6;
+  color: #b3261e;
+}
+.pos-resolution-preview {
+  margin: 0;
+  padding: 10px;
+  border: 1px dashed #b9c6d6;
+  border-radius: 8px;
+  font: 12px/1.45 Arial, sans-serif;
+  text-align: center;
+}
+@media (max-width: 860px) {
+  .pos-settings {
+    grid-template-columns: 1fr;
+  }
+  .pos-wide {
+    grid-column: auto;
+  }
+}
+.pos-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  margin-top: 10px;
+}
+.pos-extras button {
+  height: 38px;
+  padding: 0 14px;
+}
+.pos-extras label {
+  display: grid;
+  gap: 5px;
+  flex: 1 1 220px;
+  color: #506176;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pos-extras input {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cfdde8;
+  border-radius: 6px;
+  font: inherit;
+}

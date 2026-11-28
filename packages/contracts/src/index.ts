@@ -262,6 +262,8 @@ export const createInvoiceSchema = z
     aiu: invoiceAiuSchema.optional(), // Solo si la factura incluye AIU
     /** FE = factura electrónica de venta; POS = documento equivalente electrónico POS (mismo motor tributario). */
     documentType: z.enum(["FE", "POS"]).default("FE"),
+    /** Referencia del pedido (p. ej. «Mostrador #1839»), se imprime en la tirilla POS. */
+    orderReference: z.string().trim().max(60).optional(),
   })
   .superRefine((value, context) => {
     if (value.paymentMethod === "CASH" && !value.paymentMethodCode)

@@ -17,6 +17,7 @@ const sections: Section[] = [
     { title: "Numeración y resoluciones", description: "Prefijos, rangos y vigencias.", icon: "list", state: "Próximamente" },
     { title: "Certificado digital", description: "Vigencia y diagnóstico de firma.", icon: "account", state: "Próximamente" },
     { title: "Documento soporte", description: "Configuración electrónica de compras.", icon: "receipt", href: "/compras", state: "Disponible" },
+    { title: "Documento equivalente POS", description: "Resolución, rango y datos de la tirilla.", icon: "receipt", href: "/configuracion/pos", state: "Disponible" },
   ] }] },
   { label: "Ventas", icon: "filePlus", intro: "Preferencias comerciales y documentos de venta.", groups: [{ title: "Operación comercial", items: [
     { title: "Facturación", description: "Series, preferencias y documentos de venta.", icon: "filePlus", href: "/facturacion/nueva", state: "Disponible" },

@@ -267,6 +267,15 @@ model Organization {
   contactName           String?
   contactRole           String?
   logoData              String?
+  /// Documento equivalente electrónico POS: resolución DIAN de la numeración, WhatsApp y mensaje de la tirilla.
+  posPrefix             String                 @default("POS")
+  posResolutionNumber   String?
+  posResolutionDate     DateTime?              @db.Date
+  posRangeFrom          Int?
+  posRangeTo            Int?
+  posValidityMonths     Int?
+  whatsapp              String?
+  receiptFooter         String?
   /// Permisos editados por rol (Configuración › Usuarios y permisos): { ROL: { permiso: true|false } }. null = valores por defecto (apps/api/src/permissions.ts).
   rolePermissions       Json?
   economicActivityCode  String?
@@ -620,6 +629,8 @@ model Invoice {
   paymentTerm         PaymentTerm              @default(CASH)
   /// FE = factura electrónica de venta; POS = documento equivalente electrónico POS (mismo motor tributario).
   documentType        String                   @default("FE")
+  /// Referencia del pedido (p. ej. «Mostrador #1839»), se imprime en la tirilla POS.
+  orderReference      String?
   currency            String                   @default("COP")
   exchangeRate        Decimal?                 @db.Decimal(18, 6)
   paymentMethodCode   String?

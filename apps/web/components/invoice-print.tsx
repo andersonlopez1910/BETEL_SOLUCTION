@@ -25,6 +25,13 @@ type PrintData = {
     email: string | null;
     vatResponsibility: string | null;
     logoData: string | null;
+    regime?: string | null;
+    municipalityCode?: string | null;
+    /** Nombre del municipio (catálogo DANE), se completa en el navegador. */
+    cityName?: string | null;
+    whatsapp?: string | null;
+    receiptFooter?: string | null;
+    posResolutionText?: string | null;
   };
   customer: {
     legalName: string;
@@ -34,10 +41,12 @@ type PrintData = {
     address: string | null;
     phone: string | null;
     email: string | null;
+    finalConsumer?: boolean;
   };
   invoice: {
     number: string;
     documentType?: "FE" | "POS";
+    orderReference?: string | null;
     dianStatus: string;
     cufe: string | null;
     issueDate: string;
@@ -72,6 +81,9 @@ type PrintData = {
     discountAmount: string;
     taxRate: string;
     lineTotal: string;
+    vatAmount?: string;
+    incRate?: string;
+    incAmount?: string;
   }[];
   qrText: string;
 };
@@ -98,7 +110,11 @@ const dateTime = (iso: string) =>
     new Date(iso)
   );
 const shortDate = (value: string) => value.split("-").reverse().join("/");
-const nit = (number: string, dv: string | null) => (dv ? `${number}-${dv}` : number);
+/** NIT o documento con puntos de miles y dígito de verificación: 900.000.000-0. */
+const nit = (number: string, dv: string | null) => {
+  const formatted = /^\d+$/.test(number) ? Number(number).toLocaleString("es-CO") : number;
+  return dv ? `${formatted}-${dv}` : formatted;
+};
 
 function qrSvg(text: string, cellSize: number) {
   // UTF-8 para que tildes y ñ no dañen el código.
@@ -132,60 +148,132 @@ function totalsRows(data: PrintData) {
   return rows;
 }
 
-/** Tirilla POS (80 o 58 mm). */
+const lineTaxes = (line: PrintData["lines"][number]) => Number(line.vatAmount ?? 0) + Number(line.incAmount ?? 0);
+const paymentMethodName = (data: PrintData) =>
+  data.invoice.paymentTerm === "CREDIT" ? "Crédito" : (methods[data.invoice.paymentMethodCode ?? ""] ?? "Otro medio");
+
+/** Pesos enteros para la tirilla: $94.000, $87.037. */
+const peso = (value: string | number) => {
+  const amount = Number(value);
+  // Pesos enteros, como en las tirillas en Colombia (los valores se guardan con centavos).
+  return `${amount < 0 ? "−" : ""}$${Math.round(Math.abs(amount)).toLocaleString("es-CO")}`;
+};
+/** Iniciales para el círculo cuando la empresa no tiene logo: «Bistró La Esquina» → «BE». */
+export function initials(name: string) {
+  const skip = new Set(["la", "el", "los", "las", "de", "del", "y", "sas", "s.a.s.", "s.a.s", "ltda", "sa", "s.a."]);
+  const words = name.split(/\s+/).filter(word => word && !skip.has(word.toLowerCase()));
+  return words
+    .slice(0, 2)
+    .map(word => word[0]!.toUpperCase())
+    .join("");
+}
+const phone10 = (value: string) => value.replace(/\D/g, "").replace(/^(\d{3})(\d{3})(\d{4})$/, "$1 $2 $3");
+
+/**
+ * Tirilla POS (80 o 58 mm): documento equivalente electrónico POS o factura electrónica en tirilla.
+ * Encabezado con logo (o iniciales), nombre comercial, razón social, NIT y régimen, dirección y ciudad, teléfono y
+ * WhatsApp; tipo y número del documento con la resolución DIAN; fecha, pedido y cliente; tabla Cant / Descripción /
+ * Valor; subtotal, base gravable, impuestos por tarifa y total; forma de pago; mensaje y software.
+ */
 export function posReceiptHtml(data: PrintData, width: PaperWidth) {
   const { organization: org, customer, invoice } = data;
   const small = width === "58";
-  const lines = data.lines
+  const isPos = invoice.documentType === "POS";
+  const name = org.tradeName || org.legalName;
+  const subtotal = data.lines.reduce((sum, line) => sum + Number(line.lineTotal) + Number(line.discountAmount), 0);
+  const base = data.lines.reduce((sum, line) => sum + (Number(line.lineTotal) - lineTaxes(line)), 0);
+  // Impuestos agrupados por tipo y tarifa (IVA 19 %, IVA 5 %, INC 8 %…).
+  const taxes = new Map<string, number>();
+  for (const line of data.lines) {
+    if (Number(line.vatAmount ?? 0))
+      taxes.set(
+        `IVA ${Number(line.taxRate)}%`,
+        (taxes.get(`IVA ${Number(line.taxRate)}%`) ?? 0) + Number(line.vatAmount)
+      );
+    if (Number(line.incAmount ?? 0))
+      taxes.set(
+        `Impoconsumo (INC) ${Number(line.incRate)}%`,
+        (taxes.get(`Impoconsumo (INC) ${Number(line.incRate)}%`) ?? 0) + Number(line.incAmount)
+      );
+  }
+  const rows = data.lines
     .map(
       line =>
-        `<div class="item"><div class="desc">${esc(line.description)}</div><div class="row"><span>${qty(line.quantity)} × ${money(line.unitPrice)}</span><b>${money(line.lineTotal)}</b></div><div class="note">${[Number(line.discountAmount) ? `Desc. −${money(line.discountAmount)}` : "", Number(line.taxRate) ? `IVA ${line.taxRate}%` : "Sin IVA"].filter(Boolean).join(" · ")}</div></div>`
+        `<tr><td class="qty">${qty(line.quantity)}</td><td>${esc(line.description)}${Number(line.discountAmount) ? `<small>Desc. −${peso(line.discountAmount)}</small>` : ""}</td><td class="num">${peso(Number(line.lineTotal) + Number(line.discountAmount))}</td></tr>`
     )
     .join("");
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Factura ${esc(invoice.number)}</title><style>
+  const contact = [
+    org.phone ? `Tel. ${esc(phone10(org.phone))}` : "",
+    org.whatsapp ? `WhatsApp +57 ${esc(phone10(org.whatsapp))}` : "",
+  ].filter(Boolean);
+  const location = [org.address, org.cityName].filter(Boolean).join(" · ");
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${isPos ? "POS" : "Factura"} ${esc(invoice.number)}</title><style>
 @page { size: ${width}mm auto; margin: 0; }
 * { box-sizing: border-box; }
-body { margin: 0; width: ${width}mm; padding: 3mm ${small ? 2 : 3}mm 6mm; font: ${small ? 10 : 11}px/1.35 "Courier New", ui-monospace, monospace; color: #000; }
-.center { text-align: center; } .logo { max-width: 60%; max-height: 22mm; margin: 0 auto 2mm; display: block; }
-h1 { font-size: ${small ? 12 : 13}px; margin: 0; } h2 { font-size: ${small ? 11 : 12}px; margin: 2mm 0 1mm; }
-hr { border: 0; border-top: 1px dashed #000; margin: 2mm 0; }
-.row { display: flex; justify-content: space-between; gap: 2mm; } .row b { white-space: nowrap; }
-.item { margin: 1mm 0; } .desc { font-weight: bold; word-break: break-word; }
-.note { font-size: ${small ? 8 : 9}px; }
-.total { font-size: ${small ? 13 : 15}px; font-weight: bold; margin-top: 1mm; }
-.qr { width: ${small ? 30 : 36}mm; margin: 2mm auto; } .qr svg { width: 100%; height: auto; display: block; }
-.cufe { font-size: ${small ? 7 : 8}px; word-break: break-all; } .muted { font-size: ${small ? 8 : 9}px; }
+body { margin: 0; width: ${width}mm; padding: 4mm ${small ? 2.5 : 4}mm 6mm; font: ${small ? 10 : 11.5}px/1.45 Arial, Helvetica, sans-serif; color: #111; }
+.center { text-align: center; }
+.logo { display: block; max-width: 55%; max-height: 24mm; margin: 0 auto 2.5mm; }
+.badge { display: grid; place-items: center; width: ${small ? 17 : 20}mm; height: ${small ? 17 : 20}mm; margin: 0 auto 2.5mm; border-radius: 50%; background: #5b5b5b; color: #fff; font: 700 ${small ? 18 : 22}px Georgia, "Times New Roman", serif; letter-spacing: 1px; }
+.brand { font-size: ${small ? 12.5 : 14.5}px; font-weight: 700; margin-bottom: 0.5mm; }
+.line { margin: 0.4mm 0; }
+hr { border: 0; border-top: 1px dashed #555; margin: 2.6mm 0; }
+.doc { font-size: ${small ? 11 : 12.5}px; font-weight: 700; }
+.number { font-size: ${small ? 13.5 : 16}px; font-weight: 700; }
+.resolution { font-size: ${small ? 8.5 : 9.5}px; color: #333; }
+.row { display: flex; justify-content: space-between; gap: 2mm; margin: 0.6mm 0; }
+.row span:last-child { text-align: right; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 700; padding: 0 0 1.2mm; border-bottom: 1.5px solid #111; }
+td { padding: 1mm 0; vertical-align: top; }
+td small { display: block; color: #444; font-size: ${small ? 8.5 : 9.5}px; }
+.qty { width: ${small ? 7 : 9}mm; }
+.num { text-align: right; white-space: nowrap; }
+.muted { font-size: ${small ? 9 : 10}px; color: #333; }
+.total { font-size: ${small ? 13.5 : 16}px; font-weight: 700; margin-top: 1mm; }
+.qr { width: ${small ? 26 : 30}mm; margin: 2mm auto 1mm; }
+.qr svg { width: 100%; height: auto; display: block; }
+.cufe { font-size: ${small ? 7 : 8}px; word-break: break-all; color: #333; }
+.thanks { margin: 0 0 1mm; }
 </style></head><body>
 <div class="center">
-${org.logoData ? `<img class="logo" src="${esc(org.logoData)}" alt="">` : ""}
-<h1>${esc(org.tradeName || org.legalName)}</h1>
-${org.tradeName ? `<div>${esc(org.legalName)}</div>` : ""}
-<div>NIT ${esc(nit(org.nit, org.verificationDigit))}</div>
-${org.address ? `<div>${esc(org.address)}</div>` : ""}
-${org.phone ? `<div>Tel. ${esc(org.phone)}</div>` : ""}
-<h2>${invoice.documentType === "POS" ? "DOCUMENTO EQUIVALENTE ELECTRÓNICO POS" : "FACTURA ELECTRÓNICA DE VENTA"}</h2>
-<div><b>No. ${esc(invoice.number)}</b></div>
+${org.logoData ? `<img class="logo" src="${esc(org.logoData)}" alt="">` : `<div class="badge">${esc(initials(name))}</div>`}
+<div class="brand">${esc(name)}</div>
+${org.tradeName ? `<div class="line">${esc(org.legalName)}</div>` : ""}
+<div class="line">NIT ${esc(nit(org.nit, org.verificationDigit))}${org.regime ? ` · ${esc(org.regime)}` : ""}</div>
+${location ? `<div class="line">${esc(location)}</div>` : ""}
+${contact.map(item => `<div class="line">${item}</div>`).join("")}
+</div>
+<hr>
+<div class="center">
+<div class="doc">${isPos ? "DOCUMENTO EQUIVALENTE POS" : "FACTURA ELECTRÓNICA DE VENTA"}</div>
+<div class="number">No. ${esc(invoice.number)}</div>
+${org.posResolutionText ? `<div class="resolution">${esc(org.posResolutionText)}</div>` : ""}
 </div>
 <hr>
 <div class="row"><span>Fecha</span><span>${esc(dateTime(invoice.issuedAt))}</span></div>
-${invoice.seller ? `<div class="row"><span>Vendedor</span><span>${esc(invoice.seller)}</span></div>` : ""}
-<div>Cliente: <b>${esc(customer.legalName)}</b></div>
-<div>${esc(customer.identificationType)} ${esc(nit(customer.identificationNumber, customer.verificationDigit))}</div>
+${invoice.orderReference ? `<div class="row"><span>Pedido</span><span>${esc(invoice.orderReference)}</span></div>` : ""}
+${invoice.seller && !isPos ? `<div class="row"><span>Vendedor</span><span>${esc(invoice.seller)}</span></div>` : ""}
+<div class="row"><span>Cliente</span><span>${customer.finalConsumer ? "Consumidor final" : esc(customer.legalName)}</span></div>
+${customer.finalConsumer ? "" : `<div class="row"><span>${esc(customer.identificationType)}</span><span>${esc(nit(customer.identificationNumber, customer.verificationDigit))}</span></div>`}
 <hr>
-${lines}
+<table><thead><tr><th class="qty">Cant</th><th>Descripción</th><th class="num">Valor</th></tr></thead><tbody>${rows}</tbody></table>
 <hr>
-${totalsRows(data)
-  .map(([label, value]) => `<div class="row"><span>${esc(label)}</span><b>${value}</b></div>`)
-  .join("")}
-<div class="row total"><span>TOTAL</span><span>${money(invoice.total)}</span></div>
-${Number(invoice.withholdingTotal) ? `<div class="row"><span>Retenciones</span><b>−${money(invoice.withholdingTotal)}</b></div>` : ""}
-<div class="row"><span>Pago</span><span>${esc(paymentLabel(data))}</span></div>
+<div class="row"><span>Subtotal</span><span>${peso(subtotal)}</span></div>
+${Number(invoice.discountTotal) ? `<div class="row muted"><span>Descuentos</span><span>−${peso(invoice.discountTotal)}</span></div>` : ""}
+<div class="row muted"><span>Base gravable</span><span>${peso(base)}</span></div>
+${[...taxes].map(([label, value]) => `<div class="row muted"><span>${esc(label)}</span><span>${peso(value)}</span></div>`).join("")}
+${invoice.aiu ? `<div class="row muted"><span>AIU</span><span>${peso(Number(invoice.aiu.administration) + Number(invoice.aiu.contingency) + Number(invoice.aiu.profit))}</span></div>` : ""}
+<div class="row total"><span>TOTAL</span><span>${peso(invoice.total)}</span></div>
+${Number(invoice.withholdingTotal) ? `<div class="row muted"><span>Retenciones</span><span>−${peso(invoice.withholdingTotal)}</span></div>` : ""}
+<hr>
+<div class="row"><span>${esc(paymentMethodName(data))}</span><span>${peso(invoice.total)}</span></div>
 <hr>
 <div class="center">
 <div class="qr">${qrSvg(data.qrText, 3)}</div>
-<div class="cufe">CUFE: ${esc(invoice.cufe ?? "pendiente (ambiente de pruebas)")}</div>
-<p class="muted">Representación impresa de la factura electrónica de venta. Consúltela con el código QR.</p>
-<p class="muted">¡Gracias por su compra!</p>
+<div class="cufe">${isPos ? "CUDE" : "CUFE"}: ${esc(invoice.cufe ?? "pendiente (ambiente de pruebas)")}</div>
+<hr>
+<p class="thanks">${esc(org.receiptFooter || "¡Gracias por su compra!")}</p>
+<div class="muted">Software: Betel Solution</div>
 </div>
 </body></html>`;
 }
@@ -278,6 +366,10 @@ export function printHtml(html: string) {
 }
 
 const WIDTH_KEY = "betel.posPaperWidth";
+const titleCase = (value: string) =>
+  value
+    .toLocaleLowerCase("es")
+    .replace(/(^|\s)(\p{L})/gu, (_match, space: string, letter: string) => space + letter.toLocaleUpperCase("es"));
 
 /** «¿Cómo quieres imprimir?»: factura POS en tirilla o factura electrónica en carta. */
 export function InvoicePrintDialog({
@@ -301,7 +393,20 @@ export function InvoicePrintDialog({
       if (saved === "58" || saved === "80") setWidth(saved);
     } catch {}
     apiGet<{ data: PrintData }>(`/v1/invoices/${invoiceId}/print-data`).then(
-      response => setData(response.data),
+      async response => {
+        const code = response.data.organization.municipalityCode;
+        let cityName: string | null = null;
+        if (code) {
+          try {
+            const catalog = (await import("../data/colombia-locations.json")).default as unknown as {
+              municipalities: { code: string; name: string; departmentName: string }[];
+            };
+            const town = catalog.municipalities.find(item => item.code === code);
+            if (town) cityName = town.code.startsWith("11") ? "Bogotá D.C." : `${titleCase(town.name)}`;
+          } catch {}
+        }
+        setData({ ...response.data, organization: { ...response.data.organization, cityName } });
+      },
       (reason: Error) => setError(reason.message)
     );
   }, [invoiceId]);

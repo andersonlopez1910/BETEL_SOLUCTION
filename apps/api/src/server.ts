@@ -90,6 +90,7 @@ import { registerUserRoutes } from "./users.js";
 import { permissionsOf } from "./permissions.js";
 import { registerInvoicePrintRoutes } from "./invoice-print.js";
 import { registerBillingTaxReportRoutes } from "./billing-tax-report.js";
+import { nextPosNumber, registerPosRoutes } from "./pos.js";
 import { registerTaxCatalogRoutes } from "./tax-catalog.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
@@ -97,7 +98,7 @@ import { registerDeliveryRoutes } from "./deliveries.js";
 import { registerMassSendRoutes } from "./mass-send.js";
 import { registerQuoteRoutes } from "./quotes.js";
 import { registerRecurringRoutes, startRecurringScheduler } from "./recurring.js";
-import { registerBillingReportRoutes } from "./reports.js";
+import { registerBillingReportRoutes, todayIn } from "./reports.js";
 
 type DuplicateParty = {
   id: string;
@@ -724,6 +725,7 @@ app.post(
           organizationId: actor.organizationId,
           customerId: customer.id,
           documentType: parsed.data.documentType,
+          orderReference: parsed.data.orderReference,
           issueDate: parsed.data.issueDate,
           dueDate: parsed.data.dueDate,
           paymentTerm: parsed.data.paymentMethod,
@@ -806,7 +808,7 @@ app.post<{ Params: { id: string } }>(
       getDianProvider(),
       { invoiceId: request.params.id, organizationId: actor.organizationId }
     );
-    const prefix = isPos ? "POS-" : "FE-";
+    let prefix = isPos ? "POS-" : "FE-";
     const result = await withOrganizationScope(actor.organizationId, async tx => {
       const invoice = await tx.invoice.findFirst({
         where: { id: request.params.id, status: "DRAFT" },
@@ -854,9 +856,33 @@ app.post<{ Params: { id: string } }>(
           lines: { create: journalLines },
         },
       });
-      const nextNumber = String(
-        (await tx.invoice.count({ where: { organizationId: actor.organizationId, prefix } })) + 1
-      ).padStart(8, "0");
+      let nextNumber: string;
+      if (isPos) {
+        // Documento equivalente POS: consecutivo dentro del rango de la resolución DIAN vigente.
+        const settings = await tx.organization.findFirstOrThrow({
+          where: { id: actor.organizationId },
+          select: {
+            posPrefix: true,
+            posResolutionNumber: true,
+            posResolutionDate: true,
+            posRangeFrom: true,
+            posRangeTo: true,
+            posValidityMonths: true,
+          },
+        });
+        prefix = `${settings.posPrefix}-`;
+        const used = await tx.invoice.findMany({
+          where: { documentType: "POS", prefix, number: { not: null } },
+          select: { number: true },
+        });
+        const next = nextPosNumber(settings, used.map(item => Number(item.number)).filter(Number.isFinite), todayIn("America/Bogota"));
+        if ("error" in next) throw Object.assign(new Error(next.error), { statusCode: 422 });
+        nextNumber = String(next.number);
+      } else {
+        nextNumber = String(
+          (await tx.invoice.count({ where: { organizationId: actor.organizationId, prefix } })) + 1
+        ).padStart(8, "0");
+      }
       const issued = await tx.invoice.update({
         where: { id: invoice.id },
         data: {
@@ -1201,6 +1227,7 @@ registerStatementRoutes(app);
 registerCatalogRoutes(app, { auditIp });
 registerInvoicePrintRoutes(app);
 registerBillingTaxReportRoutes(app, { auditIp });
+registerPosRoutes(app, { auditIp });
 registerUserRoutes(app, { auditIp, devLogin: !isProduction && process.env.BETEL_ALLOW_INSECURE_DEV_AUTH === "true" });
 registerTaxCatalogRoutes(app, { auditIp });
 
