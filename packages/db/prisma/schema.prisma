@@ -503,6 +503,29 @@ model Product {
   priceIncludesTaxes Boolean             @default(false)
   taxTreatment   String                 @default("TAXED")
   active         Boolean                @default(true)
+  /// Parametrización tributaria (motor único: packages/contracts/src/tax-engine.ts). Se guardan los valores
+  /// digitados y los calculados; unitPrice = precio base de venta (sin impuestos) y taxRate = tarifa IVA de venta.
+  category              String?
+  unspscCode            String?
+  billingChannel        String   @default("AMBOS")
+  costEntered           Decimal  @default(0) @db.Decimal(18, 2)
+  costIncludesVat       Boolean  @default(false)
+  purchaseVatTreatment  String   @default("GRAVADO_19")
+  purchaseVatRate       Decimal  @default(19) @db.Decimal(5, 2)
+  deductibleTreatment   String   @default("DESCONTABLE_TOTAL")
+  deductiblePct         Decimal  @default(100) @db.Decimal(5, 2)
+  costBase              Decimal  @default(0) @db.Decimal(18, 2)
+  purchaseVat           Decimal  @default(0) @db.Decimal(18, 2)
+  costTotal             Decimal  @default(0) @db.Decimal(18, 2)
+  vatDeductible         Decimal  @default(0) @db.Decimal(18, 2)
+  vatNonDeductible      Decimal  @default(0) @db.Decimal(18, 2)
+  accountingCost        Decimal  @default(0) @db.Decimal(18, 2)
+  priceEntered          Decimal  @default(0) @db.Decimal(18, 2)
+  saleTaxTreatment      String   @default("IVA_19")
+  incRate               Decimal  @default(0) @db.Decimal(5, 2)
+  saleVat               Decimal  @default(0) @db.Decimal(18, 2)
+  saleInc               Decimal  @default(0) @db.Decimal(18, 2)
+  finalPrice            Decimal  @default(0) @db.Decimal(18, 2)
   organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoiceLines   InvoiceLine[]
   quoteLines     QuoteLine[]
@@ -559,6 +582,9 @@ model ProductInventoryConfig {
   minimumStock         Decimal? @db.Decimal(18, 4)
   maximumStock         Decimal? @db.Decimal(18, 4)
   allowNegativeStock   Boolean  @default(false)
+  lotControl           Boolean  @default(false)
+  serialControl        Boolean  @default(false)
+  expiryControl        Boolean  @default(false)
   valuationMethod      String?
   initialCost          Decimal? @db.Decimal(18, 2)
   netRealizableValue   Decimal? @db.Decimal(18, 2)
@@ -725,6 +751,10 @@ model InvoiceLine {
   incAmount    Decimal @default(0) @db.Decimal(18, 2)
   withholdingTotal Decimal @default(0) @db.Decimal(18, 2)
   lineTotal    Decimal  @db.Decimal(18, 2)
+  /// Fotografía tributaria del renglón al emitir (no cambia si después cambia el producto).
+  priceIncludesTax Boolean @default(false)
+  saleTaxTreatment String?
+  unitAccountingCost Decimal? @db.Decimal(18, 2)
   invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product      Product? @relation(fields: [productId], references: [id])
   taxes        InvoiceLineTax[]

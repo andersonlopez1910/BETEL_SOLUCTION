@@ -60,6 +60,7 @@ import {
   createSupportDocumentSchema,
   organizationProfileSchema,
   partySchema,
+  saleTreatmentFromLegacy,
   thirdPartyEnrichmentSchema,
 } from "@betel/contracts";
 import { allowPermission, requireActor, type BetelJwt } from "./auth.js";
@@ -633,6 +634,8 @@ app.post(
           taxRate:
             taxTreatment === "TAXED" ? Number(product?.taxConfig?.vatRate ?? product?.taxRate ?? line.taxRate) : 0,
           incRate: line.incRate ?? Number(product?.taxConfig?.appliesInc ? (product.taxConfig.incRate ?? 0) : 0),
+          // Parametrización del producto (motor único): si su precio incluye impuestos, se discriminan.
+          includesTax: line.priceIncludesTax ?? product?.priceIncludesTaxes ?? false,
         };
       });
       const aiu = parsed.data.aiu;
@@ -661,6 +664,12 @@ app.post(
           incAmount: calculated.incAmount,
           withholdingTotal: calculated.withholdingTotal,
           lineTotal: calculated.lineTotal,
+          // Fotografía tributaria: si después cambia el producto, la factura conserva estos valores.
+          priceIncludesTax: line.includesTax,
+          saleTaxTreatment:
+            line.product?.saleTaxTreatment ??
+            saleTreatmentFromLegacy(line.taxTreatment, Number(line.taxRate), Number(line.incRate) > 0),
+          unitAccountingCost: line.product ? line.product.accountingCost : null,
           taxes: {
             create: [
               ...(calculated.taxRate.isPositive()
@@ -801,13 +810,16 @@ app.post<{ Params: { id: string } }>(
       });
       if (!invoice) return null; // No existe o ya fue emitida → 404 más abajo.
       const accounts = await ensureDefaultAccounts(tx, actor.organizationId);
-      // Prisma devuelve Decimal: se convierte a Number para sumar. Ingreso = total sin IVA.
-      const revenue = Number(invoice.total) - Number(invoice.taxTotal);
+      // Mismos valores del motor tributario: ingreso = total − IVA − INC; cada impuesto a su cuenta.
+      const revenue = invoice.total.minus(invoice.taxTotal).minus(invoice.incTotal).toNumber();
       const journalLines = [
         { accountId: accounts["130505"].id, debit: Number(invoice.total), credit: 0, memo: "Cuenta por cobrar" },
         { accountId: accounts["413595"].id, debit: 0, credit: revenue, memo: "Ingreso por venta" },
         ...(Number(invoice.taxTotal) > 0
           ? [{ accountId: accounts["240805"].id, debit: 0, credit: Number(invoice.taxTotal), memo: "IVA generado" }]
+          : []),
+        ...(Number(invoice.incTotal) > 0
+          ? [{ accountId: accounts["246405"].id, debit: 0, credit: Number(invoice.incTotal), memo: "INC generado" }]
           : []),
       ];
       assertBalanced(journalLines); // Si no cuadra, lanza error y se revierte todo.

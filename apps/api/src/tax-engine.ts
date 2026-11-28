@@ -1,7 +1,9 @@
 /**
- * Motor tributario de facturas de venta. Mantiene impuestos generados y retenciones separados,
- * y usa Decimal para que el servidor sea la fuente de verdad de los importes persistidos.
+ * Motor tributario de facturas de venta. El cálculo de cada renglón (base, descuento, IVA, INC y total, con o sin
+ * impuesto incluido) es el del MOTOR ÚNICO (computeLine en @betel/contracts tax-engine); aquí se agregan el AIU, las
+ * retenciones y los totales del documento, en Decimal para persistirlos.
  */
+import { computeLine } from "@betel/contracts";
 import { Prisma } from "@betel/db";
 
 const ZERO = new Prisma.Decimal(0);
@@ -18,6 +20,8 @@ export type TaxInputLine = {
   taxTreatment: "TAXED" | "EXEMPT" | "EXCLUDED" | "OTHER";
   taxRate: number;
   incRate?: number;
+  /** Precio digitado con impuestos incluidos: se discriminan, nunca se suman otra vez. */
+  includesTax?: boolean;
   withholdings?: { withholdingType: string; conceptCode?: string; rate: number }[];
 };
 
@@ -55,20 +59,25 @@ export function calculateInvoiceTaxes(lines: TaxInputLine[], aiu?: AiuConfig) {
   const withholdingFactor = (type: string) =>
     aiuFactor(aiu, /ICA/i.test(type) ? (aiu?.icaBase ?? "SUBTOTAL") : (aiu?.withholdingBase ?? "SUBTOTAL"));
   const calculated = lines.map(line => {
-    const grossAmount = money(new Prisma.Decimal(line.quantity).times(line.unitPrice));
-    const requestedDiscount =
-      line.discountType === "FIXED"
-        ? new Prisma.Decimal(line.discountValue ?? 0)
-        : grossAmount.times(line.discountValue ?? line.discountRate ?? 0).dividedBy(HUNDRED);
-    // Un descuento nunca puede dejar una base negativa.
-    const discountAmount = money(Prisma.Decimal.min(grossAmount, Prisma.Decimal.max(ZERO, requestedDiscount)));
-    const taxableBase = money(grossAmount.minus(discountAmount));
     const taxRate = line.taxTreatment === "TAXED" ? new Prisma.Decimal(line.taxRate) : ZERO;
-    // Con AIU el IVA se liquida sobre la base elegida (subtotal, A + I + U o utilidad) de este renglón.
-    const vatBase = money(taxableBase.times(vatFactor));
-    const taxAmount = money(vatBase.times(taxRate).dividedBy(HUNDRED));
     const incRate = new Prisma.Decimal(line.incRate ?? 0);
-    const incAmount = money(taxableBase.times(incRate).dividedBy(HUNDRED));
+    // Motor único: precio × cantidad − descuento = base; luego IVA e INC (discriminados si el precio los incluye).
+    const shared = computeLine({
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      includesTax: line.includesTax ?? false,
+      vatRate: taxRate.toNumber(),
+      incRate: incRate.toNumber(),
+      discountType: line.discountType ?? "PERCENTAGE",
+      discountValue: line.discountValue ?? line.discountRate ?? 0,
+    });
+    const grossAmount = money(shared.grossBase);
+    const discountAmount = money(shared.discountBase);
+    const taxableBase = money(shared.base);
+    // Con AIU el IVA se liquida sobre la base elegida (subtotal, A + I + U o utilidad) de este renglón.
+    const vatBase = aiu ? money(taxableBase.times(vatFactor)) : taxableBase;
+    const taxAmount = aiu ? money(vatBase.times(taxRate).dividedBy(HUNDRED)) : money(shared.vat);
+    const incAmount = money(shared.inc);
     const withholdings = (line.withholdings ?? []).map(withholding => {
       const base = money(taxableBase.times(withholdingFactor(withholding.withholdingType)));
       return { ...withholding, taxableBase: base, amount: money(base.times(withholding.rate).dividedBy(HUNDRED)) };
@@ -85,7 +94,7 @@ export function calculateInvoiceTaxes(lines: TaxInputLine[], aiu?: AiuConfig) {
       incAmount,
       withholdings,
       withholdingTotal,
-      lineTotal: money(taxableBase.plus(taxAmount).plus(incAmount)),
+      lineTotal: aiu ? money(taxableBase.plus(taxAmount).plus(incAmount)) : money(shared.total),
     };
   });
   const sum = (key: keyof (typeof calculated)[number]) =>

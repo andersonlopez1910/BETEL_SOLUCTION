@@ -14,6 +14,7 @@
 import { z } from "zod";
 
 export * from "./tax-engine.js";
+import { computeSale, SALE_TAX_TREATMENTS, type SaleTaxTreatment } from "./tax-engine.js";
 
 /** Tipos de documento de identificación en Colombia: CC, CE, NIT, Pasaporte, TI, PPT. */
 export const colombianIdentificationTypes = ["RC", "TI", "CC", "TE", "CE", "PA", "DIE", "PEP", "PPT", "NIT"] as const;
@@ -209,6 +210,8 @@ export const invoiceLineSchema = z.object({
   discountReason: z.string().trim().max(200).optional(),
   taxTreatment: z.enum(["TAXED", "EXEMPT", "EXCLUDED", "OTHER"]).optional(),
   incRate: z.coerce.number().min(0).max(100).optional(),
+  /** Precio unitario digitado con impuestos incluidos (por defecto, el del producto). */
+  priceIncludesTax: z.boolean().optional(),
   withholdings: z
     .array(
       z.object({
@@ -276,123 +279,214 @@ export const createInvoiceSchema = z
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 export type PartyInput = z.infer<typeof partySchema>;
 
-/** Producto o servicio del catálogo de la organización. */
-export const productSchema = z
-  .object({
-    sku: z
-      .string()
-      .trim()
-      .max(80)
-      .optional()
-      .transform(value => value || undefined), // Código interno; vacío = se asigna el siguiente C-n
-    name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres.").max(200),
-    description: z.string().trim().max(1000).optional(),
-    kind: z.enum(["PRODUCT", "SERVICE"]).default("PRODUCT"),
-    unit: z.string().min(1).max(10).default("UND"), // Unidad de medida
-    unitPrice: z.coerce.number().nonnegative(),
-    taxRate: z.coerce.number().min(0).max(100).default(19),
-    gtin: z
-      .string()
-      .trim()
-      .max(40)
-      .optional()
-      .transform(value => value || undefined),
-    niifNature: z
-      .string()
-      .trim()
-      .max(100)
-      .optional()
-      .transform(value => value || undefined),
-    serviceNature: z
-      .string()
-      .trim()
-      .max(100)
-      .optional()
-      .transform(value => value || undefined),
-    priceIncludesTaxes: z.boolean().default(false),
-    taxTreatment: z.enum(["TAXED", "EXEMPT", "EXCLUDED", "OTHER"]).optional(),
-    taxConfig: z
-      .object({
-        appliesInc: z.boolean().default(false),
-        incCode: z
-          .string()
-          .trim()
-          .max(30)
-          .optional()
-          .transform(value => value || undefined),
-        incRate: z.coerce.number().min(0).max(100).optional(),
-        withholdingHints: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
-        standardCodeType: z
-          .string()
-          .trim()
-          .max(30)
-          .optional()
-          .transform(value => value || undefined),
-        standardCode: z
-          .string()
-          .trim()
-          .max(80)
-          .optional()
-          .transform(value => value || undefined),
-      })
-      .optional(),
-    inventoryConfig: z
-      .object({
-        controlled: z.boolean().default(false),
-        minimumStock: z.coerce.number().nonnegative().optional(),
-        maximumStock: z.coerce.number().nonnegative().optional(),
-        allowNegativeStock: z.boolean().default(false),
-        valuationMethod: z.enum(["WEIGHTED_AVERAGE", "FIFO", "SPECIFIC_IDENTIFICATION"]).optional(),
-        initialCost: z.coerce.number().nonnegative().optional(),
-        netRealizableValue: z.coerce.number().nonnegative().optional(),
-        vnrEvaluatedAt: z.coerce.date().optional(),
-      })
-      .optional(),
-    accountingConfig: z
-      .object({
-        inventoryAccountId: z.string().uuid().optional(),
-        incomeAccountId: z.string().uuid().optional(),
-        costOfSalesAccountId: z.string().uuid().optional(),
-        vatSalesAccountId: z.string().uuid().optional(),
-        vatPurchaseAccountId: z.string().uuid().optional(),
-        incAccountId: z.string().uuid().optional(),
-        returnsAccountId: z.string().uuid().optional(),
-        discountsAccountId: z.string().uuid().optional(),
-      })
-      .optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.taxTreatment === "TAXED" && value.taxRate <= 0)
-      ctx.addIssue({
-        code: "custom",
-        path: ["taxRate"],
-        message: "Un ítem gravado requiere una tarifa de IVA válida.",
-      });
-    if ((value.taxTreatment === "EXEMPT" || value.taxTreatment === "EXCLUDED") && value.taxRate !== 0)
-      ctx.addIssue({ code: "custom", path: ["taxRate"], message: "Exento y excluido deben conservar IVA 0 %." });
-    if (value.kind === "SERVICE" && value.inventoryConfig?.controlled)
-      ctx.addIssue({
-        code: "custom",
-        path: ["inventoryConfig", "controlled"],
-        message: "Los servicios no manejan inventario físico.",
-      });
-    if (value.inventoryConfig?.controlled) {
-      if (!value.inventoryConfig.valuationMethod)
-        ctx.addIssue({
-          code: "custom",
-          path: ["inventoryConfig", "valuationMethod"],
-          message: "Selecciona el método de valoración.",
-        });
-      if (!value.accountingConfig?.inventoryAccountId || !value.accountingConfig?.costOfSalesAccountId)
-        ctx.addIssue({
-          code: "custom",
-          path: ["accountingConfig"],
-          message: "El inventario requiere cuentas de inventario y costo de ventas.",
-        });
-    }
-    if (value.taxConfig?.appliesInc && (value.taxConfig.incRate === undefined || !value.taxConfig.incCode))
-      ctx.addIssue({ code: "custom", path: ["taxConfig"], message: "El INC requiere código y tarifa parametrizados." });
+/**
+ * Con la parametrización nueva (`sale`), los campos anteriores (unitPrice = base, taxRate, taxTreatment,
+ * priceIncludesTaxes, INC) se derivan con el motor tributario único; así el resto del sistema los sigue leyendo.
+ */
+function legacyFromSale(raw: unknown) {
+  if (!raw || typeof raw !== "object" || !("sale" in raw) || !raw.sale || typeof raw.sale !== "object") return raw;
+  const input = raw as Record<string, unknown> & { sale: Record<string, unknown>; taxConfig?: Record<string, unknown> };
+  const treatment = input.sale.treatment as SaleTaxTreatment;
+  if (!(treatment in SALE_TAX_TREATMENTS)) return raw;
+  const amount = Number(input.sale.amount);
+  if (!Number.isFinite(amount)) return raw;
+  const sale = computeSale({
+    amount,
+    includesTax: input.sale.includesTax === true,
+    treatment,
+    incRate: input.sale.incRate === undefined ? undefined : Number(input.sale.incRate),
   });
+  const inc = SALE_TAX_TREATMENTS[treatment].inc;
+  return {
+    ...input,
+    unitPrice: sale.base,
+    taxRate: sale.vatRate,
+    taxTreatment: SALE_TAX_TREATMENTS[treatment].dian,
+    priceIncludesTaxes: sale.includesTax,
+    taxConfig: {
+      ...(input.taxConfig ?? {}),
+      appliesInc: inc,
+      incCode: inc ? (input.taxConfig?.incCode ?? "04") : undefined,
+      incRate: inc ? sale.incRate : undefined,
+    },
+  };
+}
+
+/** Producto o servicio del catálogo de la organización. */
+export const productSchema = z.preprocess(
+  legacyFromSale,
+  z
+    .object({
+      sku: z
+        .string()
+        .trim()
+        .max(80)
+        .optional()
+        .transform(value => value || undefined), // Código interno; vacío = se asigna el siguiente C-n
+      name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres.").max(200),
+      description: z.string().trim().max(1000).optional(),
+      kind: z.enum(["PRODUCT", "SERVICE"]).default("PRODUCT"),
+      unit: z.string().min(1).max(10).default("UND"), // Unidad de medida
+      unitPrice: z.coerce.number().nonnegative(),
+      taxRate: z.coerce.number().min(0).max(100).default(19),
+      gtin: z
+        .string()
+        .trim()
+        .max(40)
+        .optional()
+        .transform(value => value || undefined),
+      niifNature: z
+        .string()
+        .trim()
+        .max(100)
+        .optional()
+        .transform(value => value || undefined),
+      serviceNature: z
+        .string()
+        .trim()
+        .max(100)
+        .optional()
+        .transform(value => value || undefined),
+      priceIncludesTaxes: z.boolean().default(false),
+      taxTreatment: z.enum(["TAXED", "EXEMPT", "EXCLUDED", "OTHER"]).optional(),
+      /** Parametrización tributaria (motor único en tax-engine.ts). Si llega `sale`, la API calcula unitPrice,
+       *  taxRate y taxTreatment a partir de ella; los campos anteriores siguen aceptándose. */
+      category: z
+        .string()
+        .trim()
+        .max(80)
+        .optional()
+        .transform(value => value || undefined),
+      unspscCode: z
+        .string()
+        .trim()
+        .max(20)
+        .optional()
+        .transform(value => value || undefined),
+      billingChannel: z.enum(["FE", "POS", "AMBOS", "NO_FACTURABLE"]).default("AMBOS"),
+      cost: z
+        .object({
+          amount: z.coerce.number().nonnegative(),
+          includesVat: z.boolean(),
+          treatment: z.enum(["GRAVADO_19", "GRAVADO_5", "EXENTO", "EXCLUIDO", "NO_GRAVADO"]),
+          deductible: z
+            .enum(["DESCONTABLE_TOTAL", "DESCONTABLE_PARCIAL", "NO_DESCONTABLE"])
+            .default("DESCONTABLE_TOTAL"),
+          deductiblePct: z.coerce.number().min(0).max(100).optional(),
+        })
+        .optional(),
+      sale: z
+        .object({
+          amount: z.coerce.number().nonnegative(),
+          includesTax: z.boolean(),
+          treatment: z.enum(["IVA_19", "IVA_5", "IVA_EXENTO", "IVA_EXCLUIDO", "NO_GRAVADO", "INC", "SIN_IMPUESTO"]),
+          incRate: z.coerce.number().min(0).max(100).optional(),
+        })
+        .optional(),
+      /** Cantidad inicial (solo al crear un producto inventariable): genera el documento de saldo inicial. */
+      initialQuantity: z.coerce.number().nonnegative().optional(),
+      taxConfig: z
+        .object({
+          appliesInc: z.boolean().default(false),
+          incCode: z
+            .string()
+            .trim()
+            .max(30)
+            .optional()
+            .transform(value => value || undefined),
+          incRate: z.coerce.number().min(0).max(100).optional(),
+          withholdingHints: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+          standardCodeType: z
+            .string()
+            .trim()
+            .max(30)
+            .optional()
+            .transform(value => value || undefined),
+          standardCode: z
+            .string()
+            .trim()
+            .max(80)
+            .optional()
+            .transform(value => value || undefined),
+        })
+        .optional(),
+      inventoryConfig: z
+        .object({
+          controlled: z.boolean().default(false),
+          minimumStock: z.coerce.number().nonnegative().optional(),
+          maximumStock: z.coerce.number().nonnegative().optional(),
+          allowNegativeStock: z.boolean().default(false),
+          lotControl: z.boolean().default(false),
+          serialControl: z.boolean().default(false),
+          expiryControl: z.boolean().default(false),
+          valuationMethod: z.enum(["WEIGHTED_AVERAGE", "FIFO", "SPECIFIC_IDENTIFICATION"]).optional(),
+          initialCost: z.coerce.number().nonnegative().optional(),
+          netRealizableValue: z.coerce.number().nonnegative().optional(),
+          vnrEvaluatedAt: z.coerce.date().optional(),
+        })
+        .optional(),
+      accountingConfig: z
+        .object({
+          inventoryAccountId: z.string().uuid().optional(),
+          incomeAccountId: z.string().uuid().optional(),
+          costOfSalesAccountId: z.string().uuid().optional(),
+          vatSalesAccountId: z.string().uuid().optional(),
+          vatPurchaseAccountId: z.string().uuid().optional(),
+          incAccountId: z.string().uuid().optional(),
+          returnsAccountId: z.string().uuid().optional(),
+          discountsAccountId: z.string().uuid().optional(),
+        })
+        .optional(),
+    })
+    .superRefine((value, ctx) => {
+      if (value.taxTreatment === "TAXED" && value.taxRate <= 0)
+        ctx.addIssue({
+          code: "custom",
+          path: ["taxRate"],
+          message: "Un ítem gravado requiere una tarifa de IVA válida.",
+        });
+      if ((value.taxTreatment === "EXEMPT" || value.taxTreatment === "EXCLUDED") && value.taxRate !== 0)
+        ctx.addIssue({ code: "custom", path: ["taxRate"], message: "Exento y excluido deben conservar IVA 0 %." });
+      if (value.cost?.deductible === "DESCONTABLE_PARCIAL" && value.cost.deductiblePct === undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: ["cost", "deductiblePct"],
+          message: "Indica el porcentaje de IVA descontable.",
+        });
+      if (value.kind === "SERVICE" && value.initialQuantity)
+        ctx.addIssue({
+          code: "custom",
+          path: ["initialQuantity"],
+          message: "Los servicios no manejan cantidad inicial.",
+        });
+      if (value.kind === "SERVICE" && value.inventoryConfig?.controlled)
+        ctx.addIssue({
+          code: "custom",
+          path: ["inventoryConfig", "controlled"],
+          message: "Los servicios no manejan inventario físico.",
+        });
+      if (value.inventoryConfig?.controlled) {
+        if (!value.inventoryConfig.valuationMethod)
+          ctx.addIssue({
+            code: "custom",
+            path: ["inventoryConfig", "valuationMethod"],
+            message: "Selecciona el método de valoración.",
+          });
+        if (!value.accountingConfig?.inventoryAccountId || !value.accountingConfig?.costOfSalesAccountId)
+          ctx.addIssue({
+            code: "custom",
+            path: ["accountingConfig"],
+            message: "El inventario requiere cuentas de inventario y costo de ventas.",
+          });
+      }
+      if (value.taxConfig?.appliesInc && (value.taxConfig.incRate === undefined || !value.taxConfig.incCode))
+        ctx.addIssue({
+          code: "custom",
+          path: ["taxConfig"],
+          message: "El INC requiere código y tarifa parametrizados.",
+        });
+    })
+);
 
 /**
  * Documento soporte: compras a personas NO obligadas a facturar.

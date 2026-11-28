@@ -4,6 +4,8 @@ const isDevelopment = process.env.NODE_ENV !== "production";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Motor tributario único compartido con la API (código TypeScript del monorepo).
+  transpilePackages: ["@betel/contracts"],
   // El despliegue de revisión continúa siendo estático. En desarrollo Next actúa
   // como la única puerta de entrada y reenvía las llamadas de la API internamente.
   output: isDevelopment ? undefined : "export",

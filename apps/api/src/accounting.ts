@@ -48,6 +48,7 @@ export const DEFAULT_ACCOUNTS = [
   ["530515", "Comisiones bancarias y de pasarela", "EXPENSE"], // Comisión de la pasarela de pagos
   ["240805", "IVA generado", "LIABILITY"], // IVA cobrado en ventas
   ["240810", "IVA descontable", "ASSET"], // IVA pagado en compras (documento soporte)
+  ["246405", "Impuesto nacional al consumo", "LIABILITY"], // INC cobrado en ventas
   ["413595", "Ingresos por ventas", "INCOME"],
   ["220505", "Proveedores nacionales", "LIABILITY"], // Cuentas por pagar de documentos soporte
   ["519595", "Gastos operacionales", "EXPENSE"],

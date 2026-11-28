@@ -215,7 +215,7 @@ async function loadDocuments(
 const httpError = (statusCode: number, message: string) => Object.assign(new Error(message), { statusCode });
 
 /** Crea el documento con su asiento. Valida productos, tercero y que el saldo inicial no se repita. */
-async function createDocument(
+export async function createInventoryDocument(
   tx: Tx,
   actor: { organizationId: string; sub: string },
   body: CreateInventoryDocumentInput
@@ -408,7 +408,7 @@ export function registerInventoryRoutes(app: FastifyInstance, options: { auditIp
         .send({ error: parsed.error.issues[0]?.message ?? "Documento inválido", details: parsed.error.flatten() });
     try {
       const created = await withOrganizationScope(request.actor!.organizationId, async tx => {
-        const document = await createDocument(tx, request.actor!, parsed.data);
+        const document = await createInventoryDocument(tx, request.actor!, parsed.data);
         await audit(tx, request, document.id, "CREATE", {
           number: document.display,
           lines: parsed.data.lines.length,
@@ -451,7 +451,7 @@ export function registerInventoryRoutes(app: FastifyInstance, options: { auditIp
           lines.push(item.line!);
         });
         if (errors.length) return { errors: errors.slice(0, 200), errorCount: errors.length };
-        const document = await createDocument(tx, request.actor!, {
+        const document = await createInventoryDocument(tx, request.actor!, {
           type: body.type,
           date: body.date,
           notes: body.notes,

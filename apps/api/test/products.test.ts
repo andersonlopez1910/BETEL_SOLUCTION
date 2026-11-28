@@ -35,6 +35,7 @@ test("fila de Excel o CSV en español", () => {
       unitPrice: 5500,
       taxRate: 19,
       priceIncludesTaxes: false,
+      billingChannel: "AMBOS",
     },
   });
 });

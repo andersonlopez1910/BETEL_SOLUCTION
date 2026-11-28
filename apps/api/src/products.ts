@@ -34,9 +34,13 @@ import {
   toggleCustomerSchema,
   topProductsQuerySchema,
   type ProductQuery,
+  computeCost,
+  computeSale,
+  saleTreatmentFromLegacy,
 } from "@betel/contracts";
-import { allowPermission, requireActor, type MembershipRole } from "./auth.js";
-import { BILLED_STATUSES, EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod } from "./reports.js";
+import { actorCan, allowPermission, requireActor, type MembershipRole } from "./auth.js";
+import { createInventoryDocument } from "./inventory.js";
+import { BILLED_STATUSES, EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod, todayIn } from "./reports.js";
 
 type Tx = Prisma.TransactionClient;
 const ZERO = new Prisma.Decimal(0);
@@ -272,11 +276,49 @@ const accountKeys = [
   "discountsAccountId",
 ] as const;
 
-/** Separa el dato comercial de sus reglas. Cero sin clasificación explícita conserva compatibilidad como EXENTO. */
+/**
+ * Separa el dato comercial de sus reglas y calcula la parametrización tributaria con el MOTOR ÚNICO
+ * (@betel/contracts tax-engine): costo base, IVA de compra, IVA descontable y no descontable, costo contable, y
+ * base, IVA, INC y precio final de venta. Se guardan los valores digitados y los calculados.
+ * Cero sin clasificación explícita conserva compatibilidad como EXENTO.
+ */
 function masterData(input: ProductPayload) {
-  const { taxConfig, inventoryConfig, accountingConfig, taxTreatment, ...product } = input;
+  const { taxConfig, inventoryConfig, accountingConfig, taxTreatment, cost, sale, initialQuantity: _q, ...product } = input;
+  const legacyTreatment = taxTreatment ?? (input.taxRate === 0 ? "EXEMPT" : "TAXED");
+  // Sin la sección nueva (formato anterior o importación vieja): el precio recibido es la base, sin impuestos.
+  const saleTreatment = sale?.treatment ?? saleTreatmentFromLegacy(legacyTreatment, input.taxRate, taxConfig?.appliesInc);
+  const computedSale = computeSale({
+    amount: sale?.amount ?? input.unitPrice,
+    includesTax: sale?.includesTax ?? false,
+    treatment: saleTreatment,
+    incRate: sale?.incRate ?? taxConfig?.incRate,
+  });
+  const computedCost = cost && computeCost(cost);
   return {
-    product: { ...product, taxTreatment: taxTreatment ?? (input.taxRate === 0 ? "EXEMPT" : "TAXED") },
+    product: {
+      ...product,
+      taxTreatment: legacyTreatment,
+      priceEntered: computedSale.entered,
+      saleTaxTreatment: saleTreatment,
+      incRate: computedSale.incRate,
+      saleVat: computedSale.vat,
+      saleInc: computedSale.inc,
+      finalPrice: computedSale.total,
+      ...(computedCost && {
+        costEntered: computedCost.entered,
+        costIncludesVat: computedCost.includesVat,
+        purchaseVatTreatment: computedCost.treatment,
+        purchaseVatRate: computedCost.rate,
+        deductibleTreatment: cost!.deductible,
+        deductiblePct: computedCost.deductiblePct,
+        costBase: computedCost.base,
+        purchaseVat: computedCost.vat,
+        costTotal: computedCost.total,
+        vatDeductible: computedCost.vatDeductible,
+        vatNonDeductible: computedCost.vatNonDeductible,
+        accountingCost: computedCost.accountingCost,
+      }),
+    },
     taxConfig,
     inventoryConfig,
     accountingConfig,
@@ -453,6 +495,20 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
           data: { ...master, sku, organizationId: actor.organizationId },
         });
         await saveConfiguration(tx, created.id, parsed.data, actor.sub);
+        // Cantidad inicial: documento de saldo inicial (SI-n) valorado al costo contable, con su asiento.
+        const quantity = parsed.data.initialQuantity ?? 0;
+        if (quantity > 0) {
+          if (parsed.data.kind !== "PRODUCT" || !parsed.data.inventoryConfig?.controlled)
+            throw httpError(422, "La cantidad inicial solo aplica a productos inventariables.");
+          if (!actorCan(request, "inventory.manage"))
+            throw httpError(403, "Tu rol no puede registrar saldos iniciales de inventario.");
+          await createInventoryDocument(tx, actor, {
+            type: "INITIAL",
+            date: todayIn("America/Bogota"),
+            notes: `Saldo inicial al crear ${created.name}`,
+            lines: [{ productId: created.id, direction: "IN", quantity, unitCost: Number(master.accountingCost ?? 0) }],
+          });
+        }
         await audit(tx, request, created.id, "CREATE", { ...master, sku, configuration: true });
         return created;
       });
