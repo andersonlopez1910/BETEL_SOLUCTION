@@ -80,6 +80,33 @@ type ProductRow = {
   priceWithTax: string;
   active: boolean;
   stock: { inflow: string; outflow: string; quantity: string; state: "NEGATIVE" | "ZERO" | "POSITIVE" } | null;
+  /** Parametrización tributaria: digitado y calculado por el motor único (apps/api/src/products.ts). */
+  tax?: {
+    gtin: string | null;
+    category: string | null;
+    unspscCode: string | null;
+    billingChannel: string;
+    costEntered: string;
+    costIncludesVat: boolean;
+    purchaseVatTreatment: string;
+    purchaseVatRate: string;
+    costBase: string;
+    purchaseVat: string;
+    vatDeductible: string;
+    vatNonDeductible: string;
+    accountingCost: string;
+    priceEntered: string;
+    priceIncludesTaxes: boolean;
+    saleTaxTreatment: string;
+    saleVatRate: string;
+    priceBase: string;
+    saleVat: string;
+    incRate: string;
+    saleInc: string;
+    finalPrice: string;
+    profit: string;
+    margin: string;
+  };
 };
 type ProductsResponse = { data: ProductRow[]; pagination: { page: number; pageSize: number; total: number } };
 
@@ -106,17 +133,39 @@ const taxLabel = (rate: string) => (Number(rate) ? `IVA ${Number(rate)} %` : "Ex
 type Filters = { search: string; kind: string; status: string; stock: string };
 const noFilters: Filters = { search: "", kind: "", status: "ALL", stock: "" };
 
+const yes = (value: boolean | undefined) => (value ? "SI" : "NO");
+const num = (value: string | undefined) => (value === undefined ? null : Number(value));
 const exportColumns: ReportColumn<ProductRow>[] = [
-  { header: "Tipo", value: row => kindLabels[row.kind] },
   { header: "Nombre", value: row => row.name },
   { header: "Código", value: row => row.sku ?? "" },
+  { header: "Código de barras", value: row => row.tax?.gtin ?? "" },
+  { header: "Categoría", value: row => row.tax?.category ?? "" },
+  { header: "Tipo", value: row => (row.kind === "SERVICE" ? "SERVICIO" : "PRODUCTO") },
   { header: "Unidad", value: row => unitLabels[row.unit] ?? row.unit },
-  { header: "Precio sin IVA", value: row => row.unitPrice, money: true },
-  { header: "IVA %", value: row => Number(row.taxRate).toString() },
-  { header: "Precio con IVA", value: row => row.priceWithTax, money: true },
-  { header: "Stock", value: row => (row.stock ? Number(row.stock.quantity).toFixed(2) : "No aplica") },
+  { header: "UNSPSC", value: row => row.tax?.unspscCode ?? "" },
+  { header: "Inventariable", value: row => yes(row.inventoryControlled) },
+  { header: "Existencia", value: row => (row.stock ? Number(row.stock.quantity) : null) },
+  { header: "Costo ingresado", value: row => row.tax?.costEntered, money: true },
+  { header: "IVA incluido costo", value: row => yes(row.tax?.costIncludesVat) },
+  { header: "Tratamiento IVA compra", value: row => row.tax?.purchaseVatTreatment ?? "" },
+  { header: "Tarifa IVA compra", value: row => num(row.tax?.purchaseVatRate) },
+  { header: "Base costo", value: row => row.tax?.costBase, money: true },
+  { header: "IVA compra", value: row => row.tax?.purchaseVat, money: true },
+  { header: "IVA descontable", value: row => row.tax?.vatDeductible, money: true },
+  { header: "IVA no descontable", value: row => row.tax?.vatNonDeductible, money: true },
+  { header: "Costo contable", value: row => row.tax?.accountingCost, money: true },
+  { header: "Precio ingresado", value: row => row.tax?.priceEntered ?? row.unitPrice, money: true },
+  { header: "Impuesto incluido venta", value: row => yes(row.tax?.priceIncludesTaxes) },
+  { header: "Tratamiento tributario venta", value: row => row.tax?.saleTaxTreatment ?? "" },
+  { header: "Tarifa IVA venta", value: row => num(row.tax?.saleVatRate ?? row.taxRate) },
+  { header: "Base precio venta", value: row => row.tax?.priceBase ?? row.unitPrice, money: true },
+  { header: "IVA venta", value: row => row.tax?.saleVat, money: true },
+  { header: "INC", value: row => row.tax?.saleInc, money: true },
+  { header: "Precio final venta", value: row => row.tax?.finalPrice ?? row.priceWithTax, money: true },
+  { header: "Utilidad unitaria", value: row => row.tax?.profit, money: true },
+  { header: "Margen bruto %", value: row => num(row.tax?.margin) },
+  { header: "Canal facturación", value: row => row.tax?.billingChannel ?? "" },
   { header: "Estado", value: row => (row.active ? "Activo" : "Inactivo") },
-  { header: "Descripción", value: row => row.description ?? "" },
 ];
 
 type Dialog =
@@ -744,45 +793,86 @@ function ProductDetail({ row, onClose }: { row: ProductRow; onClose: () => void 
   );
 }
 
-const TEMPLATE =
-  "Nombre;Código;Tipo;Unidad;Precio;IVA;Descripción\nTubo PVC 1/2;;Producto;unidad;5500;19;Presión\nInstalación;;Servicio;servicio;80000;0;\n";
+/** Plantilla con las 22 columnas de la importación (ver apps/api/src/product-import.ts). */
+const TEMPLATE = [
+  "Nombre;Código;Código de barras;Categoría;Tipo;Unidad;UNSPSC;Inventariable;Cantidad inicial;Costo unitario;IVA incluido costo;Tratamiento IVA compra;Tarifa IVA compra;Tratamiento IVA descontable;Porcentaje IVA descontable;Precio de venta;Impuesto incluido venta;Tratamiento tributario venta;Tarifa IVA venta;Tarifa INC;Canal de facturación;Descripción",
+  "Tubo PVC 1/2;PVC-12;7701234567890;Tubería;PRODUCTO;unidad;40142000;SI;10;3000;SI;GRAVADO_19;19;DESCONTABLE_TOTAL;;5500;SI;IVA_19;19;;AMBOS;Presión",
+  "Instalación de tubería;INST-01;;Servicios;SERVICIO;servicio;72151500;NO;;;;;;;;80000;NO;IVA_EXCLUIDO;0;;FE;Mano de obra",
+  "Almuerzo ejecutivo;ALM-01;;Restaurante;PRODUCTO;unidad;;NO;;;;;;;;10800;SI;INC;0;8;POS;",
+].join("\n") + "\n";
 
+type PreviewRow = {
+  row: number;
+  status: "OK" | "WARNING" | "ERROR";
+  messages: string[];
+  name: string;
+  sku: string | null;
+  kind: "PRODUCT" | "SERVICE";
+  values: {
+    cost: number;
+    costBase: number;
+    purchaseVat: number;
+    accountingCost: number;
+    price: number;
+    priceBase: number;
+    saleVat: number;
+    saleInc: number;
+    finalPrice: number;
+    margin: number;
+  };
+};
+type Preview = { data: PreviewRow[]; summary: { total: number; ok: number; warnings: number; errors: number } };
+const statusText = { OK: "Correcto", WARNING: "Advertencia", ERROR: "Error" } as const;
+
+/**
+ * Importar desde Excel o CSV en dos pasos: (1) vista previa calculada por la API con el motor tributario único
+ * (estado por fila: Correcto, Advertencia o Error); (2) importar solo las filas sin error.
+ */
 function ImportProductsDialog({ onClose, onImported }: { onClose: () => void; onImported: (text: string) => void }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [state, setState] = useState<{ busy: boolean; error?: string; errors?: { row: number; message: string }[] }>({
-    busy: false,
-  });
+  const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [filter, setFilter] = useState<"ALL" | "ERROR" | "WARNING">("ALL");
+  const [state, setState] = useState<{ busy: boolean; error?: string }>({ busy: false });
   const template = () => downloadText("plantilla-productos.csv", TEMPLATE);
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!file) return;
+
+  const analyze = async (file: File) => {
     setState({ busy: true });
+    setPreview(null);
     try {
-      const rows = await readSpreadsheet(file);
-      if (!rows.length) return setState({ busy: false, error: "El archivo no trae filas con datos." });
-      const result = await apiPost<{
-        data: { created: number; errorCount: number; errors: { row: number; message: string }[] };
-      }>("/v1/products/import", { rows });
-      const { created, errorCount, errors } = result.data;
-      if (errorCount && !created) return setState({ busy: false, error: "No se creó ningún producto.", errors });
-      if (errorCount)
-        return setState({
-          busy: false,
-          error: `Se crearon ${created}; ${errorCount} fila(s) no se importaron. Corrígelas y vuelve a subir solo esas filas.`,
-          errors,
-        });
-      onImported(`Se importaron ${created} producto(s) o servicio(s).`);
+      const read = await readSpreadsheet(file);
+      if (!read.length) return setState({ busy: false, error: "El archivo no trae filas con datos." });
+      setRows(read);
+      setPreview(await apiPost<Preview>("/v1/products/import/preview", { rows: read }));
+      setState({ busy: false });
     } catch (error) {
       setState({ busy: false, error: (error as Error).message });
     }
   };
+
+  const importValid = async () => {
+    if (!rows) return;
+    setState({ busy: true });
+    try {
+      const result = await apiPost<{ data: { created: number; errorCount: number } }>("/v1/products/import", { rows });
+      const { created, errorCount } = result.data;
+      onImported(
+        errorCount
+          ? `Se importaron ${created} producto(s) o servicio(s); ${errorCount} fila(s) con error no se importaron.`
+          : `Se importaron ${created} producto(s) o servicio(s).`
+      );
+    } catch (error) {
+      setState({ busy: false, error: (error as Error).message });
+    }
+  };
+
+  const importable = preview ? preview.summary.ok + preview.summary.warnings : 0;
+  const visible = preview?.data.filter(row => filter === "ALL" || row.status === filter) ?? [];
   return (
-    <Modal title="Importar productos y servicios" onClose={onClose} wide>
-      <form onSubmit={submit}>
+    <Modal title="Importar productos y servicios" onClose={onClose} wide closeButton>
+      <div className="import-preview">
         <p className="report-dialog-text">
-          Sube un archivo de Excel (.xlsx) o CSV con una fila de encabezados: <b>Nombre</b> (obligatorio), Código, Tipo
-          (Producto o Servicio), Unidad, Precio (sin IVA) e IVA (19, 5 o 0), y Descripción. Sin código se asigna el
-          siguiente C-n; los códigos que ya existen no se importan.{" "}
+          Sube un Excel (.xlsx) o CSV con las columnas de la plantilla. Betel valida cada fila y calcula base, IVA, INC y
+          costo contable con su motor tributario <b>antes</b> de importar; las fórmulas del archivo no se usan.{" "}
           <button type="button" className="report-link" onClick={template}>
             Descargar plantilla
           </button>
@@ -792,37 +882,94 @@ function ImportProductsDialog({ onClose, onImported }: { onClose: () => void; on
           <input
             type="file"
             accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            required
             onChange={event => {
-              setFile(event.target.files?.[0] ?? null);
-              setState({ busy: false });
+              const file = event.target.files?.[0];
+              if (file) void analyze(file);
             }}
           />
         </label>
+        {state.busy && !preview && <p className="report-message">Analizando el archivo…</p>}
+        {preview && (
+          <>
+            <div className="import-summary" role="status">
+              <button type="button" className={filter === "ALL" ? "is-active" : undefined} onClick={() => setFilter("ALL")}>
+                <b>{preview.summary.total}</b> filas
+              </button>
+              <span className="is-ok">
+                <b>{preview.summary.ok}</b> correctas
+              </span>
+              <button type="button" className={filter === "WARNING" ? "is-active is-warning" : "is-warning"} onClick={() => setFilter("WARNING")}>
+                <b>{preview.summary.warnings}</b> advertencias
+              </button>
+              <button type="button" className={filter === "ERROR" ? "is-active is-error" : "is-error"} onClick={() => setFilter("ERROR")}>
+                <b>{preview.summary.errors}</b> errores
+              </button>
+            </div>
+            <div className="report-table-wrap import-table">
+              <table className="report-table">
+                <thead>
+                  <tr>
+                    <th>Fila</th>
+                    <th>Producto</th>
+                    <th>Código</th>
+                    <th className="num">Costo</th>
+                    <th className="num">Base costo</th>
+                    <th className="num">IVA compra</th>
+                    <th className="num">Costo contable</th>
+                    <th className="num">Precio</th>
+                    <th className="num">Base venta</th>
+                    <th className="num">IVA venta</th>
+                    <th className="num">Precio final</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map(row => (
+                    <tr key={row.row} className={`is-${row.status.toLowerCase()}`}>
+                      <td>{row.row}</td>
+                      <td>
+                        {row.name || "—"}
+                        {row.messages.length > 0 && (
+                          <ul className="import-messages">
+                            {row.messages.map(message => (
+                              <li key={message}>{message}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </td>
+                      <td>{row.sku ?? "Automático"}</td>
+                      <td className="num">{money(row.values.cost)}</td>
+                      <td className="num">{money(row.values.costBase)}</td>
+                      <td className="num">{money(row.values.purchaseVat)}</td>
+                      <td className="num">{money(row.values.accountingCost)}</td>
+                      <td className="num">{money(row.values.price)}</td>
+                      <td className="num">{money(row.values.priceBase)}</td>
+                      <td className="num">{money(row.values.saleVat + row.values.saleInc)}</td>
+                      <td className="num">{money(row.values.finalPrice)}</td>
+                      <td>
+                        <span className={`import-status is-${row.status.toLowerCase()}`}>{statusText[row.status]}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
         {state.error && (
-          <div className="report-error" role="alert">
-            <p>{state.error}</p>
-            {state.errors && state.errors.length > 0 && (
-              <ul className="products-import-errors">
-                {state.errors.slice(0, 20).map(item => (
-                  <li key={`${item.row}-${item.message}`}>
-                    Fila {item.row}: {item.message}
-                  </li>
-                ))}
-                {state.errors.length > 20 && <li>…y {state.errors.length - 20} más.</li>}
-              </ul>
-            )}
-          </div>
+          <p className="report-error" role="alert">
+            {state.error}
+          </p>
         )}
         <div className="report-dialog-actions">
           <button type="button" className="secondary" onClick={onClose}>
-            {state.errors ? "Cerrar" : "Cancelar"}
+            Cancelar
           </button>
-          <button type="submit" className="primary" disabled={state.busy || !file}>
-            {state.busy ? "Importando…" : "Importar"}
+          <button type="button" className="primary" disabled={state.busy || !importable} onClick={importValid}>
+            {state.busy && preview ? "Importando…" : `Importar ${importable} fila(s) sin error`}
           </button>
         </div>
-      </form>
+      </div>
     </Modal>
   );
 }

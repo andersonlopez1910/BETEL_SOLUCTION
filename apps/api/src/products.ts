@@ -24,7 +24,7 @@
  *   - Los servicios no manejan stock.
  *   - Un producto inactivo no se ofrece al crear documentos nuevos; su historial se conserva.
  */
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { Prisma, withOrganizationScope } from "@betel/db";
 import {
   bulkProductActiveSchema,
@@ -37,9 +37,12 @@ import {
   computeCost,
   computeSale,
   saleTreatmentFromLegacy,
+  grossProfit,
 } from "@betel/contracts";
 import { actorCan, allowPermission, requireActor, type MembershipRole } from "./auth.js";
 import { createInventoryDocument } from "./inventory.js";
+import { ensureDefaultAccounts } from "./accounting.js";
+import { analyzeImport, IMPORT_COLUMNS } from "./product-import.js";
 import { BILLED_STATUSES, EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod, todayIn } from "./reports.js";
 
 type Tx = Prisma.TransactionClient;
@@ -250,6 +253,35 @@ async function loadProducts(tx: Tx, query: ProductQuery, rows: { skip: number; t
         // Precio final calculado por el motor tributario (incluye IVA e INC).
         priceWithTax: product.finalPrice.isZero() && !product.unitPrice.isZero() ? product.unitPrice.times(product.taxRate.dividedBy(100).plus(1)).toDecimalPlaces(2).toFixed(2) : product.finalPrice.toFixed(2),
         active: product.active,
+        // Parametrización tributaria: lo digitado y lo calculado por el motor único (exportación y detalle).
+        tax: {
+          gtin: product.gtin,
+          category: product.category,
+          unspscCode: product.unspscCode,
+          billingChannel: product.billingChannel,
+          costEntered: product.costEntered.toFixed(2),
+          costIncludesVat: product.costIncludesVat,
+          purchaseVatTreatment: product.purchaseVatTreatment,
+          purchaseVatRate: product.purchaseVatRate.toFixed(2),
+          costBase: product.costBase.toFixed(2),
+          purchaseVat: product.purchaseVat.toFixed(2),
+          vatDeductible: product.vatDeductible.toFixed(2),
+          vatNonDeductible: product.vatNonDeductible.toFixed(2),
+          accountingCost: product.accountingCost.toFixed(2),
+          priceEntered: product.priceEntered.toFixed(2),
+          priceIncludesTaxes: product.priceIncludesTaxes,
+          saleTaxTreatment: product.saleTaxTreatment,
+          saleVatRate: product.taxRate.toFixed(2),
+          priceBase: product.unitPrice.toFixed(2),
+          saleVat: product.saleVat.toFixed(2),
+          incRate: product.incRate.toFixed(2),
+          saleInc: product.saleInc.toFixed(2),
+          finalPrice: product.finalPrice.toFixed(2),
+          ...(() => {
+            const profit = grossProfit(product.unitPrice.toNumber(), product.accountingCost.toNumber());
+            return { profit: profit.profit.toFixed(2), margin: profit.margin.toFixed(2) };
+          })(),
+        },
         stock: service
           ? null
           : {
@@ -482,6 +514,34 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
     return { data };
   });
 
+  /**
+   * Crea un producto o servicio: código, parametrización tributaria (motor único), configuración, saldo inicial
+   * (cantidad inicial de un inventariable) y auditoría. Lo usan la creación manual y la importación.
+   */
+  const createProduct = async (tx: Tx, request: FastifyRequest, data: ProductPayload, action = "CREATE") => {
+    const actor = request.actor!;
+    const sku = await resolveCode(tx, data.sku);
+    const { product: master } = masterData(data);
+    const created = await tx.product.create({ data: { ...master, sku, organizationId: actor.organizationId } });
+    await saveConfiguration(tx, created.id, data, actor.sub);
+    // Cantidad inicial: documento de saldo inicial (SI-n) valorado al costo contable, con su asiento.
+    const quantity = data.initialQuantity ?? 0;
+    if (quantity > 0) {
+      if (data.kind !== "PRODUCT" || !data.inventoryConfig?.controlled)
+        throw httpError(422, "La cantidad inicial solo aplica a productos inventariables.");
+      if (!actorCan(request, "inventory.manage"))
+        throw httpError(403, "Tu rol no puede registrar saldos iniciales de inventario.");
+      await createInventoryDocument(tx, actor, {
+        type: "INITIAL",
+        date: todayIn("America/Bogota"),
+        notes: `Saldo inicial al crear ${created.name}`,
+        lines: [{ productId: created.id, direction: "IN", quantity, unitCost: Number(master.accountingCost ?? 0) }],
+      });
+    }
+    await audit(tx, request, created.id, action, { ...master, sku, configuration: true });
+    return created;
+  };
+
   /** POST /v1/products — Body: productSchema. */
   app.post("/v1/products", canEdit, async (request, reply) => {
     const parsed = productSchema.safeParse(request.body);
@@ -489,30 +549,7 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
       return reply.code(422).send({ error: "Producto o servicio inválido", details: parsed.error.flatten() });
     const actor = request.actor!;
     try {
-      const product = await withOrganizationScope(actor.organizationId, async tx => {
-        const sku = await resolveCode(tx, parsed.data.sku);
-        const { product: master } = masterData(parsed.data);
-        const created = await tx.product.create({
-          data: { ...master, sku, organizationId: actor.organizationId },
-        });
-        await saveConfiguration(tx, created.id, parsed.data, actor.sub);
-        // Cantidad inicial: documento de saldo inicial (SI-n) valorado al costo contable, con su asiento.
-        const quantity = parsed.data.initialQuantity ?? 0;
-        if (quantity > 0) {
-          if (parsed.data.kind !== "PRODUCT" || !parsed.data.inventoryConfig?.controlled)
-            throw httpError(422, "La cantidad inicial solo aplica a productos inventariables.");
-          if (!actorCan(request, "inventory.manage"))
-            throw httpError(403, "Tu rol no puede registrar saldos iniciales de inventario.");
-          await createInventoryDocument(tx, actor, {
-            type: "INITIAL",
-            date: todayIn("America/Bogota"),
-            notes: `Saldo inicial al crear ${created.name}`,
-            lines: [{ productId: created.id, direction: "IN", quantity, unitCost: Number(master.accountingCost ?? 0) }],
-          });
-        }
-        await audit(tx, request, created.id, "CREATE", { ...master, sku, configuration: true });
-        return created;
-      });
+      const product = await withOrganizationScope(actor.organizationId, tx => createProduct(tx, request, parsed.data));
       return reply.code(201).send({ data: product });
     } catch (error) {
       if (conflict(error)) return reply.code(409).send({ error: "Ese código ya existe. Intenta de nuevo." });
@@ -649,36 +686,74 @@ export function registerProductRoutes(app: FastifyInstance, options: { auditIp: 
    * POST /v1/products/import — Body: { rows } (filas ya leídas del Excel o CSV en el navegador). Crea los productos
    * válidos; las filas con error o con un código que ya existe se informan y no se crean.
    */
+  /** Contexto de la importación: códigos y códigos de barras ya registrados en la empresa. */
+  const importContext = async (tx: Tx) => {
+    const existing = await tx.product.findMany({ select: { sku: true, gtin: true } });
+    return {
+      existingCodes: new Set(existing.map(item => item.sku?.toLowerCase()).filter((value): value is string => !!value)),
+      existingBarcodes: new Set(existing.map(item => item.gtin).filter((value): value is string => !!value)),
+    };
+  };
+
+  /** POST /v1/products/import/preview — Body: { rows }. Analiza sin escribir: estado, mensajes y valores calculados. */
+  app.post("/v1/products/import/preview", { ...canEdit, bodyLimit: 5 * 1024 * 1024 }, async (request, reply) => {
+    const parsed = importProductsSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(422).send({ error: parsed.error.issues[0]?.message ?? "Archivo inválido." });
+    const rows = await withOrganizationScope(request.actor!.organizationId, async tx =>
+      analyzeImport(parsed.data.rows, await importContext(tx))
+    );
+    return {
+      data: rows.map(({ payload: _payload, ...row }) => row),
+      summary: {
+        total: rows.length,
+        ok: rows.filter(row => row.status === "OK").length,
+        warnings: rows.filter(row => row.status === "WARNING").length,
+        errors: rows.filter(row => row.status === "ERROR").length,
+      },
+    };
+  });
+
+  /**
+   * POST /v1/products/import — Body: { rows }. Vuelve a analizar en el servidor e importa SOLO las filas sin error,
+   * por el mismo camino que la creación manual (createProduct). Los inventariables usan las cuentas por defecto de
+   * inventario (143505) y costo de ventas (613505).
+   */
   app.post("/v1/products/import", { ...canEdit, bodyLimit: 5 * 1024 * 1024 }, async (request, reply) => {
     const parsed = importProductsSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(422).send({ error: parsed.error.issues[0]?.message ?? "Archivo inválido." });
     const result = await withOrganizationScope(request.actor!.organizationId, async tx => {
-      const existing = await tx.product.findMany({ select: { sku: true } });
-      const codes = new Set(existing.map(item => item.sku?.toLowerCase()).filter(Boolean));
-      let next = Number(nextProductCode(existing.map(item => item.sku)).slice(2));
-      const errors: { row: number; message: string }[] = [];
-      const valid: Prisma.ProductCreateManyInput[] = [];
-      parsed.data.rows.forEach((row, index) => {
-        const item = productFromRow(row);
-        if ("error" in item) return errors.push({ row: index + 2, message: item.error! });
-        const product = item.product!;
-        let sku = product.sku;
-        if (sku && codes.has(sku.toLowerCase()))
-          return errors.push({ row: index + 2, message: `El código ${sku} ya existe.` });
-        if (!sku) {
-          while (codes.has(`c-${next}`)) next++;
-          sku = `C-${next++}`;
+      const analyzed = analyzeImport(parsed.data.rows, await importContext(tx));
+      const controlled = (row: (typeof analyzed)[number]) =>
+        !!(row.payload?.inventoryConfig as { controlled?: boolean } | undefined)?.controlled;
+      const accounts = analyzed.some(controlled) ? await ensureDefaultAccounts(tx, request.actor!.organizationId) : null;
+      const errors = analyzed
+        .filter(row => row.status === "ERROR")
+        .map(row => ({ row: row.row, message: row.messages.join(" ") }));
+      let created = 0;
+      for (const row of analyzed) {
+        if (!row.payload) continue;
+        const product = productSchema.safeParse({
+          ...row.payload,
+          ...(controlled(row) &&
+            accounts && {
+              accountingConfig: { inventoryAccountId: accounts["143505"].id, costOfSalesAccountId: accounts["613505"].id },
+            }),
+        });
+        if (!product.success) {
+          errors.push({ row: row.row, message: product.error.issues[0]?.message ?? "Fila inválida." });
+          continue;
         }
-        codes.add(sku.toLowerCase());
-        // La importación conserva el maestro comercial; las reglas avanzadas se completan desde el formulario.
-        valid.push({ ...masterData(product).product, sku, organizationId: request.actor!.organizationId });
-      });
-      const created = valid.length ? (await tx.product.createMany({ data: valid })).count : 0;
+        await createProduct(tx, request, product.data, "IMPORT_ROW");
+        created++;
+      }
       await audit(tx, request, "import", "IMPORT", { rows: parsed.data.rows.length, created, errors: errors.length });
       return { created, errors: errors.slice(0, 200), errorCount: errors.length };
     });
     return reply.code(201).send({ data: result });
   });
+
+  /** GET /v1/products/import/template — columnas de la plantilla de importación. */
+  app.get("/v1/products/import/template", canView, async () => ({ columns: IMPORT_COLUMNS }));
 
   /** GET /v1/reports/products — Query: productQuerySchema. */
   app.get("/v1/reports/products", canView, async (request, reply) => {
