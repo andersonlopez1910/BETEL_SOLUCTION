@@ -89,6 +89,7 @@ import { registerCatalogRoutes } from "./catalog/index.js";
 import { registerUserRoutes } from "./users.js";
 import { permissionsOf } from "./permissions.js";
 import { registerInvoicePrintRoutes } from "./invoice-print.js";
+import { registerBillingTaxReportRoutes } from "./billing-tax-report.js";
 import { registerTaxCatalogRoutes } from "./tax-catalog.js";
 import { registerCommercialRoutes } from "./commercial.js";
 import { registerDashboardRoutes } from "./dashboard.js";
@@ -613,6 +614,16 @@ app.post(
         ? await tx.product.findMany({ where: { id: { in: productIds }, active: true }, include: { taxConfig: true } })
         : [];
       const productById = new Map(products.map(product => [product.id, product]));
+      // Canal de facturación configurado en el producto: FE, POS, AMBOS o NO_FACTURABLE.
+      const documentType = parsed.data.documentType;
+      for (const product of products) {
+        if (product.billingChannel === "NO_FACTURABLE")
+          throw Object.assign(new Error(`${product.name} está configurado como no facturable.`), { statusCode: 422 });
+        if (documentType === "POS" && product.billingChannel === "FE")
+          throw Object.assign(new Error(`${product.name} solo se factura con factura electrónica.`), { statusCode: 422 });
+        if (documentType === "FE" && product.billingChannel === "POS")
+          throw Object.assign(new Error(`${product.name} solo se factura con documento equivalente POS.`), { statusCode: 422 });
+      }
       if (productIds.some(id => !productById.has(id))) {
         const error = new Error("Uno o más productos no están activos o no pertenecen a esta empresa.") as Error & {
           statusCode: number;
@@ -712,6 +723,7 @@ app.post(
         data: {
           organizationId: actor.organizationId,
           customerId: customer.id,
+          documentType: parsed.data.documentType,
           issueDate: parsed.data.issueDate,
           dueDate: parsed.data.dueDate,
           paymentTerm: parsed.data.paymentMethod,
@@ -785,10 +797,16 @@ app.post<{ Params: { id: string } }>(
   { preHandler: allowPermission("invoices.issue") },
   async (request, reply) => {
     const actor = request.actor!;
-    const providerResult = await getDianProvider().submitSalesInvoice({
-      invoiceId: request.params.id,
-      organizationId: actor.organizationId,
-    });
+    const target = await withOrganizationScope(actor.organizationId, tx =>
+      tx.invoice.findFirst({ where: { id: request.params.id }, select: { documentType: true } })
+    );
+    const isPos = target?.documentType === "POS";
+    // Factura electrónica o documento equivalente POS: mismo motor tributario, distinto documento y numeración.
+    const providerResult = await (isPos ? getDianProvider().submitPosDocument : getDianProvider().submitSalesInvoice).call(
+      getDianProvider(),
+      { invoiceId: request.params.id, organizationId: actor.organizationId }
+    );
+    const prefix = isPos ? "POS-" : "FE-";
     const result = await withOrganizationScope(actor.organizationId, async tx => {
       const invoice = await tx.invoice.findFirst({
         where: { id: request.params.id, status: "DRAFT" },
@@ -826,9 +844,9 @@ app.post<{ Params: { id: string } }>(
       await tx.journalEntry.create({
         data: {
           organizationId: actor.organizationId,
-          reference: `FV-${invoice.id}`,
+          reference: `${isPos ? "POS" : "FV"}-${invoice.id}`,
           date: invoice.issueDate,
-          description: `Factura de venta a ${invoice.customer.legalName}`,
+          description: `${isPos ? "Documento equivalente POS" : "Factura de venta"} a ${invoice.customer.legalName}`,
           status: "POSTED",
           postedAt: new Date(),
           sourceType: "Invoice",
@@ -837,18 +855,18 @@ app.post<{ Params: { id: string } }>(
         },
       });
       const nextNumber = String(
-        (await tx.invoice.count({ where: { organizationId: actor.organizationId, prefix: "FE-" } })) + 1
+        (await tx.invoice.count({ where: { organizationId: actor.organizationId, prefix } })) + 1
       ).padStart(8, "0");
       const issued = await tx.invoice.update({
         where: { id: invoice.id },
         data: {
           status: "ISSUED",
           dianStatus: providerResult.status,
-          prefix: "FE-",
+          prefix,
           number: nextNumber,
           pdfRepresentation: generateInvoicePdf(invoice.organization, invoice.customer, {
             ...invoice,
-            prefix: "FE-",
+            prefix,
             number: nextNumber,
             dianStatus: providerResult.status,
           }),
@@ -860,7 +878,7 @@ app.post<{ Params: { id: string } }>(
         data: {
           organizationId: actor.organizationId,
           invoiceId: invoice.id,
-          kind: "SALES_INVOICE",
+          kind: isPos ? "POS_EQUIVALENT" : "SALES_INVOICE",
           status: providerResult.status,
           providerResponse: providerResult.providerResponse as Prisma.InputJsonValue,
         },
@@ -882,7 +900,7 @@ app.post<{ Params: { id: string } }>(
           entity: "Invoice",
           entityId: invoice.id,
           action: "ISSUE",
-          after: { dianStatus: providerResult.status, journalReference: `FV-${invoice.id}` },
+          after: { dianStatus: providerResult.status, journalReference: `${isPos ? "POS" : "FV"}-${invoice.id}` },
           ipHash: auditIp(request.ip),
         },
       });
@@ -1182,6 +1200,7 @@ registerLedgerRoutes(app, { auditIp });
 registerStatementRoutes(app);
 registerCatalogRoutes(app, { auditIp });
 registerInvoicePrintRoutes(app);
+registerBillingTaxReportRoutes(app, { auditIp });
 registerUserRoutes(app, { auditIp, devLogin: !isProduction && process.env.BETEL_ALLOW_INSECURE_DEV_AUTH === "true" });
 registerTaxCatalogRoutes(app, { auditIp });
 

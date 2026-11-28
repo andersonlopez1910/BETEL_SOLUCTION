@@ -20,6 +20,8 @@ export type DianSubmission = {
 /** Contrato que debe cumplir cualquier proveedor DIAN (sandbox o real). */
 export interface DianProvider {
   submitSalesInvoice(input: { invoiceId: string; organizationId: string }): Promise<DianSubmission>;
+  /** Documento equivalente electrónico POS (tiquete de máquina registradora con sistema POS). */
+  submitPosDocument(input: { invoiceId: string; organizationId: string }): Promise<DianSubmission>;
   /** Evento de una factura electrónica recibida (030, 031, 032 o 033; Res. DIAN 000085 de 2022). */
   submitDocumentEvent(input: {
     eventId: string;
@@ -45,6 +47,20 @@ class SandboxDianProvider implements DianProvider {
         invoiceId: input.invoiceId,
         queuedAt: new Date().toISOString(),
         message: "Pendiente de proveedor tecnológico y credenciales de habilitación.",
+      },
+    };
+  }
+
+  async submitPosDocument(input: { invoiceId: string; organizationId: string }): Promise<DianSubmission> {
+    return {
+      accepted: false,
+      status: "QUEUED",
+      providerResponse: {
+        mode: "sandbox",
+        documentType: "POS",
+        invoiceId: input.invoiceId,
+        queuedAt: new Date().toISOString(),
+        message: "Documento equivalente POS pendiente de proveedor tecnológico y resolución POS.",
       },
     };
   }

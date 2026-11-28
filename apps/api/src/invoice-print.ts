@@ -103,6 +103,7 @@ export function registerInvoicePrintRoutes(app: FastifyInstance) {
           invoice: {
             id: invoice.id,
             number,
+            documentType: invoice.documentType,
             status: invoice.status,
             dianStatus: invoice.dianStatus,
             cufe: invoice.cufe,

@@ -28,6 +28,10 @@ export type ReportDocument<T> = {
   rows: T[];
   totals: [label: string, value: string][];
   fileName: string;
+  /** Solo Excel: nombre de la hoja del detalle (por defecto, el título). */
+  sheetName?: string;
+  /** Solo Excel: hoja adicional al inicio (p. ej. RESUMEN) con pares concepto–valor; los números van como números. */
+  summarySheet?: { name: string; rows: [label: string, value: string | number, money?: boolean][] };
 };
 
 export type ExportFormat = "csv" | "xlsx" | "pdf";
@@ -70,7 +74,19 @@ function toCsv<T>(doc: ReportDocument<T>) {
 async function toXlsx<T>(doc: ReportDocument<T>) {
   const { default: ExcelJS } = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(doc.title.slice(0, 31)); // Excel limita el nombre a 31 caracteres
+  if (doc.summarySheet) {
+    const summary = workbook.addWorksheet(doc.summarySheet.name.slice(0, 31));
+    for (const [label, value] of headerLines(doc)) summary.addRow([label, value]).getCell(1).font = { bold: true };
+    summary.addRow([]);
+    for (const [label, value, money] of doc.summarySheet.rows) {
+      const row = summary.addRow([label, money ? Number(value) : value]);
+      row.getCell(1).font = { bold: true };
+      if (money) row.getCell(2).numFmt = "#,##0.00";
+    }
+    summary.getColumn(1).width = 34;
+    summary.getColumn(2).width = 22;
+  }
+  const sheet = workbook.addWorksheet((doc.sheetName ?? doc.title).slice(0, 31)); // Excel limita el nombre a 31 caracteres
   for (const [label, value] of headerLines(doc)) {
     const row = sheet.addRow([label, value]);
     row.getCell(1).font = { bold: true };

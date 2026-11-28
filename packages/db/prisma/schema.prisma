@@ -53,6 +53,7 @@ enum ElectronicDocumentKind {
   DEBIT_NOTE
   SUPPORT_DOCUMENT
   SUPPORT_ADJUSTMENT
+  POS_EQUIVALENT
 }
 
 /// Estado de la transmisión ante la DIAN.
@@ -617,6 +618,8 @@ model Invoice {
   dueDate             DateTime?                @db.Date
   status              InvoiceStatus            @default(DRAFT)
   paymentTerm         PaymentTerm              @default(CASH)
+  /// FE = factura electrónica de venta; POS = documento equivalente electrónico POS (mismo motor tributario).
+  documentType        String                   @default("FE")
   currency            String                   @default("COP")
   exchangeRate        Decimal?                 @db.Decimal(18, 6)
   paymentMethodCode   String?

@@ -37,6 +37,7 @@ type PrintData = {
   };
   invoice: {
     number: string;
+    documentType?: "FE" | "POS";
     dianStatus: string;
     cufe: string | null;
     issueDate: string;
@@ -162,7 +163,7 @@ ${org.tradeName ? `<div>${esc(org.legalName)}</div>` : ""}
 <div>NIT ${esc(nit(org.nit, org.verificationDigit))}</div>
 ${org.address ? `<div>${esc(org.address)}</div>` : ""}
 ${org.phone ? `<div>Tel. ${esc(org.phone)}</div>` : ""}
-<h2>FACTURA ELECTRÓNICA DE VENTA</h2>
+<h2>${invoice.documentType === "POS" ? "DOCUMENTO EQUIVALENTE ELECTRÓNICO POS" : "FACTURA ELECTRÓNICA DE VENTA"}</h2>
 <div><b>No. ${esc(invoice.number)}</b></div>
 </div>
 <hr>
@@ -225,7 +226,7 @@ ${org.tradeName ? `<div>${esc(org.tradeName)}</div>` : ""}
 ${org.address ? `<div>${esc(org.address)}</div>` : ""}
 ${[org.phone, org.email].filter(Boolean).length ? `<div>${esc([org.phone, org.email].filter(Boolean).join(" · "))}</div>` : ""}
 </div>
-<div class="title"><b>FACTURA ELECTRÓNICA DE VENTA</b><strong>No. ${esc(invoice.number)}</strong><div>Fecha: ${esc(dateTime(invoice.issuedAt))}</div>${invoice.dueDate ? `<div>Vence: ${esc(shortDate(invoice.dueDate))}</div>` : ""}</div>
+<div class="title"><b>${invoice.documentType === "POS" ? "DOCUMENTO EQUIVALENTE ELECTRÓNICO POS" : "FACTURA ELECTRÓNICA DE VENTA"}</b><strong>No. ${esc(invoice.number)}</strong><div>Fecha: ${esc(dateTime(invoice.issuedAt))}</div>${invoice.dueDate ? `<div>Vence: ${esc(shortDate(invoice.dueDate))}</div>` : ""}</div>
 </header>
 <div class="boxes">
 <div class="box"><h3>Adquiriente</h3><div><b>${esc(customer.legalName)}</b></div><div>${esc(customer.identificationType)} ${esc(nit(customer.identificationNumber, customer.verificationDigit))}</div>${customer.address ? `<div>${esc(customer.address)}</div>` : ""}${[customer.phone, customer.email].filter(Boolean).length ? `<div>${esc([customer.phone, customer.email].filter(Boolean).join(" · "))}</div>` : ""}</div>
@@ -279,7 +280,16 @@ export function printHtml(html: string) {
 const WIDTH_KEY = "betel.posPaperWidth";
 
 /** «¿Cómo quieres imprimir?»: factura POS en tirilla o factura electrónica en carta. */
-export function InvoicePrintDialog({ invoiceId, onClose }: { invoiceId: string; onClose: () => void }) {
+export function InvoicePrintDialog({
+  invoiceId,
+  onClose,
+  preferred = "LETTER",
+}: {
+  invoiceId: string;
+  onClose: () => void;
+  /** Formato sugerido: POS (tirilla) para el documento equivalente POS, carta para la factura electrónica. */
+  preferred?: PrintFormat;
+}) {
   const [data, setData] = useState<PrintData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [width, setWidth] = useState<PaperWidth>("80");
@@ -319,7 +329,7 @@ export function InvoicePrintDialog({ invoiceId, onClose }: { invoiceId: string; 
           </p>
         )}
         <div className="print-choices">
-          <section className="print-choice">
+          <section className={preferred === "POS" ? "print-choice is-preferred" : "print-choice"}>
             <div className="print-icon is-pos" aria-hidden="true">
               <span />
             </div>
@@ -348,7 +358,7 @@ export function InvoicePrintDialog({ invoiceId, onClose }: { invoiceId: string; 
               {printing === "POS" ? "Abriendo impresión…" : "🖨 Imprimir tirilla"}
             </button>
           </section>
-          <section className="print-choice">
+          <section className={preferred === "LETTER" ? "print-choice is-preferred" : "print-choice"}>
             <div className="print-icon is-letter" aria-hidden="true">
               <span />
             </div>

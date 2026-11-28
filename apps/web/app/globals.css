@@ -8442,3 +8442,74 @@ button.mass-button:disabled {
   background: #fde8e6;
   color: #b3261e;
 }
+
+/* ── Reporte de facturación › Detalle tributario (components/billing-report-tax-detail.tsx) ── */
+.tax-detail-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
+.tax-detail-filters .field {
+  min-width: 150px;
+}
+.tax-detail-customer {
+  min-width: 260px;
+  flex: 1 1 260px;
+}
+.tax-detail-export {
+  height: 38px;
+  margin-left: auto;
+}
+.tax-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.tax-kpis div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #dfe8f3;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+.tax-kpis span {
+  color: #506176;
+  font-size: 12px;
+}
+.tax-kpis b {
+  font-size: 17px;
+  color: #0f2d5c;
+}
+.tax-kpis .is-strong {
+  border-color: #b9d4f5;
+  background: linear-gradient(135deg, #eef5ff, #ffffff);
+}
+.tax-detail-table td small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.tax-detail-table td.is-negative {
+  color: #c0392b;
+}
+.tax-detail-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  color: #506176;
+  font-size: 13px;
+}
+.tax-detail-pager button {
+  height: 34px;
+  padding: 0 12px;
+}
+.print-choice.is-preferred {
+  border-color: #1d6fe0;
+  box-shadow: 0 8px 22px #1d6fe01f;
+}

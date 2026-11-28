@@ -260,6 +260,8 @@ export const createInvoiceSchema = z
     internalNotes: z.string().max(2000).optional(),
     lines: z.array(invoiceLineSchema).min(1),
     aiu: invoiceAiuSchema.optional(), // Solo si la factura incluye AIU
+    /** FE = factura electrónica de venta; POS = documento equivalente electrónico POS (mismo motor tributario). */
+    documentType: z.enum(["FE", "POS"]).default("FE"),
   })
   .superRefine((value, context) => {
     if (value.paymentMethod === "CASH" && !value.paymentMethodCode)

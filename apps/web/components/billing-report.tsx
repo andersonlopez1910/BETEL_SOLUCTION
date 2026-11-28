@@ -21,10 +21,12 @@ import { PortfolioReport } from "./billing-report-portfolio";
 import { QuotesReport } from "./billing-report-quotes";
 import { RecurringReport } from "./billing-report-recurring";
 import { SalesReport } from "./billing-report-sales";
+import { TaxDetailReport } from "./billing-report-tax-detail";
 
 /** [slug de la URL, nombre de la pestaña, módulo de origen que falta (si aplica)]. Orden y nombres definitivos. */
 const reportTabs = [
   ["ventas", "Ventas", null],
+  ["detalle-tributario", "Detalle tributario", null],
   ["recaudos", "Recaudos", null],
   ["gestion-cobro", "Gestión de cobro cartera Betel", null],
   ["cotizaciones", "Cotizaciones", null],
@@ -54,6 +56,7 @@ export function BillingReport() {
         ))}
       </nav>
       {slug === "ventas" && <SalesReport />}
+      {slug === "detalle-tributario" && <TaxDetailReport />}
       {slug === "recaudos" && <CollectionsReport />}
       {slug === "gestion-cobro" && <PaymentsReport />}
       {slug === "cotizaciones" && <QuotesReport />}

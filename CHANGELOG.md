@@ -6,6 +6,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Parametrización tributaria integral** (ver `docs/parametrizacion-tributaria.md`): motor tributario único
+  (`@betel/contracts/tax-engine`) para costo con o sin IVA, IVA descontable, costo contable, precio con o sin
+  impuesto, IVA 19/5, exento, excluido, no gravado, INC y sin impuesto. Formulario de producto y servicio por
+  secciones con resumen en tiempo real; importación de 22 columnas con vista previa; exportación con lo digitado y
+  lo calculado; factura que carga la configuración y no suma el IVA dos veces; fotografía tributaria por renglón;
+  documento equivalente POS con el mismo motor; INC contabilizado en 246405; Reporte de facturación › Detalle
+  tributario con KPI, filtros y Excel RESUMEN/DETALLE.
 - **Permisos editables por rol** (Configuración › Usuarios y permisos): el propietario marca o desmarca qué puede
   hacer cada rol (19 permisos: facturas, cotizaciones, recibos, compras, inventario, nómina, contabilidad, reportes,
   descargas, configuración, usuarios…), guarda o restablece los predeterminados. La API valida cada ruta con
