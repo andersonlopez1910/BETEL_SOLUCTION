@@ -300,7 +300,19 @@ export function registerCostingRoutes(app: FastifyInstance, options: { auditIp: 
         { length: today.getUTCFullYear() - firstYear + 1 },
         (_, index) => today.getUTCFullYear() - index
       );
-      return { data: { year, years: years.length ? years : [year], months } };
+      const settings = await tx.organization.findUniqueOrThrow({
+        where: { id: request.actor!.organizationId },
+        select: { costingMode: true, costingAutomaticFrom: true },
+      });
+      return {
+        data: {
+          year,
+          years: years.length ? years : [year],
+          months,
+          mode: settings.costingMode,
+          automaticFrom: settings.costingAutomaticFrom?.toISOString().slice(0, 10) ?? null,
+        },
+      };
     });
   });
 
@@ -316,6 +328,20 @@ export function registerCostingRoutes(app: FastifyInstance, options: { auditIp: 
       if (monthStart(year, month) > today) return reply.code(422).send({ error: "No se puede costear un mes futuro." });
       const actor = request.actor!;
       const result = await withOrganizationScope(actor.organizationId, async tx => {
+        // En costeo automático (kardex.ts) el costo de ventas se contabiliza con cada venta desde costingAutomaticFrom.
+        const organization = await tx.organization.findUniqueOrThrow({
+          where: { id: actor.organizationId },
+          select: { costingMode: true, costingAutomaticFrom: true },
+        });
+        if (
+          organization.costingMode === "AUTOMATIC" &&
+          organization.costingAutomaticFrom &&
+          monthStart(year, month) >= organization.costingAutomaticFrom
+        )
+          throw httpError(
+            409,
+            `El costeo es automático desde ${organization.costingAutomaticFrom.toISOString().slice(0, 10)}: el costo de ventas de ese período se contabiliza con cada venta. Usa «Recalcular kárdex».`
+          );
         // Una sola ejecución a la vez por organización y mes.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`costing:${actor.organizationId}:${monthKey(year, month)}`}))`;
         const until = monthEnd(year, month);

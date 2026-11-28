@@ -80,6 +80,7 @@ import { registerPurchaseImportRoutes } from "./purchase-imports.js";
 import { registerProductRoutes } from "./products.js";
 import { registerInventoryRoutes } from "./inventory.js";
 import { registerCostingRoutes } from "./costing.js";
+import { kardexShortages, registerKardexRoutes, syncKardex } from "./kardex.js";
 import { registerBankRoutes } from "./banks.js";
 import { registerPayrollRoutes } from "./payroll.js";
 import { registerLedgerRoutes } from "./ledger.js";
@@ -900,6 +901,16 @@ app.post<{ Params: { id: string } }>(
           pdfVersion: 4,
         },
       });
+      // Costeo automático: la venta sale al costo del kárdex y contabiliza su costo de ventas (CMV-<documento>-1).
+      const kardex = await syncKardex(tx, actor.organizationId, invoice.lines.map(line => line.productId));
+      const shortages = kardex ? kardexShortages(kardex, invoice.id) : [];
+      if (shortages.length)
+        throw Object.assign(
+          new Error(
+            `Sin existencias suficientes: ${shortages.map(item => `${item.name} (faltan ${item.missing})`).join(", ")}. Registra la compra o un ajuste de inventario, o permite inventario negativo en el producto.`
+          ),
+          { statusCode: 422 }
+        );
       await tx.electronicEvent.create({
         data: {
           organizationId: actor.organizationId,
@@ -1220,6 +1231,7 @@ registerPurchaseImportRoutes(app, { auditIp });
 registerProductRoutes(app, { auditIp });
 registerInventoryRoutes(app, { auditIp });
 registerCostingRoutes(app, { auditIp });
+registerKardexRoutes(app, { auditIp });
 registerBankRoutes(app, { auditIp });
 registerPayrollRoutes(app, { auditIp });
 registerLedgerRoutes(app, { auditIp });

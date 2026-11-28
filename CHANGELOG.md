@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Agregado
 
+- **Costeo automático y kárdex** (ver `docs/costeo-automatico.md`): en Productos y servicios › Costeo se elige
+  el modo _Mensual_ o _Automático_. En automático, cada saldo inicial, compra, ajuste, venta (FE o POS) o anulación
+  recalcula el kárdex de sus productos por promedio ponderado o PEPS (según el producto), guarda el costo de cada
+  renglón vendido y contabiliza el costo de ventas de cada venta (613505 / 143505, `CMV-<documento>-n`); si un
+  documento con fecha anterior cambia un costo, se contabiliza solo la diferencia. Botón «Recalcular kárdex»,
+  pantalla Kárdex por producto (`/productos/kardex`, con descarga) y bloqueo de ventas sin existencias salvo que el
+  producto permita inventario negativo. Rutas `GET/PUT /v1/costing/settings`, `POST /v1/costing/kardex/recalculate`
+  y `GET /v1/products/:id/kardex`; migración `20261215000000_automatic_costing`. Por defecto sigue el costeo
+  mensual.
 - **Parametrización tributaria integral** (ver `docs/parametrizacion-tributaria.md`): motor tributario único
   (`@betel/contracts/tax-engine`) para costo con o sin IVA, IVA descontable, costo contable, precio con o sin
   impuesto, IVA 19/5, exento, excluido, no gravado, INC y sin impuesto. Formulario de producto y servicio por
@@ -166,6 +175,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Corregido
 
+- Los valores con dos decimales como 2.521,01 o 0,29 se rechazaban como «máximo dos decimales» por redondeo de
+  coma flotante (costo de documentos de inventario y otros montos). Ahora se validan con tolerancia.
 - Nómina: las provisiones de intereses sobre cesantías, prima y vacaciones usan sus cuentas del PUC (251505, 252005 y
   252505) en lugar de subcuentas de 2510 Cesantías.
 - Los errores de negocio de la API (p. ej. factura del proveedor repetida, evento fuera de orden, pago mayor al

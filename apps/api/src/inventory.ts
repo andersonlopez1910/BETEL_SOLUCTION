@@ -30,6 +30,7 @@ import {
 } from "@betel/contracts";
 import { allowPermission, type MembershipRole } from "./auth.js";
 import { assertBalanced, ensureDefaultAccounts } from "./accounting.js";
+import { syncKardex } from "./kardex.js";
 import { EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, todayIn } from "./reports.js";
 
 type Tx = Prisma.TransactionClient;
@@ -288,6 +289,8 @@ export async function createInventoryDocument(
       },
     });
   }
+  // Costeo automático: el saldo inicial o el ajuste recalcula el kárdex de sus productos.
+  await syncKardex(tx, actor.organizationId, body.lines.map(line => line.productId));
   return { ...created, display: inventoryNumber(body.type, number), values };
 }
 
@@ -481,7 +484,7 @@ export function registerInventoryRoutes(app: FastifyInstance, options: { auditIp
     const voided = await withOrganizationScope(request.actor!.organizationId, async tx => {
       const document = await tx.inventoryDocument.findFirst({
         where: { id: request.params.id, status: "ACTIVE" },
-        include: { lines: { select: { direction: true, total: true } } },
+        include: { lines: { select: { direction: true, total: true, productId: true } } },
       });
       if (!document) return null;
       const values = {
@@ -520,6 +523,7 @@ export function registerInventoryRoutes(app: FastifyInstance, options: { auditIp
         where: { id: document.id },
         data: { status: "VOID", voidReason: parsed.data.reason },
       });
+      await syncKardex(tx, request.actor!.organizationId, document.lines.map(line => line.productId));
       await audit(tx, request, document.id, "VOID", { reason: parsed.data.reason });
       return display;
     });

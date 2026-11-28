@@ -278,6 +278,10 @@ model Organization {
   receiptFooter         String?
   /// Permisos editados por rol (Configuración › Usuarios y permisos): { ROL: { permiso: true|false } }. null = valores por defecto (apps/api/src/permissions.ts).
   rolePermissions       Json?
+  /// Costeo de inventario: MONTHLY (Costeo mensual, se calcula a mano) o AUTOMATIC (kárdex permanente: cada compra,
+  /// ajuste y venta recalcula el costo y contabiliza el costo de ventas por factura desde costingAutomaticFrom).
+  costingMode           String                 @default("MONTHLY")
+  costingAutomaticFrom  DateTime?              @db.Date
   economicActivityCode  String?
   economicActivityName  String?
   secondaryActivities   Json?
@@ -536,6 +540,8 @@ model Product {
   saleVat               Decimal  @default(0) @db.Decimal(18, 2)
   saleInc               Decimal  @default(0) @db.Decimal(18, 2)
   finalPrice            Decimal  @default(0) @db.Decimal(18, 2)
+  /// Costo unitario vigente según el kárdex (promedio ponderado o PEPS); lo actualiza apps/api/src/kardex.ts.
+  averageCost           Decimal  @default(0) @db.Decimal(18, 4)
   organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoiceLines   InvoiceLine[]
   quoteLines     QuoteLine[]
@@ -769,6 +775,8 @@ model InvoiceLine {
   priceIncludesTax Boolean @default(false)
   saleTaxTreatment String?
   unitAccountingCost Decimal? @db.Decimal(18, 2)
+  /// Costo total del renglón según el kárdex (costeo automático).
+  costTotal    Decimal? @db.Decimal(18, 2)
   invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product      Product? @relation(fields: [productId], references: [id])
   taxes        InvoiceLineTax[]

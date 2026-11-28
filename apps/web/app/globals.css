@@ -6926,6 +6926,92 @@ button.mass-button:disabled {
   text-decoration: none;
 }
 
+/* ── Modo de costeo y kárdex (components/kardex.tsx) ── */
+.costing-mode {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfdff, #f5f9fe);
+}
+.costing-mode-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.costing-mode-head > div:first-child {
+  flex: 1 1 420px;
+}
+.costing-mode h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.costing-mode p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.costing-mode p b {
+  color: var(--ink);
+}
+.costing-mode .financial-switch button {
+  min-width: 96px;
+  font-size: 12px;
+}
+.costing-mode .financial-switch button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.costing-mode-confirm {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #f5d48a;
+  border-radius: 10px;
+  background: #fffaf0;
+}
+.costing-mode-confirm p {
+  color: var(--ink);
+}
+.costing-actions > small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.kardex-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.kardex-product {
+  flex: 1 1 320px;
+}
+.kardex-product input {
+  margin-bottom: 6px;
+}
+.kardex-head {
+  margin: 6px 0 12px;
+}
+.statement-kpis small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.kardex-table {
+  min-width: 960px;
+}
+.kardex-table td small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 /* ── Cajas y bancos (components/banks.tsx) ── */
 .banks-date {
   width: 200px;

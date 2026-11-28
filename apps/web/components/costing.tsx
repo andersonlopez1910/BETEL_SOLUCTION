@@ -14,6 +14,7 @@ import { apiPost } from "../lib/api";
 import type { ExportFormat, ReportColumn } from "../lib/report-export";
 import { ActionMenu } from "./action-menu";
 import { exportFromApi, money, ReportStatus, useReport, useSession } from "./billing-report-common";
+import { CostingModeCard, type CostingMode } from "./kardex";
 import { newInventoryHref } from "./product-documents";
 
 type Status = "NONE" | "DONE" | "OUTDATED" | "FUTURE";
@@ -27,7 +28,9 @@ type Run = {
   negativeCount: number;
 };
 type MonthRow = { month: number; status: Status; current: boolean; run: Run | null };
-type CostingResponse = { data: { year: number; years: number[]; months: MonthRow[] } };
+type CostingResponse = {
+  data: { year: number; years: number[]; months: MonthRow[]; mode: CostingMode; automaticFrom: string | null };
+};
 
 export const monthNames = [
   "Enero",
@@ -98,8 +101,13 @@ export function MonthlyCosting() {
     }
   };
 
+  // En costeo automático los meses desde su activación se costean solos, venta por venta.
+  const automaticMonth = (month: number) =>
+    !!data?.automaticFrom && `${data.year}-${String(month).padStart(2, "0")}-01` >= data.automaticFrom;
+
   return (
     <section className="panel costing-panel">
+      {data && <CostingModeCard mode={data.mode} automaticFrom={data.automaticFrom} onChanged={report.reload} />}
       <div className="events-info costing-info" role="note">
         <span className="events-info-icon" aria-hidden="true">
           i
@@ -186,25 +194,33 @@ export function MonthlyCosting() {
                     )}
                   </td>
                   <td>
-                    <span className={statusBadges[row.status]}>{statusLabels[row.status]}</span>
+                    {automaticMonth(row.month) && row.status !== "FUTURE" ? (
+                      <span className="pay-badge is-ok">Automático</span>
+                    ) : (
+                      <span className={statusBadges[row.status]}>{statusLabels[row.status]}</span>
+                    )}
                   </td>
                   <td>
                     <div className="costing-actions">
-                      <button
-                        type="button"
-                        className={row.status === "OUTDATED" ? "primary" : "secondary"}
-                        disabled={row.status === "FUTURE" || !canCalculate || busy !== null}
-                        title={
-                          row.status === "FUTURE"
-                            ? "Este mes aún no ha empezado"
-                            : canCalculate
-                              ? undefined
-                              : "Tu rol no permite calcular el costeo"
-                        }
-                        onClick={() => calculate(row.month)}
-                      >
-                        {busy === row.month ? "Calculando…" : row.run ? "Recalcular costeo" : "Calcular costeo"}
-                      </button>
+                      {automaticMonth(row.month) ? (
+                        <small>{row.status === "FUTURE" ? "—" : "Se costea con cada venta"}</small>
+                      ) : (
+                        <button
+                          type="button"
+                          className={row.status === "OUTDATED" ? "primary" : "secondary"}
+                          disabled={row.status === "FUTURE" || !canCalculate || busy !== null}
+                          title={
+                            row.status === "FUTURE"
+                              ? "Este mes aún no ha empezado"
+                              : canCalculate
+                                ? undefined
+                                : "Tu rol no permite calcular el costeo"
+                          }
+                          onClick={() => calculate(row.month)}
+                        >
+                          {busy === row.month ? "Calculando…" : row.run ? "Recalcular costeo" : "Calcular costeo"}
+                        </button>
+                      )}
                       {row.run && (
                         <Link href={costingDetailHref(data.year, row.month)} className="secondary">
                           Ver detalle

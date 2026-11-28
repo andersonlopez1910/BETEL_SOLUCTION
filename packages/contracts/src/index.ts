@@ -583,7 +583,7 @@ export const collectionReportQuerySchema = z
 const amount = z.coerce
   .number()
   .positive("El valor debe ser mayor que cero.")
-  .refine(value => Math.round(value * 100) === value * 100, "Máximo dos decimales.");
+  .refine(value => Math.abs(Math.round(value * 100) - value * 100) < 1e-6, "Máximo dos decimales.");
 
 /**
  * Recibo de caja: dinero recibido de un cliente que abona a una o varias de sus facturas a crédito.
@@ -1041,7 +1041,8 @@ const inventoryLineSchema = z.object({
   unitCost: z.coerce
     .number()
     .nonnegative("El costo no puede ser negativo.")
-    .refine(value => Math.round(value * 100) === value * 100, "El costo admite máximo dos decimales."),
+    // Tolerancia de coma flotante: 2521.01 × 100 = 252100.99999… y debe aceptarse.
+    .refine(value => Math.abs(Math.round(value * 100) - value * 100) < 1e-6, "El costo admite máximo dos decimales."),
 });
 
 /** Saldo inicial (solo entradas) o ajuste de inventario. Un producto aparece una sola vez por documento. */
@@ -1118,7 +1119,7 @@ const percent = z.coerce.number().min(0, "No puede ser negativo.").max(100, "Má
 const nonNegativeMoney = z.coerce
   .number()
   .nonnegative("No puede ser negativo.")
-  .refine(value => Math.round(value * 100) === value * 100, "Máximo dos decimales.");
+  .refine(value => Math.abs(Math.round(value * 100) - value * 100) < 1e-6, "Máximo dos decimales.");
 
 /** Parámetros legales de un año (Nómina › Parámetros). */
 export const payrollSettingsSchema = z.object({
@@ -1252,7 +1253,7 @@ export const journalQuerySchema = z
 const entryAmount = z.coerce
   .number()
   .nonnegative()
-  .refine(value => Math.round(value * 100) === value * 100, "Máximo dos decimales.");
+  .refine(value => Math.abs(Math.round(value * 100) - value * 100) < 1e-6, "Máximo dos decimales.");
 
 /** Comprobante contable manual (CC-n): débitos = créditos, cada renglón con débito o crédito. */
 export const manualEntrySchema = z

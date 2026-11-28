@@ -16,6 +16,7 @@ import { apiDelete, apiGet, apiPost, apiPut } from "../lib/api";
 import { downloadText, readSpreadsheet } from "../lib/spreadsheet";
 import type { ReportColumn } from "../lib/report-export";
 import { ActionMenu } from "./action-menu";
+import { kardexHref } from "./kardex";
 import {
   date,
   defaultPeriod,
@@ -577,6 +578,9 @@ function ProductManagement({ openCreate = false }: { openCreate?: boolean }) {
                             className="secondary split-toggle"
                             items={[
                               { label: "Ver detalle", onSelect: () => setDialog({ kind: "detail", row }) },
+                              ...(row.kind === "PRODUCT"
+                                ? [{ label: "Ver kárdex", note: "Entradas, salidas y costo", href: kardexHref(row.id) }]
+                                : []),
                               {
                                 label: "Duplicar",
                                 disabled: !canEdit,

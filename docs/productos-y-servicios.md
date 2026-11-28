@@ -24,6 +24,7 @@ cotizaciones, remisiones, facturas recurrentes y compras.
 | Gestión de productos / servicios    | `/productos?tab=gestion`    | Funcional: lista, filtros, crear, editar, importar, activar, eliminar.       |
 | Documentos de productos / servicios | `/productos?tab=documentos` | Funcional: saldo inicial y ajustes de inventario (crear, importar, anular).  |
 | Costeo mensual                      | `/productos?tab=costeo`     | Funcional: costo promedio ponderado mensual y costo de ventas contabilizado. |
+| Kárdex y costeo automático          | `/productos/kardex`         | Funcional: kárdex por producto; modo automático en `docs/costeo-automatico.md`. |
 
 ## Gestión de productos / servicios
 
@@ -88,6 +89,8 @@ Comprobante, Fecha elaboración, Identificación, Sucursal, Tercero, Total y Mon
 - Los documentos vigentes suman o restan en el **stock** de Gestión de productos.
 
 ## Costeo mensual
+
+> Modo automático (kárdex permanente, costo de ventas por venta): ver `docs/costeo-automatico.md`.
 
 Calcula, por mes, el **costo promedio ponderado** de cada producto y el **costo de lo vendido**, y lo contabiliza.
 

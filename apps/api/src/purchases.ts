@@ -30,6 +30,7 @@ import {
 import { allowPermission } from "./auth.js";
 import { assertBalanced, calculateDocumentTotals, ensureDefaultAccounts } from "./accounting.js";
 import { RECEIPT_ROLES } from "./collections.js";
+import { syncKardex } from "./kardex.js";
 import { EXPORT_LIMIT, REPORT_EXPORT_ROLES, REPORT_VIEW_ROLES, resolvePeriod } from "./reports.js";
 
 type Tx = Prisma.TransactionClient;
@@ -160,6 +161,8 @@ export async function createPurchaseDocument(
       lines: { create: lines },
     },
   });
+  // Costeo automático: la compra cambia el costo promedio (o las capas PEPS) de sus productos.
+  await syncKardex(tx, actor.organizationId, body.lines.map(line => line.productId));
   return created;
 }
 
@@ -526,6 +529,8 @@ export function registerPurchaseRoutes(app: FastifyInstance, options: { auditIp:
         where: { id: document.id },
         data: { status: "VOID", voidReason: parsed.data.reason },
       });
+      const voidedLines = await tx.purchaseLine.findMany({ where: { purchaseDocumentId: document.id }, select: { productId: true } });
+      await syncKardex(tx, actor.organizationId, voidedLines.map(line => line.productId));
       await audit(tx, request, document.id, "VOID", { reason: parsed.data.reason });
       return updated;
     });
