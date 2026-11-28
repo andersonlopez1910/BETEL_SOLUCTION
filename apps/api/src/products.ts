@@ -247,7 +247,8 @@ async function loadProducts(tx: Tx, query: ProductQuery, rows: { skip: number; t
           (product.inventoryConfig?.controlled && (!product.accountingConfig?.inventoryAccountId || !product.accountingConfig?.costOfSalesAccountId))
             ? "INCOMPLETE"
             : "READY",
-        priceWithTax: product.unitPrice.times(product.taxRate.dividedBy(100).plus(1)).toDecimalPlaces(2).toFixed(2),
+        // Precio final calculado por el motor tributario (incluye IVA e INC).
+        priceWithTax: product.finalPrice.isZero() && !product.unitPrice.isZero() ? product.unitPrice.times(product.taxRate.dividedBy(100).plus(1)).toDecimalPlaces(2).toFixed(2) : product.finalPrice.toFixed(2),
         active: product.active,
         stock: service
           ? null
